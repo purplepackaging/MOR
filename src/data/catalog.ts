@@ -189,7 +189,7 @@ export const categories: Category[] = [
       "Tek kullanımlık eldiven, bone ve önlükler.",
       "قفازات للاستعمال مرة واحدة وأغطية شعر ومرايل.",
     ),
-    icon: "glove",
+    image: "nitrile-gloves",
   },
   {
     id: "cleaning",
@@ -276,7 +276,7 @@ export const products: Product[] = [
     slug: "hot-cups",
     category: "cups-lids",
     name: t("Paper hot cups", "Vasos de papel para bebidas calientes", "Kâğıt sıcak içecek bardakları", "أكواب ورقية للمشروبات الساخنة"),
-    icon: "hotCup",
+    image: "hot-cups",
     material: M.paper,
     goesWith: ["hot-cup-lids", "cup-carriers"],
     variants: [
@@ -291,7 +291,7 @@ export const products: Product[] = [
     slug: "hot-cup-lids",
     category: "cups-lids",
     name: t("Lids for hot cups", "Tapas para vasos calientes", "Sıcak bardak kapakları", "أغطية للأكواب الساخنة"),
-    icon: "hotLid",
+    image: "hot-cup-lids",
     goesWith: ["hot-cups"],
     variants: [
       { sku: "LID-HOT-08", item: I.sipLid, color: C.white, fits: "8 oz", pack: 1000 },
@@ -693,7 +693,7 @@ export const products: Product[] = [
     slug: "foil-rolls",
     category: "foil-wrap",
     name: t("Aluminum foil rolls", "Rollos de papel aluminio", "Alüminyum folyo ruloları", "لفائف ورق الألومنيوم"),
-    icon: "foilRoll",
+    image: "foil-rolls",
     material: M.aluminum,
     goesWith: ["steam-table-pans", "foil-sheets"],
     variants: [
@@ -706,7 +706,7 @@ export const products: Product[] = [
     slug: "foil-sheets",
     category: "foil-wrap",
     name: t("Pop-up foil sheets", "Hojas de aluminio", "Hazır kesim folyo yaprakları", "أوراق ألومنيوم جاهزة"),
-    icon: "foilSheets",
+    image: "foil-sheets",
     material: M.aluminum,
     goesWith: ["foil-rolls", "deli-paper"],
     variants: [
@@ -720,7 +720,7 @@ export const products: Product[] = [
     slug: "food-film",
     category: "foil-wrap",
     name: t("Plastic food film", "Plástico adherente para alimentos", "Streç film", "غشاء تغليف للطعام"),
-    icon: "film",
+    image: "food-film",
     material: M.pvc,
     goesWith: ["steam-table-pans", "party-trays"],
     variants: [
@@ -942,7 +942,7 @@ export const products: Product[] = [
     slug: "straws",
     category: "cutlery-straws",
     name: t("Straws & stirrers", "Popotes y agitadores", "Pipetler ve karıştırıcılar", "شفاطات وأعواد تقليب"),
-    icon: "straw",
+    image: "straws",
     goesWith: ["clear-cold-cups", "cold-cup-flat-lids"],
     variants: [
       { sku: "STR-J22C", item: t("Jumbo straw, wrapped", "Popote jumbo, envuelto", "Jumbo pipet, paketli", "شفاطة جامبو مغلفة"), size: "7.75 in", color: C.clear, pack: 12000 },
@@ -1110,7 +1110,7 @@ export const products: Product[] = [
     slug: "nitrile-gloves",
     category: "gloves-safety",
     name: t("Nitrile gloves", "Guantes de nitrilo", "Nitril eldivenler", "قفازات نتريل"),
-    icon: "glove",
+    image: "nitrile-gloves",
     material: M.nitrile,
     goesWith: ["hair-beard-covers", "aprons"],
     variants: [
@@ -1140,7 +1140,7 @@ export const products: Product[] = [
     slug: "hair-beard-covers",
     category: "gloves-safety",
     name: t("Hair and beard covers", "Cofias y cubrebarbas", "Bone ve sakal bonesi", "أغطية الشعر واللحية"),
-    icon: "cap",
+    image: "hair-beard-covers",
     goesWith: ["nitrile-gloves", "aprons"],
     variants: [
       { sku: "HRC-BF", item: t("Bouffant cap", "Cofia", "Bone", "غطاء شعر"), size: oneSize, pack: null },
@@ -1151,7 +1151,7 @@ export const products: Product[] = [
     slug: "aprons",
     category: "gloves-safety",
     name: t("Poly aprons", "Mandiles de plástico", "Plastik önlükler", "مرايل بلاستيكية"),
-    icon: "apron",
+    image: "aprons",
     material: M.poly,
     goesWith: ["nitrile-gloves", "hair-beard-covers"],
     variants: [
@@ -1180,7 +1180,7 @@ export const products: Product[] = [
     slug: "cleaning-chemicals",
     category: "cleaning",
     name: t("Cleaning chemicals", "Químicos de limpieza", "Temizlik kimyasalları", "مواد التنظيف"),
-    icon: "jug",
+    image: "cleaning-chemicals",
     goesWith: ["can-liners", "hand-soap"],
     variants: [
       { sku: "CHM-BLE", item: t("Bleach", "Cloro", "Çamaşır suyu", "مُبيّض (كلور)"), pack: 6, packText: "6 × 1 gal" },

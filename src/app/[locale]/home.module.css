@@ -23,22 +23,29 @@
   margin-top: var(--s-2);
 }
 
+/*
+ * Hero art: a lilac panel styled like a takeout spread, with the order ticket
+ * pinned over its lower corner and hanging past the panel edge.
+ */
+.artWrap {
+  position: relative;
+}
+
 .art {
   position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 520px;
-  padding: 56px 24px;
+  min-height: 360px;
   border-radius: var(--r-l);
   background: var(--lilac);
   overflow: hidden;
   isolation: isolate;
 }
 
+/* Phones: the ticket overlaps the bottom of the panel. Desktop: it hangs off the corner. */
 .ticketSlot {
   position: relative;
-  z-index: 2;
-  width: min(100%, 360px);
+  z-index: 4;
+  width: min(86%, 320px);
+  margin: -96px auto 0;
 }
 
 .cut {
@@ -46,27 +53,36 @@
   z-index: 1;
   height: auto;
   pointer-events: none;
+  filter: drop-shadow(0 18px 18px rgb(35 23 46 / 0.16));
 }
 
-.cutCup {
-  width: 132px;
-  top: 28px;
-  inset-inline-end: 6%;
-  transform: rotate(6deg);
-}
-
-.cutBox {
-  width: 220px;
-  bottom: -18px;
-  inset-inline-start: -28px;
+.cutKebab {
+  width: 58%;
+  top: -2%;
+  inset-inline-start: -6%;
   transform: rotate(-8deg);
 }
 
-.cutBowl {
-  width: 200px;
-  bottom: 22px;
-  inset-inline-end: -36px;
-  z-index: 3;
+.cutTacos {
+  width: 56%;
+  top: 6%;
+  inset-inline-end: -9%;
+  transform: rotate(9deg);
+}
+
+.cutSalad {
+  width: 40%;
+  top: 37%;
+  inset-inline-start: 4%;
+  z-index: 2;
+}
+
+[dir="rtl"] .cutKebab {
+  transform: rotate(8deg);
+}
+
+[dir="rtl"] .cutTacos {
+  transform: rotate(-9deg);
 }
 
 @media (min-width: 900px) {
@@ -78,40 +94,31 @@
     display: block;
   }
   .art {
-    min-height: 600px;
+    min-height: 620px;
   }
-  .cutCup {
-    width: 170px;
-    top: 36px;
-    inset-inline-end: 8%;
+  .ticketSlot {
+    position: absolute;
+    margin: 0;
+    bottom: -56px;
+    inset-inline-start: -36px;
+    width: 340px;
   }
-  .cutBox {
-    width: 280px;
+  .cutKebab {
+    width: 56%;
+    top: -3%;
+    inset-inline-start: -5%;
   }
-  .cutBowl {
-    width: 240px;
+  .cutTacos {
+    width: 62%;
+    top: 22%;
+    inset-inline-end: -14%;
   }
-}
-
-@media (max-width: 520px) {
-  .art {
-    min-height: 0;
-    padding: 48px 18px 72px;
-  }
-  .cutCup {
-    width: 96px;
-    top: 14px;
-    inset-inline-end: 2%;
-  }
-  .cutBox {
-    width: 150px;
-    bottom: -10px;
-    inset-inline-start: -30px;
-  }
-  .cutBowl {
-    width: 150px;
-    bottom: 6px;
-    inset-inline-end: -30px;
+  .cutSalad {
+    width: 44%;
+    top: auto;
+    bottom: -6%;
+    inset-inline-start: auto;
+    inset-inline-end: -4%;
   }
 }
 
