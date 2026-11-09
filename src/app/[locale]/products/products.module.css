@@ -1,0 +1,10 @@
+.page {
+  padding-block: clamp(32px, 4vw, 64px) var(--section);
+}
+
+.head {
+  display: grid;
+  gap: var(--s-4);
+  max-width: 44rem;
+  margin-bottom: var(--s-6);
+}

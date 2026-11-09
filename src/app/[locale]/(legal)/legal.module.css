@@ -1,0 +1,55 @@
+.page {
+  padding-block: clamp(32px, 4vw, 64px) var(--section);
+}
+
+.head {
+  display: grid;
+  gap: var(--s-3);
+  max-width: 44rem;
+  margin-bottom: var(--s-7);
+  padding-bottom: var(--s-5);
+  border-bottom: 2px solid var(--ink);
+}
+
+.note {
+  justify-self: start;
+  padding: 6px 12px;
+  border-radius: var(--r-s);
+  background: var(--lilac);
+  font-size: var(--fs-small);
+}
+
+.body {
+  display: grid;
+  gap: var(--s-4);
+  max-width: 44rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  text-align: left;
+}
+
+.body h2 {
+  margin-top: var(--s-5);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-snug);
+}
+
+.body ul {
+  display: grid;
+  gap: var(--s-2);
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.body li::marker {
+  color: var(--mor);
+}
+
+.body strong {
+  font-weight: var(--w-medium);
+}
+
+.body a {
+  color: var(--mor);
+  font-weight: var(--w-medium);
+}
