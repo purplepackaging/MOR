@@ -1,0 +1,320 @@
+.page {
+  padding-block: clamp(32px, 4vw, 64px) var(--section);
+}
+
+.layout {
+  display: grid;
+  gap: var(--s-8);
+  align-items: start;
+}
+
+@media (min-width: 1000px) {
+  .layout {
+    grid-template-columns: minmax(0, 40rem) minmax(0, 1fr);
+    gap: clamp(48px, 7vw, 120px);
+  }
+  .next {
+    position: sticky;
+    top: calc(var(--header-h) + var(--s-6));
+    margin-top: 6.5rem;
+  }
+}
+
+.formWrap {
+  display: grid;
+  gap: var(--s-7);
+}
+
+.head {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.rep {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--s-2);
+  padding: 6px 14px 6px 10px;
+  border-radius: var(--r-pill);
+  background: var(--lemon);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+.notice {
+  margin-top: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-inline-start: 3px solid var(--mor);
+  border-radius: var(--r-s);
+  background: var(--mor-tint);
+  font-size: var(--fs-small);
+}
+
+.repMark {
+  width: 18px;
+  height: 18px;
+  color: var(--mor);
+}
+
+/* Form */
+
+.form {
+  display: grid;
+  gap: var(--s-7);
+}
+
+.group {
+  display: grid;
+  gap: var(--s-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--s-5);
+  padding: 0 0 var(--s-3);
+  border-bottom: 2px solid var(--ink);
+  font-size: var(--fs-h3);
+  font-weight: var(--w-medium);
+  letter-spacing: -0.01em;
+}
+
+.pair {
+  display: grid;
+  gap: var(--s-5);
+}
+
+@media (min-width: 560px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr) 10rem;
+  }
+}
+
+.short {
+  max-width: 16rem;
+}
+
+.trap {
+  position: absolute;
+  inset-inline-start: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* SMS consent */
+
+.consent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--lilac);
+}
+
+.check {
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  accent-color: var(--mor);
+  cursor: pointer;
+}
+
+.consentText {
+  display: block;
+  font-size: var(--fs-small);
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.consentLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 6px;
+  font-size: var(--fs-micro);
+}
+
+.consentLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+/* Ordering channels */
+
+.choices {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choices > legend {
+  margin-bottom: 10px;
+  padding: 0;
+}
+
+.choiceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition:
+    border-color var(--t-fast) ease,
+    background-color var(--t-fast) ease;
+}
+
+.choice:hover {
+  border-color: var(--ink-3);
+}
+
+.choice input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--mor);
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--mor);
+  background: var(--mor-tint);
+}
+
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--mor);
+  outline-offset: 2px;
+}
+
+.choice input:focus-visible {
+  outline: none;
+}
+
+.listNote {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--lilac);
+  font-size: var(--fs-small);
+}
+
+/* Submit */
+
+.submitRow {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+}
+
+.submit {
+  min-width: 12rem;
+}
+
+.failure {
+  color: var(--err);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+.spin {
+  width: 18px;
+  height: 18px;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Done */
+
+.done {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-4);
+}
+
+.done h1:focus {
+  outline: none;
+}
+
+.doneMark {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: var(--lemon);
+  color: var(--ink);
+}
+
+.doneMark svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* What happens next: a real sequence, so it is numbered. */
+
+.next {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--lilac);
+}
+
+.steps {
+  display: grid;
+  gap: var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  counter-increment: step;
+}
+
+.steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--mor);
+  font-weight: var(--w-strong);
+  font-variant-numeric: tabular-nums;
+  align-self: start;
+}

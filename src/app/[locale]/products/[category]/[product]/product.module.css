@@ -1,0 +1,241 @@
+.page {
+  padding-block: var(--s-5) var(--section);
+}
+
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 var(--s-5);
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+.crumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crumbs li + li::before {
+  content: "/";
+  color: var(--line-strong);
+}
+
+.crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.crumbs a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.layout {
+  display: grid;
+  gap: var(--s-6);
+}
+
+@media (min-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+  .media {
+    position: sticky;
+    top: calc(var(--header-h) + var(--s-5));
+  }
+}
+
+.tile {
+  border-radius: var(--r-l);
+}
+
+.tile img {
+  width: 72%;
+  height: 72%;
+}
+
+.info {
+  display: grid;
+  gap: var(--s-5);
+  align-content: start;
+}
+
+.title {
+  font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.9rem);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+.facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+}
+
+.tag {
+  background: var(--lilac);
+  border-color: var(--lilac) !important;
+  color: var(--ink);
+}
+
+.plant {
+  background: var(--ok-tint);
+  border-color: var(--ok-tint) !important;
+  color: var(--ok);
+}
+
+.plant svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Variant table */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+}
+
+.table th {
+  padding: 0 12px 10px 0;
+  border-bottom: 2px solid var(--ink);
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  text-align: start;
+  white-space: nowrap;
+}
+
+[dir="rtl"] .table th {
+  padding: 0 0 10px 12px;
+}
+
+.table td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+[dir="rtl"] .table td {
+  padding: 10px 0 10px 12px;
+}
+
+.primary {
+  font-weight: var(--w-medium);
+  color: var(--ink);
+}
+
+.compact {
+  display: none;
+}
+
+.addCell {
+  width: 1%;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover td {
+  background: linear-gradient(var(--lilac), var(--lilac));
+}
+
+/* Stacked rows on small screens */
+@media (max-width: 639px) {
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .table,
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+  }
+  .table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .table td {
+    grid-column: 1;
+    padding: 1px 0;
+    border: 0;
+  }
+  .table td[data-label]::before {
+    content: attr(data-label) ": ";
+  }
+  .table td.extra {
+    display: none;
+  }
+  .table td.primary {
+    font-size: var(--fs-body);
+  }
+  .table td.compact,
+  .table td[data-label] {
+    color: var(--ink-2);
+  }
+  .table .addCell {
+    grid-column: 2;
+    grid-row: 1 / span 6;
+    width: auto;
+    padding: 0;
+  }
+  .table tbody tr:hover td {
+    background: none;
+  }
+}
+
+.pricing {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+/* Goes with */
+
+.related {
+  display: grid;
+  gap: var(--s-5);
+  margin-top: var(--section);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.relatedGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-6) var(--s-4);
+  margin: 0;
+}
+
+@media (min-width: 760px) {
+  .relatedGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--s-6) var(--s-5);
+  }
+}

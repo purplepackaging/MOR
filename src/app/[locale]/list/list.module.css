@@ -1,0 +1,211 @@
+.band {
+  background: var(--lilac);
+}
+
+.page {
+  padding-block: clamp(32px, 4vw, 64px) var(--section);
+}
+
+.head {
+  display: grid;
+  gap: var(--s-3);
+  max-width: 44rem;
+  margin-bottom: var(--s-6);
+}
+
+.loading {
+  min-height: 360px;
+}
+
+/* Empty */
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-4);
+  max-width: 34rem;
+  padding: var(--s-7) var(--s-6);
+  border-radius: var(--r-l);
+  background: var(--paper);
+}
+
+.empty h2:focus {
+  outline: none;
+}
+
+.empty :global(.btn) {
+  margin-top: var(--s-2);
+}
+
+/* Layout */
+
+.layout {
+  display: grid;
+  gap: var(--s-6);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--s-7);
+  }
+  .summaryPanel {
+    position: sticky;
+    top: calc(var(--header-h) + var(--s-5));
+  }
+}
+
+/* The list is printed like an order ticket, perforated top and bottom. */
+.ticket {
+  --notch: 6px;
+  --step: 18px;
+  padding: 18px clamp(16px, 3vw, 28px);
+  background: var(--paper);
+  filter: drop-shadow(0 18px 18px rgb(35 23 46 / 0.12)) drop-shadow(0 1px 2px rgb(35 23 46 / 0.06));
+  -webkit-mask:
+    radial-gradient(circle at 50% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / var(--step) 51% repeat-x,
+    radial-gradient(circle at 50% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / var(--step) 51% repeat-x;
+  mask:
+    radial-gradient(circle at 50% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top / var(--step) 51% repeat-x,
+    radial-gradient(circle at 50% 100%, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) bottom / var(--step) 51% repeat-x;
+}
+
+.lines {
+  margin: 0;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-4);
+  padding: 14px 0;
+}
+
+.line + .line {
+  border-top: 1px dashed var(--line-strong);
+}
+
+.thumb {
+  display: block;
+  width: 72px;
+}
+
+.thumb :global(.tile) {
+  border-radius: var(--r-s);
+}
+
+.text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.name {
+  font-weight: var(--w-medium);
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.name:hover {
+  text-decoration: underline;
+}
+
+.summary,
+.pack {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+  line-height: 1.4;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  transition:
+    background-color var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+
+.remove:hover {
+  background: var(--lilac);
+  color: var(--err);
+}
+
+.remove svg {
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 639px) {
+  .line {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 10px 14px;
+  }
+  .thumb {
+    width: 60px;
+  }
+  .controls {
+    grid-column: 2;
+    justify-content: space-between;
+  }
+}
+
+/* Summary */
+
+.summaryPanel {
+  display: grid;
+  gap: var(--s-4);
+  align-content: start;
+}
+
+.totals {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-h3);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.totals span + span {
+  color: var(--ink-2);
+  font-weight: var(--w-body);
+}
+
+.send {
+  width: 100%;
+  white-space: normal;
+  text-align: center;
+  padding-block: 12px;
+}
+
+.clear {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  text-decoration-color: var(--line-strong);
+}
+
+.clear:hover {
+  color: var(--err);
+  text-decoration-color: currentColor;
+}

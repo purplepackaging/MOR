@@ -1,0 +1,199 @@
+.browser {
+  display: grid;
+  /* minmax(0, 1fr): the scrolling chip row must never widen the page. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  position: sticky;
+  top: var(--header-h);
+  z-index: 20;
+  margin-inline: calc(var(--gutter) * -1);
+  padding: var(--s-3) var(--gutter);
+  background: rgb(255 255 255 / 0.97);
+  border-bottom: 1px solid var(--line);
+}
+
+.search {
+  position: relative;
+  flex: 1 1 100%;
+}
+
+@media (min-width: 900px) {
+  .search {
+    flex: 0 1 340px;
+  }
+}
+
+.searchIcon {
+  position: absolute;
+  inset-inline-start: 14px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding-inline-start: 42px;
+  padding-inline-end: 44px;
+  border-radius: var(--r-pill);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.clear {
+  position: absolute;
+  inset-inline-end: 4px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  transform: translateY(-50%);
+}
+
+.clear:hover {
+  background: var(--lilac);
+  color: var(--ink);
+}
+
+.clear svg {
+  width: 18px;
+  height: 18px;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+/* Fade the trailing edge so a cut-off chip reads as "scroll for more". */
+@media (max-width: 1279px) {
+  .chips {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
+    padding-inline-end: 32px;
+  }
+  [dir="rtl"] .chips {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+  }
+}
+
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--t-fast) ease,
+    border-color var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+
+.chip:hover {
+  border-color: var(--ink);
+}
+
+.chip[aria-current="page"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.toggle svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ok);
+}
+
+.toggle[aria-pressed="true"] {
+  background: var(--ok-tint);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.count {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+.group {
+  display: grid;
+  gap: var(--s-4);
+  padding-block: var(--s-5) var(--s-6);
+  border-top: 1px solid var(--line);
+}
+
+.group:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-6) var(--s-4);
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--s-7) var(--s-5);
+  }
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-3);
+  padding: var(--s-7) 0;
+}

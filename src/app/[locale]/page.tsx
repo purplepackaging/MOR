@@ -1,0 +1,221 @@
+import Link from "next/link";
+import { Plus } from "lucide-react";
+import { ProductCard } from "@/components/ProductCard";
+import { ProductVisual } from "@/components/ProductVisual";
+import { Ticket } from "@/components/Ticket";
+import { site } from "@/config/site";
+import { getDictionary } from "@/i18n";
+import {
+  categoryHref,
+  getCategories,
+  getProducts,
+  getStaples,
+  optionsLabel,
+  productHref,
+  sampleOrder,
+} from "@/lib/catalog";
+import { fill, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
+import styles from "./home.module.css";
+
+export default async function HomePage({ params }: PageProps<"/[locale]">) {
+  const locale = (await params).locale as Locale;
+  const dict = getDictionary(locale);
+  const h = dict.home;
+  const categories = getCategories();
+  const products = getProducts();
+  const order = sampleOrder(locale);
+  const surcharge = formatNumber(locale, site.cardSurchargePercent);
+
+  return (
+    <>
+      <section className={styles.hero} aria-labelledby="hero-title">
+        <div className={`container ${styles.heroGrid}`}>
+          <div className={styles.heroCopy}>
+            <h1 id="hero-title" className="display">
+              {titleLines(h.title).map((line, i) => (
+                <span key={i} className={styles.titleLine}>
+                  {i > 0 ? " " : null}
+                  {line}
+                </span>
+              ))}
+            </h1>
+            <p className="lede">{h.lede}</p>
+            <div className={styles.ctas}>
+              <Link className="btn" href={localePath(locale, "/products")}>
+                {h.browse}
+              </Link>
+              <Link className="btn btn-quiet" href={localePath(locale, "/request-account")}>
+                {h.request}
+              </Link>
+            </div>
+          </div>
+
+          <div className={styles.art}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={`${styles.cut} ${styles.cutCup}`}
+              src="/img/products/hero-iced-cup.webp"
+              alt=""
+              width={251}
+              height={555}
+              fetchPriority="high"
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={`${styles.cut} ${styles.cutBox}`}
+              src="/img/products/kraft-takeout-boxes.webp"
+              alt=""
+              width={720}
+              height={499}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={`${styles.cut} ${styles.cutBowl}`}
+              src="/img/products/hero-salad-bowl.webp"
+              alt=""
+              width={498}
+              height={343}
+            />
+            <div className={styles.ticketSlot}>
+              <Ticket
+                tilted
+                label={h.ticketLabel}
+                title={h.ticketTitle}
+                day={h.ticketDay}
+                casesLabel={h.ticketCases}
+                note={h.ticketNote}
+                lines={order.map((l) => ({ key: l.sku, cases: l.cases, name: l.name, summary: l.summary }))}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="carry-title">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 id="carry-title" className="h2">
+                {h.carryTitle}
+              </h2>
+              <p className="muted">
+                {fill(h.carryBody, {
+                  n: formatNumber(locale, products.length),
+                  c: formatNumber(locale, categories.length),
+                })}
+              </p>
+            </div>
+            <Link className="link" href={localePath(locale, "/products")}>
+              {h.carryAll}
+            </Link>
+          </div>
+          <ul role="list" className={styles.cats}>
+            {categories.map((c) => {
+              const count = products.filter((p) => p.category === c.id).length;
+              return (
+                <li key={c.id}>
+                  <Link href={categoryHref(locale, c.id)} className={styles.cat}>
+                    <ProductVisual image={c.image} icon={c.icon} className={styles.catTile} sizes={420} />
+                    <span className={styles.catText}>
+                      <h3 className={styles.catName}>{c.name[locale]}</h3>
+                      <span className={styles.catCount}>{plural(locale, count, h.categoryCount)}</span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+
+      <section id="how" className={`section ${styles.how}`} aria-labelledby="how-title">
+        <div className="container">
+          <h2 id="how-title" className="h2">
+            {h.howTitle}
+          </h2>
+          <ol role="list" className={styles.steps}>
+            {h.steps.map((s, i) => (
+              <li key={s.title} className={styles.step}>
+                <span className={styles.stepNum} aria-hidden="true">
+                  {formatNumber(locale, i + 1)}
+                </span>
+                <h3 className="h3">{s.title}</h3>
+                <p className="muted">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="staples-title">
+        <div className="container">
+          <div className="section-head">
+            <div>
+              <h2 id="staples-title" className="h2">
+                {h.staplesTitle}
+              </h2>
+              <p className="muted">{h.staplesBody}</p>
+            </div>
+          </div>
+          <ul role="list" className={styles.staples}>
+            {getStaples().map((p) => (
+              <li key={p.slug}>
+                <ProductCard
+                  card={{
+                    slug: p.slug,
+                    href: productHref(locale, p),
+                    name: p.name[locale],
+                    meta: optionsLabel(p, locale, dict),
+                    image: p.image,
+                    icon: p.icon,
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <section className={`section ${styles.faqSection}`} aria-labelledby="faq-title">
+        <div className={`container ${styles.faqGrid}`}>
+          <h2 id="faq-title" className="h2">
+            {h.faqTitle}
+          </h2>
+          <div className={styles.faq}>
+            {h.faq.map((item) => (
+              <details key={item.q} className={styles.qa}>
+                <summary>
+                  <span>{item.q}</span>
+                  <Plus aria-hidden="true" className={styles.qaIcon} />
+                </summary>
+                <p>{fill(item.a, { surcharge })}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.ctaSection} aria-labelledby="cta-title">
+        <div className="container">
+          <div className={styles.cta}>
+            <div>
+              <h2 id="cta-title" className="h2">
+                {h.ctaTitle}
+              </h2>
+              <p>{h.ctaBody}</p>
+            </div>
+            <Link className="btn btn-light" href={localePath(locale, "/request-account")}>
+              {h.ctaButton}
+            </Link>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
+/** "Your usual order, on repeat." → two phrases, so wide screens can set one per line. */
+function titleLines(title: string): string[] {
+  const m = title.match(/^(.+?[,،])\s+(.+)$/);
+  return m ? [m[1], m[2]] : [title];
+}

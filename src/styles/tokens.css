@@ -1,0 +1,124 @@
+/*
+ * MOR Supply design system.
+ * One stylesheet of tokens; every component reads from these.
+ * Brand: "mor" is Turkish for purple. Aubergine ink, MOR violet, lilac tile,
+ * a little lemon for counts. Type: Readex Pro for all four languages.
+ */
+
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url("/fonts/readex-pro-latin-wght-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308,
+    U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url("/fonts/readex-pro-latin-ext-wght-normal.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Readex Pro";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 160 700;
+  src: url("/fonts/readex-pro-arabic-wght-normal.woff2") format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E,
+    U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+/* Metric-matched fallback so text doesn't jump when the font arrives. */
+@font-face {
+  font-family: "Readex Fallback";
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica");
+  size-adjust: 106%;
+  ascent-override: 96%;
+  descent-override: 24%;
+  line-gap-override: 0%;
+}
+
+:root {
+  color-scheme: light;
+
+  /* Color */
+  --ink: #23172e;
+  --ink-2: #554863;
+  --ink-3: #6f6380;
+  --mor: #5b2a86;
+  --mor-strong: #47206b;
+  --mor-tint: #ece5f6;
+  --lilac: #f3f0f8;
+  --lilac-2: #e9e3f2;
+  --paper: #ffffff;
+  --line: #e6e1ec;
+  --line-strong: #cfc6da;
+  --lemon: #f3e36a;
+  --ok: #1d6b45;
+  --ok-tint: #e6f3ec;
+  --err: #a3241c;
+  --err-tint: #fbecea;
+  --on-dark: #f6f2fb;
+  --on-dark-2: #c9bdd8;
+
+  /* Type */
+  --font: "Readex Pro", "Readex Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Noto Sans Arabic", Arial, sans-serif;
+  --fs-display: clamp(2.5rem, 1.6rem + 3.6vw, 4.375rem);
+  --fs-h2: clamp(1.75rem, 1.3rem + 1.7vw, 2.6rem);
+  --fs-h3: 1.1875rem;
+  --fs-lede: clamp(1.0625rem, 1rem + 0.35vw, 1.25rem);
+  --fs-body: 1.0625rem;
+  --fs-small: 0.9375rem;
+  --fs-micro: 0.8125rem;
+  --lh-tight: 1.04;
+  --lh-snug: 1.2;
+  --lh-body: 1.55;
+  --w-light: 340;
+  --w-body: 380;
+  --w-medium: 480;
+  --w-strong: 580;
+
+  /* Space (4px base) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 96px;
+  --s-10: 128px;
+  --section: clamp(64px, 5rem + 4vw, 136px);
+
+  /* Shape */
+  --r-s: 10px;
+  --r-m: 16px;
+  --r-l: 24px;
+  --r-pill: 999px;
+
+  /* Depth: only the order ticket and floating UI lift off the page. */
+  --shadow-ticket: 0 22px 44px -22px rgb(35 23 46 / 0.42), 0 2px 6px rgb(35 23 46 / 0.06);
+  --shadow-float: 0 12px 32px -12px rgb(35 23 46 / 0.32), 0 1px 3px rgb(35 23 46 / 0.08);
+
+  /* Layout */
+  --container: 1240px;
+  --gutter: clamp(16px, 3.6vw, 40px);
+  --header-h: 64px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 140ms;
+  --t-med: 260ms;
+}
+
+@media (min-width: 900px) {
+  :root {
+    --header-h: 72px;
+  }
+}

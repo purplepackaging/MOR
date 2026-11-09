@@ -1,0 +1,16 @@
+.page {
+  padding-block: clamp(40px, 6vw, 96px) var(--section);
+}
+
+.panel {
+  display: grid;
+  gap: var(--s-5);
+  max-width: 40rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}

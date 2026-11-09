@@ -1,0 +1,87 @@
+.add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 112px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  transition:
+    background-color var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+
+.add:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.add svg {
+  width: 18px;
+  height: 18px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  min-width: 112px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: inherit;
+}
+
+.step:hover:not(:disabled) {
+  background: var(--mor-strong);
+}
+
+.step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.step svg {
+  width: 18px;
+  height: 18px;
+}
+
+.step:focus-visible,
+.qty:focus-visible {
+  outline: 2px solid var(--lemon);
+  outline-offset: 1px;
+}
+
+.qty {
+  width: 3ch;
+  min-width: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+  font-size: var(--fs-body);
+  font-weight: var(--w-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.compact.add,
+.compact.stepper {
+  min-width: 104px;
+}
