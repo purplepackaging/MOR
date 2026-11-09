@@ -50,32 +50,34 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             </div>
           </div>
 
-          <div className={styles.art}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={`${styles.cut} ${styles.cutCup}`}
-              src="/img/products/hero-iced-cup.webp"
-              alt=""
-              width={251}
-              height={555}
-              fetchPriority="high"
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={`${styles.cut} ${styles.cutBox}`}
-              src="/img/products/kraft-takeout-boxes.webp"
-              alt=""
-              width={720}
-              height={499}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={`${styles.cut} ${styles.cutBowl}`}
-              src="/img/products/hero-salad-bowl.webp"
-              alt=""
-              width={498}
-              height={343}
-            />
+          <div className={styles.artWrap}>
+            <div className={styles.art}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={`${styles.cut} ${styles.cutKebab}`}
+                src="/img/hero/adana.webp"
+                alt=""
+                width={760}
+                height={596}
+                fetchPriority="high"
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={`${styles.cut} ${styles.cutTacos}`}
+                src="/img/hero/tacos.webp"
+                alt=""
+                width={747}
+                height={760}
+              />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={`${styles.cut} ${styles.cutSalad}`}
+                src="/img/hero/salad-bowl.webp"
+                alt=""
+                width={760}
+                height={644}
+              />
+            </div>
             <div className={styles.ticketSlot}>
               <Ticket
                 tilted
@@ -84,7 +86,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 day={h.ticketDay}
                 casesLabel={h.ticketCases}
                 note={h.ticketNote}
-                lines={order.map((l) => ({ key: l.sku, cases: l.cases, name: l.name, summary: l.summary }))}
+                lines={order
+                  .slice(0, 4)
+                  .map((l) => ({ key: l.sku, cases: l.cases, name: l.name, summary: l.summary }))}
               />
             </div>
           </div>
