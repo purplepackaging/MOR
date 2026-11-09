@@ -5,7 +5,15 @@
 export const site = {
   name: "MOR Supply",
   legalName: "Purple Packaging LLC",
-  url: "https://morsupply.com",
+  /**
+   * Canonical origin for links, sitemap and social previews. On Vercel this follows the
+   * project's production domain, so it becomes morsupply.com once that domain is attached.
+   */
+  url:
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "https://morsupply.com"),
   /** E.164, e.g. "+14045550123". Shows call and text links when set. */
   phone: null as string | null,
   /** E.164 number used for WhatsApp. */

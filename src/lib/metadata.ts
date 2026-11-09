@@ -26,6 +26,8 @@ export function pageMetadata(
       siteName: site.name,
       locale: htmlLang[locale].replace("-", "_"),
       type: "website",
+      images: [{ url: "/og.png", width: 1200, height: 630, alt: `${site.name}: restaurant supplies, on repeat` }],
     },
+    twitter: { card: "summary_large_image" },
   };
 }
