@@ -5,6 +5,7 @@ import { REP_COOKIE } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
+import { supabaseConfigured } from "@/lib/supabase";
 import { RequestForm } from "./RequestForm";
 import styles from "./request.module.css";
 
@@ -35,6 +36,7 @@ export default async function RequestAccountPage({ params, searchParams }: PageP
           locale={locale}
           t={t}
           rep={rep}
+          ready={supabaseConfigured()}
           hrefs={{
             list: localePath(locale, "/list"),
             products: localePath(locale, "/products"),

@@ -28,9 +28,11 @@ interface Props {
   t: Dict["request"];
   rep: { code: string; name: string } | null;
   hrefs: { list: string; products: string; sms: string; privacy: string };
+  /** False until Supabase is configured. Tells people before they fill anything in. */
+  ready: boolean;
 }
 
-export function RequestForm({ locale, t, rep, hrefs }: Props) {
+export function RequestForm({ locale, t, rep, hrefs, ready }: Props) {
   const [errors, setErrors] = useState<Errors>({});
   const [failure, setFailure] = useState<"notReady" | "generic" | null>(null);
   const [done, setDone] = useState<{ name: string; phone: string } | null>(null);
@@ -135,6 +137,7 @@ export function RequestForm({ locale, t, rep, hrefs }: Props) {
             {fill(t.repBanner, { rep: rep.name })}
           </p>
         ) : null}
+        {ready ? null : <p className={styles.notice}>{t.errors.notReady}</p>}
       </header>
 
       <form ref={formRef} className={styles.form} onSubmit={onSubmit} onChange={onChange} noValidate>
