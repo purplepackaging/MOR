@@ -68,3 +68,21 @@ export function plural(locale: Locale, n: number, forms: PluralForms): string {
 export function isolate(value: string, locale: Locale): string {
   return textDir(locale) === "rtl" && /[0-9A-Za-z]/.test(value) ? `\u2068${value}\u2069` : value;
 }
+
+/** "$1,234.50" with Latin digits in every language. */
+export function formatMoney(locale: Locale, amount: number): string {
+  return new Intl.NumberFormat(htmlLang[locale], {
+    style: "currency",
+    currency: "USD",
+    numberingSystem: "latn",
+  }).format(amount);
+}
+
+/** "Nov 10, 2026" in the reader's language, on Atlanta time. */
+export function formatDate(locale: Locale, iso: string): string {
+  return new Intl.DateTimeFormat(htmlLang[locale], {
+    dateStyle: "medium",
+    timeZone: "America/New_York",
+    numberingSystem: "latn",
+  }).format(new Date(iso));
+}

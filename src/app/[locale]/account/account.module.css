@@ -1,0 +1,304 @@
+.page {
+  padding-block: clamp(32px, 4vw, 64px) var(--section);
+}
+
+/* Sign in */
+
+.signIn {
+  display: grid;
+  gap: var(--s-5);
+  max-width: 28rem;
+}
+
+.signIn h1:focus {
+  outline: none;
+}
+
+.form {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.code {
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.textButton {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--mor);
+  font: inherit;
+  font-weight: var(--w-medium);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.textButton:disabled {
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--ok);
+  font-size: var(--fs-small);
+}
+
+.help {
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+}
+
+.help a {
+  color: var(--mor);
+  font-weight: var(--w-medium);
+}
+
+/* Account home */
+
+.head {
+  display: grid;
+  gap: var(--s-3);
+  margin-bottom: var(--s-6);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.day {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  background: var(--lemon);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+.grid {
+  display: grid;
+  gap: var(--s-6);
+  align-items: start;
+}
+
+@media (min-width: 960px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: var(--s-7);
+  }
+}
+
+.card {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-l);
+  background: var(--lilac);
+  min-width: 0;
+}
+
+.card h2 {
+  font-size: var(--fs-h3);
+}
+
+.lines {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lines li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-small);
+}
+
+.lines li:last-child {
+  border-bottom: 0;
+}
+
+.lineName {
+  font-weight: var(--w-medium);
+}
+
+.lineMeta {
+  display: block;
+  color: var(--ink-2);
+}
+
+.qty {
+  font-weight: var(--w-strong);
+  color: var(--mor);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.more {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+/* Orders */
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-small);
+}
+
+.table th {
+  padding: 0 12px 10px 0;
+  border-bottom: 2px solid var(--mor);
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 12px 12px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+
+[dir="rtl"] .table th,
+[dir="rtl"] .table td {
+  padding-inline: 0 12px;
+}
+
+.table a {
+  color: var(--ink);
+  font-weight: var(--w-medium);
+}
+
+.end {
+  text-align: end !important;
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  white-space: nowrap;
+}
+
+.pill[data-status="received"] {
+  background: var(--mor-tint);
+  color: var(--mor-strong);
+}
+
+.pill[data-status="confirmed"],
+.pill[data-status="out_for_delivery"] {
+  background: var(--lemon);
+  color: var(--ink);
+}
+
+.pill[data-status="delivered"] {
+  background: var(--ok-tint);
+  color: var(--ok);
+}
+
+.pill[data-status="canceled"] {
+  background: var(--paper);
+  color: var(--ink-2);
+}
+
+.totalRow td {
+  border-bottom: 0;
+  font-weight: var(--w-strong);
+}
+
+.note {
+  padding: var(--s-3) var(--s-4);
+  border-inline-start: 3px solid var(--mor);
+  border-radius: var(--r-s);
+  background: var(--paper);
+  font-size: var(--fs-small);
+}
+
+.crumb {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+.crumb a {
+  color: var(--ink-2);
+}
+
+.switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--s-3);
+}
+
+.switcher .field {
+  min-width: 14rem;
+}
+
+.footer {
+  margin-top: var(--s-7);
+}
+
+.field {
+  margin: 0;
+}
+
+/* Phones: tables drop a column and tuck it under the first cell, so totals never hide off the side. */
+.narrowOnly {
+  display: none;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .wideOnly {
+    display: none;
+  }
+
+  .narrowOnly {
+    display: block;
+  }
+
+  .table .end {
+    white-space: normal;
+  }
+}

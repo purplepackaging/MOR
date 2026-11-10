@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
+import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { skuIndex } from "@/lib/catalog";
 import { localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
-import { ListView } from "./ListView";
+import { getPortal, getPrices, portalReady } from "@/lib/portal";
+import { ListView, type ListPortal } from "./ListView";
 import styles from "./list.module.css";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/list">): Promise<Metadata> {
@@ -21,6 +24,24 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
   const locale = raw as Locale;
   const dict = getDictionary(locale);
   const d = dict.product;
+
+  // Signed-in customers order straight from the list, at their tier's prices.
+  // With the portal on, the page renders per request; with it off, it stays static.
+  if (site.portalEnabled) await connection();
+  let portal: ListPortal | undefined;
+  if (portalReady()) {
+    const session = await getPortal();
+    if (session?.account) {
+      portal = {
+        accountName: session.account.name,
+        prices: await getPrices(session.account.id),
+        ordersHref: localePath(locale, "/account/orders"),
+        signInHref: `${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(localePath(locale, "/list"))}`,
+        signInLabel: dict.nav.signIn,
+        noPrice: dict.portal.noPrice,
+      };
+    }
+  }
 
   return (
     <div className={styles.band}>
@@ -45,6 +66,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
           }}
           browseHref={localePath(locale, "/products")}
           requestHref={localePath(locale, "/request-account")}
+          portal={portal}
         />
       </div>
     </div>

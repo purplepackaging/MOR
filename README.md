@@ -21,7 +21,8 @@ Never commit secrets. API keys live in Vercel project environment variables only
 | Product | `/products/[category]/[product]` | Sizes and case packs, Add to list |
 | Your list | `/list` | Saved on the visitor's device until sent |
 | Request an account | `/request-account` | Saves to Supabase with the list and rep code |
-| Sign in | `/account/sign-in` | Placeholder until the client portal ships |
+| Sign in | `/account/sign-in` | Email code sign-in. Shows "opens soon" while the portal is off |
+| Your account | `/account`, `/account/orders` | Client portal: usual order, order history, reorder |
 | Legal | `/privacy`, `/terms`, `/sms-terms` | English text, translated titles |
 | Rep QR codes | `/r/CODE` | Remembers the rep for 180 days, opens the request form |
 
@@ -43,13 +44,23 @@ A first visit picks the browser language; the language menu choice is remembered
 2. In Vercel, add `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (server-only, never `NEXT_PUBLIC_`).
 3. Redeploy. Until then the form shows a message asking people to contact their rep.
 
-## Client portal (next)
+## Client portal
 
-The site is built so the portal drops in without moving anything:
+Phase 1 is ordering. Customers sign in with an email code, see their account's prices on the list, place
+orders, save a usual order and reorder from history. Prices are cost per case x (1 + the account's tier
+markup), computed in the database. An account with no tier sees no prices. It stays off until step 4.
 
-- Sign-in lives at `/account/sign-in`; every "Sign in" link already points there.
-- `NEXT_PUBLIC_PORTAL_ENABLED=true` switches the portal on.
-- The list is stored as `{ sku, cases }` lines, the same shape a saved order or usual order will use,
-  so a signed-in list can sync to the account.
-- Plan: Supabase Auth (email or phone sign-in, unique per user), tables `accounts`, `account_users`,
-  `orders`, `order_lines`, `usual_orders`, with row level security so each user only sees their account.
+1. Run `supabase/migrations/20261110000000_portal.sql` in the Supabase SQL editor, after the init migration.
+2. Supabase Auth: turn off new sign-ups, put `{{ .Token }}` in the Magic Link email template, and set up
+   custom SMTP (the built-in sender only reaches your own team).
+3. In Vercel, add `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_PORTAL_ENABLED=true`. Optional for new-order
+   emails: `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `ORDER_EMAIL_TO`.
+4. Redeploy.
+
+Day to day, in the Supabase dashboard:
+
+- Add a customer: Authentication > Users > Add user, then in the SQL editor
+  `select * from public.link_customer('owner@example.com', 'Business name');`
+- Show prices: set `accounts.tier` to XL, L, M, S or XS (markups in `price_tiers`).
+- Load costs: `public.load_costs` with columns copied from the cost sheet.
+- Move orders along: `orders.status` is received, confirmed, out_for_delivery, delivered or canceled.
