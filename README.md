@@ -52,15 +52,22 @@ orders, save a usual order and reorder from history. Prices are cost per case x 
 markup), computed in the database. An account with no tier sees no prices. It stays off until step 4.
 
 1. Apply the migrations (see above). Production is the Supabase project MOR Supply in East US, set up Nov 10, 2026.
-2. Supabase Auth: turn off new sign-ups, put `{{ .Token }}` in the Magic Link email template, and set up
-   custom SMTP (the built-in sender only reaches your own team).
+2. Supabase Auth:
+   - Sign In / Providers: turn off "Allow new users to sign up". Customers are added by hand.
+   - Emails > SMTP Settings: Resend (`smtp.resend.com`, port 465, user `resend`, password = a Resend API key
+     with sending access to `mail.morsupply.com` only). Sender `signin@mail.morsupply.com`, name `MOR Supply`.
+     The built-in sender only reaches your own team, and the templates stay locked until custom SMTP is on.
+   - Emails > Magic link or OTP: subject `{{ .Token }} is your MOR Supply sign-in code`, body
+     `supabase/templates/sign-in-code.html`. The portal signs in with the code, not a link.
+   - Codes are 8 digits and last 1 hour (Sign In / Providers > Email).
 3. In Vercel, add `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_PORTAL_ENABLED=true`. Optional for new-order
    emails: `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `ORDER_EMAIL_TO`.
 4. Redeploy.
 
 Day to day, in the Supabase dashboard:
 
-- Add a customer: Authentication > Users > Add user, then in the SQL editor
+- Add a customer: Authentication > Users > Add user > Create new user (not "Send invitation": the invite
+  email has a link the portal doesn't use), then in the SQL editor
   `select * from public.link_customer('owner@example.com', 'Business name');`
 - Show prices: set `accounts.tier` to XL, L, M, S or XS (markups in `price_tiers`).
 - Load costs: `public.load_costs` with columns copied from the cost sheet.

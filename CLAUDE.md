@@ -31,6 +31,8 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
 "sign-in opens soon" panel and `/list` stays static.
 
 - **Sign-in:** email code (Supabase Auth OTP, `shouldCreateUser: false`; Matt adds users in the dashboard).
+  Sign-ups are off in Supabase. Codes go out through Resend SMTP from `signin@mail.morsupply.com`; the email
+  body is `supabase/templates/sign-in-code.html` and must keep `{{ .Token }}`.
   Server actions in `src/app/[locale]/account/actions.ts`. `src/lib/portal.ts` builds a user-scoped client
   with the publishable key, so row level security applies to every read. The proxy refreshes the session on
   `/account/*` and `/list`.
