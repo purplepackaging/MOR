@@ -129,6 +129,7 @@ const es: Dict = {
       rolls: "rollos",
       boxes: "cajas",
       pairs: "pares",
+      books: "libretas",
     },
   },
   list: {

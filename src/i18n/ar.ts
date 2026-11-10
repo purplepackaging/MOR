@@ -164,6 +164,7 @@ const ar: Dict = {
       rolls: "لفة",
       boxes: "علبة",
       pairs: "زوج",
+      books: "دفتر",
     },
   },
   list: {
