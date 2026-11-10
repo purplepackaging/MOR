@@ -34,6 +34,55 @@ export function NavLink({ href, children, className }: { href: string; children:
   );
 }
 
+let sessionCheck: { path: string; result: Promise<boolean> } | null = null;
+
+/**
+ * True once the visitor is known to be signed in. Only runs when the portal is on,
+ * and checks again after each navigation so signing in or out shows right away.
+ */
+export function useSignedIn(enabled: boolean): boolean {
+  const pathname = usePathname();
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    if (!enabled) return;
+    if (sessionCheck?.path !== pathname) {
+      sessionCheck = {
+        path: pathname,
+        result: fetch("/api/session", { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : { signedIn: false }))
+          .then((j: { signedIn?: boolean }) => Boolean(j.signedIn))
+          .catch(() => false),
+      };
+    }
+    let live = true;
+    void sessionCheck.result.then((v) => live && setSignedIn(v));
+    return () => {
+      live = false;
+    };
+  }, [enabled, pathname]);
+  return signedIn;
+}
+
+/** "Sign in", or "Your account" for signed-in customers. */
+export function AccountLink({
+  portal,
+  signIn,
+  account,
+  className,
+}: {
+  portal: boolean;
+  signIn: MenuLink;
+  account: MenuLink;
+  className?: string;
+}) {
+  const link = useSignedIn(portal) ? account : signIn;
+  return (
+    <NavLink href={link.href} className={className}>
+      {link.label}
+    </NavLink>
+  );
+}
+
 function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
@@ -124,15 +173,20 @@ export function MobileMenu({
   labels,
   links,
   signIn,
+  account,
+  portal,
   request,
 }: {
   locale: Locale;
   labels: { menu: string; close: string; language: string };
   links: MenuLink[];
   signIn: MenuLink;
+  account: MenuLink;
+  portal: boolean;
   request: MenuLink;
 }) {
   const [open, setOpen] = useState(false);
+  const me = useSignedIn(portal) ? account : signIn;
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
@@ -177,8 +231,8 @@ export function MobileMenu({
               </li>
             ))}
             <li>
-              <Link href={signIn.href} onClick={() => setOpen(false)}>
-                {signIn.label}
+              <Link href={me.href} onClick={() => setOpen(false)}>
+                {me.label}
               </Link>
             </li>
           </ul>

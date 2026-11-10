@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Dict } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
+import { site } from "@/config/site";
 import { Wordmark } from "./Wordmark";
-import { LanguageMenu, ListButton, MobileMenu, NavLink } from "./HeaderClient";
+import { AccountLink, LanguageMenu, ListButton, MobileMenu, NavLink } from "./HeaderClient";
 import styles from "./Header.module.css";
 
 export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
@@ -11,6 +12,7 @@ export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
   const how = `${home}#how`;
   const signIn = localePath(locale, "/account/sign-in");
   const request = localePath(locale, "/request-account");
+  const account = { href: localePath(locale, "/account"), label: dict.nav.account };
 
   return (
     <header className={styles.header}>
@@ -32,9 +34,12 @@ export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
           <div className={styles.desktopOnly}>
             <LanguageMenu locale={locale} label={dict.nav.language} />
           </div>
-          <NavLink href={signIn} className={`${styles.navLink} ${styles.desktopOnly}`}>
-            {dict.nav.signIn}
-          </NavLink>
+          <AccountLink
+            portal={site.portalEnabled}
+            signIn={{ href: signIn, label: dict.nav.signIn }}
+            account={account}
+            className={`${styles.navLink} ${styles.desktopOnly}`}
+          />
           <Link href={request} className={`btn btn-sm ${styles.desktopOnly}`}>
             {dict.nav.request}
           </Link>
@@ -52,6 +57,8 @@ export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
               { href: how, label: dict.nav.how },
             ]}
             signIn={{ href: signIn, label: dict.nav.signIn }}
+            account={account}
+            portal={site.portalEnabled}
             request={{ href: request, label: dict.nav.request }}
           />
         </div>

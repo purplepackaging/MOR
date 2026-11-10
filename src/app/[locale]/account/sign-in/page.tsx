@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
-import styles from "../../simple.module.css";
+import { getPortal, portalReady, safeNext } from "@/lib/portal";
+import { SignInForm } from "./SignInForm";
+import simple from "../../simple.module.css";
+import styles from "../account.module.css";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/account/sign-in">): Promise<Metadata> {
   const { locale: raw } = await params;
@@ -16,29 +20,40 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account/
 }
 
 /**
- * Customer portal entry point. Until the portal ships (NEXT_PUBLIC_PORTAL_ENABLED),
- * this explains where orders go today. The portal replaces this page with the
- * sign-in form; every link to it across the site stays the same.
+ * Customer portal entry point. While the portal is switched off
+ * (NEXT_PUBLIC_PORTAL_ENABLED) or Supabase is not set up, it explains where
+ * orders go today. Every link to it across the site stays the same.
  */
-export default async function SignInPage({ params }: PageProps<"/[locale]/account/sign-in">) {
+export default async function SignInPage({ params, searchParams }: PageProps<"/[locale]/account/sign-in">) {
   const { locale: raw } = await params;
   const locale = raw as Locale;
   const t = getDictionary(locale).signIn;
+  const next = safeNext((await searchParams).next);
+
+  if (!portalReady()) {
+    return (
+      <section className={`container ${simple.page}`}>
+        <div className={simple.panel}>
+          <h1 className="h2">{t.soonTitle}</h1>
+          <p className="lede">{t.soonBody}</p>
+          <div className={simple.actions}>
+            <Link className="btn" href={localePath(locale, "/request-account")}>
+              {t.request}
+            </Link>
+            <Link className="btn btn-quiet" href={localePath(locale, "/products")}>
+              {t.browse}
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (await getPortal()) redirect(next ?? localePath(locale, "/account"));
 
   return (
     <section className={`container ${styles.page}`}>
-      <div className={styles.panel}>
-        <h1 className="h2">{t.soonTitle}</h1>
-        <p className="lede">{t.soonBody}</p>
-        <div className={styles.actions}>
-          <Link className="btn" href={localePath(locale, "/request-account")}>
-            {t.request}
-          </Link>
-          <Link className="btn btn-quiet" href={localePath(locale, "/products")}>
-            {t.browse}
-          </Link>
-        </div>
-      </div>
+      <SignInForm locale={locale} next={next} labels={t} requestHref={localePath(locale, "/request-account")} />
     </section>
   );
 }

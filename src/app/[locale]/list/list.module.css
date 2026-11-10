@@ -209,3 +209,33 @@
   color: var(--err);
   text-decoration-color: currentColor;
 }
+
+/* Signed-in ordering */
+
+.price {
+  color: var(--mor);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  line-height: 1.4;
+}
+
+.subtotal {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: var(--s-3);
+  border-block: 1px solid var(--line-strong);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.noteInput {
+  min-height: 84px !important;
+}
+
+.placedActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
