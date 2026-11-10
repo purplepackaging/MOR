@@ -824,7 +824,7 @@ export const products: Product[] = [
     slug: "rose-bowls",
     category: "containers",
     name: t("Clear rose bowls with lids", "Bowls transparentes tipo flor con tapa", "Kapaklı şeffaf çiçek kaseler", "أوعية شفافة على شكل وردة مع أغطية"),
-    image: "clear-bowls",
+    image: "rose-bowls",
     material: M.pet,
     goesWith: ["cutlery-kits", "portion-cups"],
     variants: [
@@ -918,7 +918,7 @@ export const products: Product[] = [
     slug: "meat-trays",
     category: "containers",
     name: t("Plastic meat trays", "Charolas de plástico para carne", "Plastik et tabakları", "صواني بلاستيكية للحوم"),
-    icon: "tray",
+    image: "meat-trays",
     material: M.pet,
     goesWith: ["food-pads", "food-film"],
     variants: [
@@ -942,7 +942,7 @@ export const products: Product[] = [
     slug: "food-pads",
     category: "containers",
     name: t("Absorbent food pads", "Almohadillas absorbentes para alimentos", "Emici gıda pedleri", "وسادات ماصة للأطعمة"),
-    icon: "tray",
+    image: "food-pads",
     goesWith: ["meat-trays", "food-film"],
     variants: [
       { sku: "FPD-47W", size: "4 × 7 in", color: C.white, pack: 2000 },
@@ -1097,7 +1097,7 @@ export const products: Product[] = [
     slug: "deli-paper",
     category: "foil-wrap",
     name: t("Deli, wax and patty paper", "Papel encerado, para deli y para hamburguesa", "Yağlı, şarküteri ve köfte kâğıdı", "ورق مشمّع وورق ديلي وورق برغر"),
-    icon: "waxPaper",
+    image: "deli-paper",
     material: M.paper,
     goesWith: ["kraft-food-trays", "foil-sheets"],
     variants: [
@@ -1127,7 +1127,7 @@ export const products: Product[] = [
     slug: "butcher-paper",
     category: "foil-wrap",
     name: t("Butcher, peach and freezer paper", "Papel carnicero, durazno y para congelar", "Kasap, şeftali ve dondurucu kâğıdı", "ورق جزارة وورق خوخي وورق تجميد"),
-    icon: "waxPaper",
+    image: "butcher-paper",
     material: M.paper,
     goesWith: ["food-film", "meat-trays"],
     variants: [
@@ -1262,7 +1262,7 @@ export const products: Product[] = [
     slug: "paper-plates",
     category: "plates-bowls",
     name: t("Paper plates", "Platos de papel", "Kâğıt tabaklar", "أطباق ورقية"),
-    icon: "plate",
+    image: "paper-plates",
     material: M.paper,
     goesWith: ["cutlery-medium", "lunch-napkins"],
     variants: [
@@ -1473,7 +1473,7 @@ export const products: Product[] = [
     slug: "skewers",
     category: "cutlery-straws",
     name: t("Bamboo skewers", "Brochetas de bambú", "Bambu şişler", "أسياخ من الخيزران"),
-    icon: "skewer",
+    image: "skewers",
     material: M.bamboo,
     plantBased: true,
     goesWith: ["kraft-food-trays", "foil-sheets"],
@@ -1561,7 +1561,7 @@ export const products: Product[] = [
     slug: "grocery-bags",
     category: "bags",
     name: t("Paper grocery bags", "Bolsas de papel para despensa", "Kâğıt market torbaları", "أكياس بقالة ورقية"),
-    image: "kraft-bags",
+    image: "grocery-bags",
     material: M.kraft,
     plantBased: true,
     goesWith: ["kraft-takeout-boxes", "handle-bags"],
@@ -1616,7 +1616,7 @@ export const products: Product[] = [
     slug: "flat-paper-bags",
     category: "bags",
     name: t("Flat paper and glassine bags", "Bolsas planas de papel y glassine", "Düz kâğıt ve pergamin torbalar", "أكياس ورقية مسطحة وأكياس جلاسين"),
-    icon: "bag",
+    image: "flat-paper-bags",
     material: M.paper,
     goesWith: ["bakery-containers", "deli-paper"],
     variants: [
@@ -1655,7 +1655,7 @@ export const products: Product[] = [
     slug: "poly-bags",
     category: "bags",
     name: t("Clear poly and zip bags", "Bolsas de plástico transparente y con cierre", "Şeffaf poşet ve kilitli poşetler", "أكياس بلاستيكية شفافة وأكياس بسحّاب"),
-    icon: "bag",
+    image: "poly-bags",
     material: M.poly,
     goesWith: ["deli-containers", "food-film"],
     variants: [
@@ -1693,7 +1693,7 @@ export const products: Product[] = [
     slug: "reusable-bags",
     category: "bags",
     name: t("Reusable non-woven bags", "Bolsas reutilizables de tela no tejida", "Yeniden kullanılabilir nonwoven çantalar", "أكياس قماشية غير منسوجة قابلة لإعادة الاستخدام"),
-    icon: "bag",
+    image: "reusable-bags",
     material: M.nonWoven,
     goesWith: ["handle-bags", "tshirt-bags"],
     variants: [
@@ -2000,7 +2000,7 @@ export const products: Product[] = [
     slug: "hdpe-can-liners",
     category: "cleaning",
     name: t("High-density can liners on rolls", "Bolsas para basura de alta densidad en rollo", "Rulo yüksek yoğunluklu çöp poşetleri", "أكياس قمامة عالية الكثافة على لفات"),
-    image: "can-liners",
+    image: "hdpe-can-liners",
     material: M.hdpe,
     goesWith: ["can-liners", "cleaning-chemicals"],
     variants: [
