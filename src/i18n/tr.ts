@@ -271,7 +271,7 @@ const tr: Dict = {
       email: "ad@ornek.com gibi bir e-posta girin.",
       code: "Bu kod çalışmadı. Kontrol edin ya da yeni kod isteyin.",
       wait: "Bir dakika bekleyip yeni kod isteyin.",
-      generic: "Bir sorun oluştu. Bir dakika sonra tekrar deneyin.",
+      generic: "Giriş şu anda çalışmıyor. Birkaç dakika sonra tekrar deneyin veya sipariş için MOR temsilcinizi arayın.",
     },
   },
   portal: {

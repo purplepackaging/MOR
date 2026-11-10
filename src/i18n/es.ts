@@ -271,7 +271,7 @@ const es: Dict = {
       email: "Escriba un correo como nombre@ejemplo.com.",
       code: "Ese código no funcionó. Revíselo o pida uno nuevo.",
       wait: "Espere un minuto y pida un código nuevo.",
-      generic: "Algo salió mal. Inténtelo de nuevo en un minuto.",
+      generic: "El inicio de sesión no funciona en este momento. Inténtelo de nuevo en unos minutos o llame a su representante de MOR para hacer su pedido.",
     },
   },
   portal: {
