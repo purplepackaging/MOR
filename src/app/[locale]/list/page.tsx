@@ -4,7 +4,8 @@ import { connection } from "next/server";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { skuIndex } from "@/lib/catalog";
-import { formatNumber, localePath, type Locale } from "@/lib/i18n";
+import { fill, formatNumber, localePath, type Locale } from "@/lib/i18n";
+import { MAX_CASES } from "@/lib/limits";
 import { pageMetadata } from "@/lib/metadata";
 import { getFees, getPortal, getPrices, portalReady, setupPath } from "@/lib/portal";
 import { ListView, type ListPortal, type ListSignIn } from "./ListView";
@@ -46,6 +47,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
         signInHref,
         signInLabel: dict.nav.signIn,
         noPrice: dict.portal.noPrice,
+        lineTotal: dict.portal.lineTotal,
       };
     } else if (session && !session.paused) {
       // Signed in for the first time: set up the business, then come back to this list.
@@ -75,6 +77,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
             casesOf: d.casesOf,
             added: dict.list.added,
             view: dict.list.view,
+            max: fill(d.maxCases, { n: formatNumber(locale, MAX_CASES) }),
           }}
           browseHref={localePath(locale, "/products")}
           requestHref={localePath(locale, "/request-account")}

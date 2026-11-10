@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { fill } from "@/lib/i18n";
+import { MAX_CASES } from "@/lib/limits";
 import { listStore, useCases } from "@/lib/list-store";
 import { showToast } from "./Toaster";
 import styles from "./AddToList.module.css";
@@ -15,6 +16,8 @@ export interface StepperLabels {
   casesOf: string;
   added: string;
   view: string;
+  /** Shown when someone asks for more cases than one order can hold. */
+  max: string;
 }
 
 /**
@@ -27,14 +30,12 @@ export function AddToList({
   labels,
   listHref,
   min = 0,
-  compact = false,
 }: {
   sku: string;
   name: string;
   labels: StepperLabels;
   listHref?: string;
   min?: 0 | 1;
-  compact?: boolean;
 }) {
   const cases = useCases(sku);
   const [draft, setDraft] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function AddToList({
     return (
       <button
         type="button"
-        className={`${styles.add} ${compact ? styles.compact : ""}`}
+        className={styles.add}
         aria-label={fill(labels.addTo, { name })}
         onClick={() => {
           focusPlus.current = true;
@@ -72,11 +73,16 @@ export function AddToList({
   const commit = (value: string) => {
     const n = Number.parseInt(value, 10);
     setDraft(null);
-    if (Number.isFinite(n)) listStore.setCases(sku, Math.max(min, Math.min(999, n)));
+    if (!Number.isFinite(n)) return;
+    // Say so instead of quietly changing the number they typed.
+    if (n > MAX_CASES) showToast({ message: labels.max, icon: "info" });
+    listStore.setCases(sku, Math.max(min, Math.min(MAX_CASES, n)));
   };
 
+  const shown = draft ?? String(cases);
+
   return (
-    <div role="group" aria-label={fill(labels.casesOf, { name })} className={`${styles.stepper} ${compact ? styles.compact : ""}`}>
+    <div role="group" aria-label={fill(labels.casesOf, { name })} className={styles.stepper}>
       <button
         type="button"
         className={styles.step}
@@ -92,8 +98,10 @@ export function AddToList({
         inputMode="numeric"
         pattern="[0-9]*"
         aria-label={fill(labels.casesOf, { name })}
-        value={draft ?? String(cases)}
-        onChange={(e) => setDraft(e.target.value.replace(/\D/g, "").slice(0, 3))}
+        value={shown}
+        // One digit more than the limit fits, so a number that is too big gets a message.
+        style={shown.length > 3 ? { width: `${shown.length}ch` } : undefined}
+        onChange={(e) => setDraft(e.target.value.replace(/\D/g, "").slice(0, 4))}
         onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter") commit((e.target as HTMLInputElement).value);
@@ -105,7 +113,7 @@ export function AddToList({
         type="button"
         className={styles.step}
         aria-label={fill(labels.more, { name })}
-        disabled={cases >= 999}
+        disabled={cases >= MAX_CASES}
         onClick={() => listStore.setCases(sku, cases + 1)}
       >
         <Plus aria-hidden="true" />

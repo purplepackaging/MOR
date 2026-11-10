@@ -8,6 +8,8 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   scroll-padding-top: calc(var(--header-h) + 16px);
+  /* Keeps focused controls clear of the order bar on the list page. */
+  scroll-padding-bottom: var(--bottom-bar, 0px);
 }
 
 @media (pointer: fine) {

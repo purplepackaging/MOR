@@ -45,6 +45,13 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
   margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
   (`accounts.active = false`) see no prices and cannot order.
+- **Prices on product pages:** the pages are static, so a signed-in customer's prices load after the page
+  from `/api/prices` (the same `my_prices` call as the list), once `/api/session` says someone is signed in.
+  `src/lib/price-store.ts` keeps them in memory between product pages and drops them at sign-out. On phones
+  the price sits at the end of the case line, so rows do not grow when it arrives.
+- **Your list:** each priced line shows what it comes to. Below 960px an order bar (total and Place order)
+  shows while the summary's own button is below the screen; `--bottom-bar` lifts toasts and focus above it.
+  One item takes 1 to 999 cases (`src/lib/limits.ts`; the order actions check the same limit).
 - **Admin:** the Supabase dashboard (Table Editor). Costs load with `public.load_costs` from the cost sheet.
   Migrations that drop anything need a person to confirm them in the SQL Editor; then add the row to
   `supabase_migrations.schema_migrations` so the history keeps matching the files.
