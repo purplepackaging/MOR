@@ -34,10 +34,22 @@ export async function sendCode(prev: SignInState, form: FormData): Promise<SignI
   if (!portalReady()) return { step: prev.step, email, error: "generic" };
 
   const supabase = await userClient();
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  let error;
+  try {
+    ({ error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
+  } catch (thrown) {
+    console.error("[portal] signInWithOtp threw:", thrown);
+    return { step: prev.step, email, error: "generic" };
+  }
   if (error) {
     if (error.status === 429 || error.code === "over_email_send_rate_limit") {
       return { step: prev.step, email, error: "wait" };
+    }
+    // Supabase is down or the project is paused: say so instead of promising a code.
+    // These failures happen for every email alike, so they reveal nothing about who has an account.
+    if (!error.status || error.status >= 500) {
+      console.error("[portal] signInWithOtp failed:", error.status, error.code, error.message);
+      return { step: prev.step, email, error: "generic" };
     }
     // Unknown emails land here too (signups are off). Answer as if it worked.
     if (error.code !== "otp_disabled" && error.code !== "signup_disabled" && error.code !== "user_not_found") {
@@ -56,9 +68,20 @@ export async function verifyCode(prev: SignInState, form: FormData): Promise<Sig
   if (!portalReady()) return { step: "code", email, error: "generic" };
 
   const supabase = await userClient();
-  const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
+  let error;
+  try {
+    ({ error } = await supabase.auth.verifyOtp({ email, token, type: "email" }));
+  } catch (thrown) {
+    console.error("[portal] verifyOtp threw:", thrown);
+    return { step: "code", email, error: "generic" };
+  }
   if (error) {
     if (error.status === 429) return { step: "code", email, error: "wait" };
+    // Down or paused: the code may be fine, so don't call it wrong.
+    if (!error.status || error.status >= 500) {
+      console.error("[portal] verifyOtp failed:", error.status, error.code, error.message);
+      return { step: "code", email, error: "generic" };
+    }
     return { step: "code", email, error: "code" };
   }
   redirect(safeNext(String(form.get("next") ?? "")) ?? localePath(locale, "/account"));

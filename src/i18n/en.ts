@@ -271,7 +271,7 @@ const en = {
       email: "Enter an email like name@example.com.",
       code: "That code didn’t work. Check it, or send a new code.",
       wait: "Wait a minute, then ask for a new code.",
-      generic: "Something went wrong. Try again in a minute.",
+      generic: "Sign-in isn’t working right now. Try again in a few minutes, or call your MOR rep to order.",
     },
   },
   portal: {
