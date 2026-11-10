@@ -1,0 +1,15 @@
+{
+  "name": "mor-tests",
+  "private": true,
+  "description": "Checks for morsupply.com: database (PGlite), portal end to end against a mock Supabase, and axe on public pages. Not part of the site build.",
+  "scripts": {
+    "db": "node db/migrations.test.mjs",
+    "mock": "node mock-supabase/server.mjs",
+    "portal": "node e2e/portal-flow.js",
+    "axe": "node e2e/axe-public.js"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "axe-core": "4.11.0"
+  }
+}
