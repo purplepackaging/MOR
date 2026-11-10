@@ -262,8 +262,9 @@ alter table public.accounts drop column if exists tier;
 drop table if exists public.price_tiers;
 
 -- Adds a person to a business, for example staff who order for an account that
--- already exists. Add the person first under Authentication > Users (or let
--- them sign in once), then run in the SQL Editor:
+-- already exists. Add the person under Authentication > Users before they sign
+-- in (signed in first, the site asks them to set up a new business), then run
+-- in the SQL Editor:
 --
 --   select * from public.link_customer('buyer@example.com', 'Kebab House', 'buyer');
 --
