@@ -17,7 +17,7 @@
   max-width: min(560px, 100%);
   padding: 10px 10px 10px 16px;
   border-radius: var(--r-pill);
-  background: var(--ink);
+  background: var(--mor-deep);
   color: var(--on-dark);
   box-shadow: var(--shadow-float);
   font-size: var(--fs-small);

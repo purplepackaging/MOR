@@ -126,12 +126,13 @@
 }
 
 .chip:hover {
-  border-color: var(--ink);
+  border-color: var(--mor);
+  color: var(--mor);
 }
 
 .chip[aria-current="page"] {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--mor);
+  border-color: var(--mor);
   color: var(--paper);
 }
 

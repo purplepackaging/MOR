@@ -8,12 +8,16 @@ like a kitchen printer ticket. Everything else stays quiet so products and the t
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `--ink` | `#23172e` | Text, primary buttons |
+| `--ink` | `#23172e` | Text |
 | `--ink-2` | `#554863` | Secondary text |
-| `--mor` | `#5b2a86` | Brand violet: links, quantities, focus |
-| `--lilac` | `#f3f0f8` | Product tiles, bands, panels |
+| `--mor` | `#5b2a86` | Brand violet: buttons, selected chips, steppers, links, quantities, heavy rules, focus |
+| `--mor-deep` | `#2a1543` | Footer and toasts |
+| `--lilac` | `#f2ecfa` | Product tiles, bands, panels |
+| `--glow` | `#e2d1fa` | Soft violet light in the hero panel |
 | `--lemon` | `#f3e36a` | Only for "on repeat" moments: delivery day pill, list count, rep badge |
 | `--paper` | `#ffffff` | Page and ticket |
+
+The order ticket keeps ink rules so it reads as a printed slip against the violet around it.
 
 Errors use `--err` (`#a3241c`); success uses `--ok` (`#1d6b45`). All text pairs meet WCAG AA.
 

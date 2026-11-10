@@ -43,12 +43,12 @@
 }
 
 .navLink:hover {
-  color: var(--ink);
+  color: var(--mor);
   background: var(--lilac);
 }
 
 .navLink[aria-current="page"] {
-  color: var(--ink);
+  color: var(--mor);
   box-shadow: inset 0 -2px 0 var(--mor);
   border-radius: 0;
 }

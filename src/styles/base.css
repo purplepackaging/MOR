@@ -214,9 +214,9 @@ textarea {
 /* ───────── Buttons and links ───────── */
 
 .btn {
-  --btn-bg: var(--ink);
+  --btn-bg: var(--mor);
   --btn-fg: var(--paper);
-  --btn-bd: var(--ink);
+  --btn-bd: var(--mor);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -262,8 +262,8 @@ textarea {
 
 .btn-quiet:hover {
   --btn-bg: var(--paper);
-  --btn-fg: var(--ink);
-  --btn-bd: var(--ink);
+  --btn-fg: var(--mor);
+  --btn-bd: var(--mor);
 }
 
 .btn-light {
@@ -419,7 +419,7 @@ textarea.input {
   z-index: 100;
   padding: var(--s-3) var(--s-4);
   border-radius: var(--r-s);
-  background: var(--ink);
+  background: var(--mor);
   color: var(--paper);
   font-weight: var(--w-medium);
   text-decoration: none;

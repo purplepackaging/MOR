@@ -38,6 +38,7 @@
 }
 
 .card:hover .name {
+  color: var(--mor);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;

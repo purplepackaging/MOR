@@ -35,7 +35,10 @@
   position: relative;
   min-height: 360px;
   border-radius: var(--r-l);
-  background: var(--lilac);
+  background:
+    radial-gradient(120% 80% at 100% 0%, var(--glow) 0%, transparent 62%),
+    radial-gradient(90% 70% at 0% 100%, var(--mor-tint) 0%, transparent 60%),
+    var(--lilac);
   overflow: hidden;
   isolation: isolate;
 }
@@ -177,6 +180,7 @@
 }
 
 .cat:hover .catName {
+  color: var(--mor);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
@@ -218,7 +222,7 @@
   align-content: start;
   gap: var(--s-3);
   padding-top: var(--s-5);
-  border-top: 2px solid var(--ink);
+  border-top: 2px solid var(--mor);
 }
 
 .stepNum {

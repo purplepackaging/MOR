@@ -117,7 +117,7 @@
 
 .table th {
   padding: 0 12px 10px 0;
-  border-bottom: 2px solid var(--ink);
+  border-bottom: 2px solid var(--mor);
   color: var(--ink-2);
   font-size: var(--fs-micro);
   font-weight: var(--w-medium);
