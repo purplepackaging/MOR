@@ -51,19 +51,22 @@
   --ink-3: #6f6380;
   --mor: #5b2a86;
   --mor-strong: #47206b;
-  --mor-tint: #ece5f6;
-  --lilac: #f3f0f8;
-  --lilac-2: #e9e3f2;
+  --mor-tint: #e9def8;
+  --mor-deep: #2a1543;
+  --mor-soft: #b99ae3;
+  --glow: #e2d1fa;
+  --lilac: #f2ecfa;
+  --lilac-2: #e6dcf6;
   --paper: #ffffff;
-  --line: #e6e1ec;
-  --line-strong: #cfc6da;
+  --line: #e5ddef;
+  --line-strong: #ccbfde;
   --lemon: #f3e36a;
   --ok: #1d6b45;
   --ok-tint: #e6f3ec;
   --err: #a3241c;
   --err-tint: #fbecea;
   --on-dark: #f6f2fb;
-  --on-dark-2: #c9bdd8;
+  --on-dark-2: #cbbbe0;
 
   /* Type */
   --font: "Readex Pro", "Readex Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,

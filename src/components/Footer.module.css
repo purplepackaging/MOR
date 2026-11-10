@@ -1,5 +1,5 @@
 .footer {
-  background: var(--ink);
+  background: var(--mor-deep);
   color: var(--on-dark);
   padding-block: var(--s-8) var(--s-6);
 }
@@ -26,7 +26,7 @@
 }
 
 .wordmark :global(svg g) {
-  color: #b99ae3;
+  color: var(--mor-soft);
 }
 
 .wordmark span {
