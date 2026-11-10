@@ -53,6 +53,7 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
           <p className="muted">
             <bdi>{fill(p.placedOn, { date: formatDate(locale, order.createdAt) })}</bdi>
           </p>
+          {order.nextDay ? <p className={styles.nextDay}>{p.nextDay}</p> : null}
         </div>
         {order.note ? (
           <p className={styles.note}>
@@ -124,6 +125,28 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
           </tbody>
         </table>
       </div>
+      {order.deliveryFee != null ? (
+        <dl className={styles.costs}>
+          <div>
+            <dt>{p.delivery}</dt>
+            <dd>
+              <bdi>{formatMoney(locale, order.deliveryFee)}</bdi>
+            </dd>
+          </div>
+          {order.nextDay && order.nextDayFee != null ? (
+            <div>
+              <dt>{p.nextDay}</dt>
+              <dd>
+                <bdi>{formatMoney(locale, order.nextDayFee)}</bdi>
+              </dd>
+            </div>
+          ) : null}
+          <div className={styles.costsTotal}>
+            <dt>{p.total}</dt>
+            <dd>{order.total == null ? p.noPrice : <bdi>{formatMoney(locale, order.total)}</bdi>}</dd>
+          </div>
+        </dl>
+      ) : null}
       {order.subtotal == null ? <p className="small muted">{priced ? dict.list.needsPrice : dict.list.pricesSoon}</p> : null}
 
       <div className={`${styles.row} ${styles.footer}`}>

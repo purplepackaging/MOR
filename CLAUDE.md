@@ -19,7 +19,7 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
 - **Catalog:** `src/data/catalog.ts`. SKUs are permanent IDs; never rename one that has been used.
   The build fails on duplicate SKUs or broken `goesWith` links.
 - **Copy:** sentence case, short sentences, plain verbs, no em dashes. Prices are never shown publicly
-  (only to signed-in customers whose account has a tier).
+  (only to signed-in customers with an active account).
   Spices and dry goods are planned but not mentioned on the site yet.
 - **Accessibility:** real buttons and links, visible `:focus-visible`, labels on every input,
   `aria-live` for toasts, 44px touch targets, `prefers-reduced-motion` respected.
@@ -30,22 +30,31 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
 Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; with it off, `/account` shows the
 "sign-in opens soon" panel and `/list` stays static.
 
-- **Sign-in:** email code (Supabase Auth OTP, `shouldCreateUser: false`; Matt adds users in the dashboard).
-  Sign-ups are off in Supabase. Codes go out through Resend SMTP from `signin@mail.morsupply.com`; the email
-  body is `supabase/templates/sign-in-code.html` and must keep `{{ .Token }}`.
+- **Sign-in and sign-up:** email code (Supabase Auth OTP, `shouldCreateUser: true`). Open sign-up: a new
+  email gets a login, and the first sign-in goes to `/account/setup`, which calls `create_my_account` (one
+  business per sign-up, owner role). `/request-account` forwards there when the portal is on. Codes go out
+  through Resend SMTP from `signin@mail.morsupply.com`; the "Magic link or OTP" and "Confirm sign up"
+  emails both use `supabase/templates/sign-in-code.html` and must keep `{{ .Token }}`.
   Server actions in `src/app/[locale]/account/actions.ts`. `src/lib/portal.ts` builds a user-scoped client
   with the publishable key, so row level security applies to every read. The proxy refreshes the session on
   `/account/*` and `/list`.
-- **Data:** `supabase/migrations/20261110000000_portal.sql`. Customers read only their own accounts, orders
-  and usual order. Writes go through `place_order` and `save_usual_order`, which price on the server:
-  cost per case x (1 + tier markup), rounded to cents. Costs and markups are never readable by customers;
-  never compute prices in the browser. An account with no tier sees no prices.
+- **Data:** `supabase/migrations/20261110000000_portal.sql` and `20261110190000_open_signup_pricing.sql`.
+  Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
+  `save_usual_order` and `create_my_account`. Prices: cost per case / (1 - margin), rounded to cents, one
+  margin for everyone (25%). Each order copies a delivery fee and, if `next_day`, a next-day fee. The margin
+  and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
+  margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
+  (`accounts.active = false`) see no prices and cannot order.
 - **Admin:** the Supabase dashboard (Table Editor). Costs load with `public.load_costs` from the cost sheet.
+  Migrations that drop anything need a person to confirm them in the SQL Editor; then add the row to
+  `supabase_migrations.schema_migrations` so the history keeps matching the files.
+- **Card surcharge:** `site.cardSurchargePercent` (3). Shown on the list, FAQ and terms; charged by the card
+  processor at payment, credit cards only. Not part of order totals.
 - **Supabase project:** MOR Supply, ref `kzfjwdqjjpxogoqrzwtc`, East US (us-east-1), next to Vercel's `iad1`.
   Migration history matches the file names in `supabase/migrations`.
 - **Grants:** since Oct 30, 2026 Supabase gives `anon`, `authenticated` and `service_role` no access to new
   tables. Every migration that adds a table must grant exactly what the app uses, with RLS on.
-- **New-order email:** `src/lib/notify.ts` via Resend when `RESEND_API_KEY`, `ORDER_EMAIL_FROM` and
-  `ORDER_EMAIL_TO` are set; otherwise it logs. It never fails an order.
+- **Team emails:** `src/lib/notify.ts` sends new orders and new accounts via Resend when `RESEND_API_KEY`,
+  `ORDER_EMAIL_FROM` and `ORDER_EMAIL_TO` are set; otherwise it logs. It never fails the customer's action.
 - **Language cookie:** set only on real page loads (`Sec-Fetch-Dest: document`). Next strips its router
   headers before the proxy runs, so `rsc` and `next-router-prefetch` are not visible there.

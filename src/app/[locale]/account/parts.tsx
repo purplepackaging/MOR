@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Dict } from "@/i18n";
 import { findVariant, variantSummary } from "@/lib/catalog";
 import { fill, formatDate, formatMoney, formatNumber, isolate, localePath, type Locale } from "@/lib/i18n";
-import type { OrderSummary } from "@/lib/portal";
+import { orderAmount, type OrderSummary } from "@/lib/portal";
 import styles from "./account.module.css";
 
 /** Product name and option summary for a SKU, or a plain note when it left the catalog. */
@@ -45,6 +45,7 @@ export function OrdersTable({ orders, locale, dict }: { orders: OrderSummary[]; 
           {orders.map((o) => {
             const cases = o.lines.reduce((sum, l) => sum + l.cases, 0);
             const date = formatDate(locale, o.createdAt);
+            const amount = orderAmount(o);
             return (
               <tr key={o.id}>
                 <td>
@@ -65,7 +66,7 @@ export function OrdersTable({ orders, locale, dict }: { orders: OrderSummary[]; 
                   <StatusPill status={o.status} dict={dict} />
                 </td>
                 <td className={`${styles.end} ${styles.wideOnly}`}>{formatNumber(locale, cases)}</td>
-                <td className={styles.end}>{o.subtotal == null ? p.noPrice : <bdi>{formatMoney(locale, o.subtotal)}</bdi>}</td>
+                <td className={styles.end}>{amount == null ? p.noPrice : <bdi>{formatMoney(locale, amount)}</bdi>}</td>
               </tr>
             );
           })}

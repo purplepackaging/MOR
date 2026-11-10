@@ -16,12 +16,20 @@ import styles from "./list.module.css";
 /** Present when a customer is signed in: the list becomes their order. */
 export interface ListPortal {
   accountName: string;
-  /** Price per case by SKU; null while the account has no price tier. */
+  /** Price per case by SKU; null while no product has a cost yet. */
   prices: Record<string, number> | null;
+  /** Delivery fees from Supabase; null if they could not be loaded. */
+  fees: { delivery: number; nextDay: number } | null;
+  cardFeePercent: string;
   ordersHref: string;
   signInHref: string;
   signInLabel: string;
   noPrice: string;
+}
+
+/** With the portal on and nobody signed in: the list asks them to sign in to order. */
+export interface ListSignIn {
+  href: string;
 }
 
 type Placed = { number: number; href: string };
@@ -35,6 +43,7 @@ export function ListView({
   browseHref,
   requestHref,
   portal,
+  signIn,
 }: {
   locale: Locale;
   index: Record<string, SkuInfo>;
@@ -44,6 +53,7 @@ export function ListView({
   browseHref: string;
   requestHref: string;
   portal?: ListPortal;
+  signIn?: ListSignIn;
 }) {
   const hydrated = useHydrated();
   const lines = useList();
@@ -52,6 +62,7 @@ export function ListView({
   const focusEmpty = useRef(false);
   const placedHeading = useRef<HTMLHeadingElement>(null);
   const [note, setNote] = useState("");
+  const [nextDay, setNextDay] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
@@ -110,8 +121,13 @@ export function ListView({
 
   const totalCases = known.reduce((sum, l) => sum + l.cases, 0);
   const prices = portal?.prices ?? null;
+  const fees = portal?.fees ?? null;
   const unpriced = prices ? known.filter((l) => prices[l.sku] == null).length : 0;
-  const subtotal = prices ? known.reduce((sum, l) => sum + (prices[l.sku] ?? 0) * l.cases, 0) : 0;
+  // Shown for reading only. The order is priced again in the database when it is placed.
+  const cents = (n: number) => Math.round(n * 100);
+  const subtotal = prices ? known.reduce((sum, l) => sum + cents(prices[l.sku] ?? 0) * l.cases, 0) / 100 : 0;
+  const total =
+    prices && fees && unpriced === 0 ? (cents(subtotal) + cents(fees.delivery) + (nextDay ? cents(fees.nextDay) : 0)) / 100 : null;
   const orderLines = known.map(({ sku, cases }) => ({ sku, cases }));
 
   const failure = (reason: string) =>
@@ -120,13 +136,14 @@ export function ListView({
   const place = () => {
     setProblem(null);
     startPlacing(async () => {
-      const result = await placeOrder({ locale, lines: orderLines, note });
+      const result = await placeOrder({ locale, lines: orderLines, note, nextDay });
       if (!result.ok) {
         setProblem(failure(result.reason));
         return;
       }
       listStore.clear();
       setNote("");
+      setNextDay(false);
       setPlaced({ number: result.number, href: `${portal?.ordersHref ?? ""}/${result.number}` });
     });
   };
@@ -216,13 +233,48 @@ export function ListView({
         </p>
         {portal ? (
           <>
-            {prices ? (
-              <p className={styles.subtotal}>
-                <span>{labels.subtotal}</span>
-                <bdi>{formatMoney(locale, subtotal)}</bdi>
-              </p>
+            {prices || fees ? (
+              <dl className={styles.costs}>
+                {prices ? (
+                  <div>
+                    <dt>{labels.subtotal}</dt>
+                    <dd>
+                      <bdi>{formatMoney(locale, subtotal)}</bdi>
+                    </dd>
+                  </div>
+                ) : null}
+                {fees ? (
+                  <div>
+                    <dt>{labels.delivery}</dt>
+                    <dd>
+                      <bdi>{formatMoney(locale, fees.delivery)}</bdi>
+                    </dd>
+                  </div>
+                ) : null}
+                {fees && nextDay ? (
+                  <div>
+                    <dt>{labels.nextDay}</dt>
+                    <dd>
+                      <bdi>{formatMoney(locale, fees.nextDay)}</bdi>
+                    </dd>
+                  </div>
+                ) : null}
+                {fees ? (
+                  <div className={styles.costsTotal}>
+                    <dt>{labels.total}</dt>
+                    <dd>{total == null ? portal.noPrice : <bdi>{formatMoney(locale, total)}</bdi>}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
+            {fees ? (
+              <label className={styles.nextDayOption}>
+                <input type="checkbox" checked={nextDay} onChange={(e) => setNextDay(e.target.checked)} />
+                <span>{fill(labels.nextDayOption, { price: formatMoney(locale, fees.nextDay) })}</span>
+              </label>
             ) : null}
             {!prices || unpriced ? <p className="small muted">{prices ? labels.needsPrice : labels.pricesSoon}</p> : null}
+            <p className="small muted">{fill(labels.cardFee, { pct: portal.cardFeePercent })}</p>
             <div className="field">
               <label className="label" htmlFor="order-note">
                 {labels.noteLabel}
@@ -251,6 +303,13 @@ export function ListView({
             <button type="button" className={`btn btn-quiet ${styles.send}`} onClick={saveUsual} disabled={placing || saving}>
               {saving ? labels.savingUsual : labels.saveUsual}
             </button>
+          </>
+        ) : signIn ? (
+          <>
+            <Link className={`btn ${styles.send}`} href={signIn.href}>
+              {labels.signInToOrder}
+            </Link>
+            <p className="small muted">{labels.signInToOrderNote}</p>
           </>
         ) : (
           <>

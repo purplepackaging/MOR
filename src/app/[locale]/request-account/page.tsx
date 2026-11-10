@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { normalizeRepCode, repDisplayName } from "@/config/reps";
 import { REP_COOKIE } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
+import { getPortal, portalReady, setupPath } from "@/lib/portal";
 import { supabaseConfigured } from "@/lib/supabase";
 import { RequestForm } from "./RequestForm";
 import styles from "./request.module.css";
@@ -27,8 +29,17 @@ export default async function RequestAccountPage({ params, searchParams }: PageP
   const fromQuery = typeof query.rep === "string" ? normalizeRepCode(query.rep) : "";
   const fromCookie = normalizeRepCode((await cookies()).get(REP_COOKIE)?.value);
   const repCode = fromQuery || fromCookie;
-  const rep = repCode ? { code: repCode, name: repDisplayName(repCode) } : null;
 
+  // With the portal on, people create their own account: email code first, then their business.
+  if (portalReady()) {
+    const session = await getPortal();
+    if (session?.account || session?.paused) redirect(localePath(locale, "/account"));
+    const setup = `${setupPath(locale)}${repCode ? `?rep=${repCode}` : ""}`;
+    if (session) redirect(setup);
+    redirect(`${localePath(locale, "/account/sign-in")}?new=1&next=${encodeURIComponent(setup)}`);
+  }
+
+  const rep = repCode ? { code: repCode, name: repDisplayName(repCode) } : null;
   return (
     <div className={`container ${styles.page}`}>
       <div className={styles.layout}>

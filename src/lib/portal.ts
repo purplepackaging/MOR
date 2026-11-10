@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { site } from "@/config/site";
+import { localePath, type Locale } from "@/lib/i18n";
 
 /**
  * Customer portal data access. Everything runs on the server with the signed-in
@@ -46,6 +47,8 @@ export interface Portal {
   user: User;
   account: PortalAccount | null;
   accounts: PortalAccount[];
+  /** Signed in, on an account, but every account they belong to is switched off. */
+  paused: boolean;
 }
 
 /** The signed-in user and the business they are ordering for, once per request. */
@@ -66,10 +69,39 @@ export const getPortal = cache(async (): Promise<Portal | null> => {
   }));
   const chosen = (await cookies()).get(ACCOUNT_COOKIE)?.value;
   const account = accounts.find((a) => a.id === chosen) ?? accounts[0] ?? null;
-  return { user: data.user, account, accounts };
+  // Accounts you switch off disappear from the list above, but the membership stays.
+  let paused = false;
+  if (!account) {
+    const { data: links } = await supabase.from("account_users").select("account_id").limit(1);
+    paused = Boolean(links?.length);
+  }
+  return { user: data.user, account, accounts, paused };
 });
 
-/** Price per case by SKU, or null while the account has no price tier. */
+/** Where a signed-in person without a business goes to set one up. */
+export function setupPath(locale: Locale, next?: string | null): string {
+  const base = localePath(locale, "/account/setup");
+  return next ? `${base}?next=${encodeURIComponent(next)}` : base;
+}
+
+export interface Fees {
+  delivery: number;
+  nextDay: number;
+}
+
+/** Delivery fees from Supabase (public.pricing), shown before a customer orders. */
+export const getFees = cache(async (): Promise<Fees | null> => {
+  const supabase = await userClient();
+  const { data, error } = await supabase.rpc("order_fees");
+  if (error) {
+    console.error("[portal] order_fees failed:", error.message);
+    return null;
+  }
+  const row = (Array.isArray(data) ? data[0] : null) as { delivery_fee: number | string; next_day_fee: number | string } | null;
+  return row ? { delivery: Number(row.delivery_fee), nextDay: Number(row.next_day_fee) } : null;
+});
+
+/** Price per case by SKU, or null while no product has a cost yet. */
 export const getPrices = cache(async (accountId: string): Promise<Record<string, number> | null> => {
   const supabase = await userClient();
   const { data, error } = await supabase.rpc("my_prices", { p_account: accountId });
@@ -95,10 +127,19 @@ export interface OrderSummary {
   status: "received" | "confirmed" | "out_for_delivery" | "delivered" | "canceled";
   note: string | null;
   subtotal: number | null;
+  nextDay: boolean;
+  /** Null on orders placed before delivery fees existed. */
+  deliveryFee: number | null;
+  nextDayFee: number | null;
+  /** Subtotal plus fees. Null while any line has no price. */
+  total: number | null;
   lines: OrderLine[];
 }
 
-const ORDER_COLUMNS = "id, number, created_at, status, note, subtotal, order_lines(sku, cases, price_per_case)";
+const ORDER_COLUMNS =
+  "id, number, created_at, status, note, subtotal, next_day, delivery_fee, next_day_fee, total, order_lines(sku, cases, price_per_case)";
+
+const money = (v: unknown) => (v == null ? null : Number(v));
 
 function toOrder(r: Record<string, unknown>): OrderSummary {
   const lines = (r.order_lines as { sku: string; cases: number; price_per_case: number | string | null }[] | null) ?? [];
@@ -108,9 +149,18 @@ function toOrder(r: Record<string, unknown>): OrderSummary {
     createdAt: r.created_at as string,
     status: r.status as OrderSummary["status"],
     note: (r.note as string | null) ?? null,
-    subtotal: r.subtotal == null ? null : Number(r.subtotal),
-    lines: lines.map((l) => ({ sku: l.sku, cases: l.cases, price: l.price_per_case == null ? null : Number(l.price_per_case) })),
+    subtotal: money(r.subtotal),
+    nextDay: r.next_day === true,
+    deliveryFee: money(r.delivery_fee),
+    nextDayFee: money(r.next_day_fee),
+    total: money(r.total),
+    lines: lines.map((l) => ({ sku: l.sku, cases: l.cases, price: money(l.price_per_case) })),
   };
+}
+
+/** What the order costs in all, for lists: the total, or the subtotal on orders from before fees. */
+export function orderAmount(o: OrderSummary): number | null {
+  return o.deliveryFee == null ? o.subtotal : o.total;
 }
 
 export async function getOrders(accountId: string, limit = 50): Promise<OrderSummary[]> {

@@ -3,7 +3,7 @@ import type { Dict } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { site } from "@/config/site";
 import { Wordmark } from "./Wordmark";
-import { AccountLink, LanguageMenu, ListButton, MobileMenu, NavLink } from "./HeaderClient";
+import { AccountLink, CreateAccountLink, LanguageMenu, ListButton, MobileMenu, NavLink } from "./HeaderClient";
 import styles from "./Header.module.css";
 
 export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
@@ -40,9 +40,11 @@ export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
             account={account}
             className={`${styles.navLink} ${styles.desktopOnly}`}
           />
-          <Link href={request} className={`btn btn-sm ${styles.desktopOnly}`}>
-            {dict.nav.request}
-          </Link>
+          <CreateAccountLink
+            portal={site.portalEnabled}
+            link={{ href: request, label: dict.nav.request }}
+            className={`btn btn-sm ${styles.desktopOnly}`}
+          />
           <ListButton
             href={localePath(locale, "/list")}
             label={dict.nav.list}

@@ -219,14 +219,57 @@
   line-height: 1.4;
 }
 
-.subtotal {
+/* Subtotal, delivery fees and total. Read-only: the database prices the order. */
+.costs {
+  display: grid;
+  margin: 0;
+  padding-block: var(--s-2);
+  border-block: 1px solid var(--line-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.costs > div {
   display: flex;
   justify-content: space-between;
   gap: var(--s-3);
-  padding-block: var(--s-3);
-  border-block: 1px solid var(--line-strong);
+  padding-block: 6px;
+}
+
+.costs dt {
+  color: var(--ink-2);
+}
+
+.costs dd {
+  margin: 0;
+}
+
+.costs > .costsTotal {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
   font-weight: var(--w-medium);
-  font-variant-numeric: tabular-nums;
+}
+
+.costsTotal dt {
+  color: var(--ink);
+}
+
+.nextDayOption {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.nextDayOption input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--mor);
+  cursor: pointer;
 }
 
 .noteInput {

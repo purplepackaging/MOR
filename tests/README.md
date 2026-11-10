@@ -10,15 +10,15 @@ cd tests && npm install
 
 | Check | Command | What it covers | Last result |
 | --- | --- | --- | --- |
-| Database | `npm run db` | Applies `supabase/migrations` to PGlite (Postgres 18 in WASM) with stand-ins for Supabase roles and `auth.uid()`. RLS, grants, pricing math, tiers, paused accounts, `load_costs`, `link_customer`, runs twice cleanly | 53/53 pass (Nov 10, 2026) |
-| Portal end to end | see below | Sign-in by code, no email enumeration, prices and subtotal, place order, usual order, reorder, order pages, Arabic, 404s, unlinked and no-tier accounts, axe on every portal page, at 1280 and 390 px | 66/66 pass (Nov 10, 2026) |
+| Database | `npm run db` | Applies `supabase/migrations` to PGlite (Postgres 18 in WASM) with stand-ins for Supabase roles and `auth.uid()`. RLS, grants, 25% margin pricing, delivery and next-day fees, open sign-up (`create_my_account`), switched-off accounts, `load_costs`, `link_customer`, tiers removed over existing data, each migration runs twice cleanly | 82/82 pass (Nov 10, 2026) |
+| Portal end to end | see below | Sign-in by code, open sign-up and the business form, prices, delivery and next-day fees, totals, card fee note, place order, usual order, reorder, order pages, Arabic, 404s, switched-off accounts, signed-out list, axe on every portal page, at 1280 and 390 px | 100/100 pass (Nov 10, 2026) |
 | Public pages | `npm run axe` | axe-core on 11 public pages at 1366 and 390 px | clean (Nov 10, 2026) |
 
 ## Portal end to end
 
 The portal needs Supabase, so these runs use `mock-supabase/server.mjs`: a small stand-in for Supabase Auth
-and the Data API (users `owner@kebab.test`, tier markup 30%; `taco@spot.test`, no tier; `new@user.test`, no
-account; every code is `123456`).
+and the Data API (`owner@kebab.test` owns Kebab House; `paused@spot.test` belongs to a switched-off account;
+any other email signs up; every code is `123456`; 25% margin, $50 delivery, $50 next-day).
 
 ```bash
 # terminal 1, from tests/
@@ -32,7 +32,7 @@ SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_PUBLISHABLE_KEY=sb_publishable_test
 npm run portal                                # BASE=http://localhost:3123 by default
 ```
 
-For `npm run axe`, build without the portal flag (production settings) and start `npx next start -p 3123`.
+For `npm run axe`, use the same build and servers: production runs with the portal on (since Nov 10, 2026).
 
 The mock only imitates the Supabase calls the portal makes. Row level security and grants are covered by the
 database tests, which run the real migrations.

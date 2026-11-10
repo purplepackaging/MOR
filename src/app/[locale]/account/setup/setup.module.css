@@ -1,0 +1,4 @@
+/* Same column width as the request form, so lines stay readable. */
+.column {
+  max-width: 40rem;
+}

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import type { Dict } from "@/i18n";
 import { fill, type Locale } from "@/lib/i18n";
@@ -11,12 +10,13 @@ export function SignInForm({
   locale,
   next,
   labels,
-  requestHref,
+  create,
 }: {
   locale: Locale;
   next: string | null;
   labels: Dict["signIn"];
-  requestHref: string;
+  /** Came to create an account: same form, different heading. */
+  create: boolean;
 }) {
   const [sent, sendAction, sending] = useActionState<SignInState, FormData>(sendCode, { step: "email", email: "" });
   const [checked, verifyAction, verifying] = useActionState<SignInState, FormData>(verifyCode, { step: "code", email: "" });
@@ -42,10 +42,14 @@ export function SignInForm({
     const error = sent.error ? t.errors[sent.error] : null;
     return (
       <div className={styles.signIn}>
-        <h1 className="h2">{t.title}</h1>
-        <p className="lede">{t.lede}</p>
+        <h1 className="h2">{create ? t.createTitle : t.title}</h1>
+        <p className="lede">{create ? t.createLede : t.lede}</p>
         <form action={sendAction} className={styles.form} noValidate>
           <input type="hidden" name="locale" value={locale} />
+          <div className={styles.trap} aria-hidden="true">
+            <label htmlFor="si-website">Website</label>
+            <input id="si-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+          </div>
           <div className="field">
             <label className="label" htmlFor="si-email">
               {t.email}
@@ -75,9 +79,6 @@ export function SignInForm({
             </button>
           </div>
         </form>
-        <p className={styles.help}>
-          {t.noAccount} <Link href={requestHref}>{t.request}</Link>
-        </p>
       </div>
     );
   }
