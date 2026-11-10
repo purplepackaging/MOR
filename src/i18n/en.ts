@@ -129,6 +129,7 @@ const en = {
       rolls: "rolls",
       boxes: "boxes",
       pairs: "pairs",
+      books: "books",
     },
   },
   list: {

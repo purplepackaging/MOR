@@ -17,7 +17,7 @@ export type CategoryId =
   | "gloves-safety"
   | "cleaning";
 
-export type PackUnit = "sets" | "kits" | "rolls" | "boxes" | "pairs";
+export type PackUnit = "sets" | "kits" | "rolls" | "boxes" | "pairs" | "books";
 
 export type IconName =
   | "hotCup"
@@ -31,7 +31,18 @@ export type IconName =
   | "cap"
   | "apron"
   | "jug"
-  | "pump";
+  | "pump"
+  | "tub"
+  | "clamshell"
+  | "tray"
+  | "plate"
+  | "utensils"
+  | "skewer"
+  | "bag"
+  | "receipt"
+  | "mask"
+  | "mop"
+  | "fuel";
 
 export type TagId = "microwave" | "pfasFree" | "compostable" | "wrapped" | "antiFog";
 

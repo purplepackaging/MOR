@@ -140,4 +140,94 @@ const ICONS: Record<IconName, React.ReactNode> = {
       <rect x="44" y="64" width="32" height="26" rx="3" fill={T} />
     </>
   ),
+  tub: (
+    <>
+      <path d="M26 54h68l-6 38a4 4 0 0 1-4 3.4H36a4 4 0 0 1-4-3.4Z" fill={W} />
+      <path d="M29 70h62" stroke={T} strokeWidth="3" />
+      <rect x="20" y="42" width="80" height="12" rx="5" fill={T} />
+      <path d="M28 42c3-5 9-7 32-7s29 2 32 7" fill={W} />
+    </>
+  ),
+  clamshell: (
+    <>
+      <path d="M20 70h80l-6 26a4 4 0 0 1-4 3H30a4 4 0 0 1-4-3Z" fill={W} />
+      <path d="M26 70l4-30a4 4 0 0 1 4-3.5h52a4 4 0 0 1 4 3.5l4 30" fill={T} fillOpacity="0.55" />
+      <path d="M36 50h48" stroke={W} strokeWidth="3" />
+      <path d="M18 70h84" strokeWidth="3" />
+      <rect x="54" y="66" width="12" height="9" rx="2" fill={W} />
+    </>
+  ),
+  tray: (
+    <>
+      <path d="M14 62h92l-10 24a4 4 0 0 1-3.7 2.5H27.7A4 4 0 0 1 24 86Z" fill={W} />
+      <path d="M24 62l6-10h60l6 10" fill={T} />
+      <path d="M32 74h56" stroke={T} strokeWidth="3" />
+    </>
+  ),
+  plate: (
+    <>
+      <ellipse cx="60" cy="64" rx="46" ry="22" fill={W} />
+      <ellipse cx="60" cy="62" rx="30" ry="12" fill={T} />
+      <path d="M22 70c8 7 22 11 38 11s30-4 38-11" stroke={T} strokeWidth="3" />
+    </>
+  ),
+  utensils: (
+    <>
+      <g transform="rotate(-18 60 60)">
+        <rect x="40" y="56" width="8" height="52" rx="4" fill={W} />
+        <path d="M36 16v24a8 8 0 0 0 16 0V16" fill={T} />
+        <path d="M44 16v22" />
+      </g>
+      <g transform="rotate(18 60 60)">
+        <rect x="72" y="56" width="8" height="52" rx="4" fill={W} />
+        <ellipse cx="76" cy="34" rx="12" ry="20" fill={T} />
+      </g>
+    </>
+  ),
+  skewer: (
+    <>
+      <g transform="rotate(-30 60 60)">
+        <path d="M57 10l3-6 3 6v100h-6Z" fill={W} />
+        <path d="M66 10l3-6 3 6v100h-6Z" fill={T} />
+        <path d="M48 10l3-6 3 6v100h-6Z" fill={T} />
+      </g>
+    </>
+  ),
+  bag: (
+    <>
+      <path d="M28 30h64v70a4 4 0 0 1-4 4H32a4 4 0 0 1-4-4Z" fill={W} />
+      <path d="M28 42h64" stroke={T} strokeWidth="4" />
+      <path d="M28 30l8-10h48l8 10" fill="#efedf3" />
+      <rect x="40" y="62" width="40" height="22" rx="3" fill={T} />
+    </>
+  ),
+  receipt: (
+    <>
+      <path d="M32 18h56v84l-7-5-7 5-7-5-7 5-7-5-7 5-7-5-7 5Z" fill={W} />
+      <path d="M42 36h36M42 48h36M42 60h24" stroke={T} strokeWidth="3" />
+      <rect x="42" y="72" width="36" height="10" rx="2" fill={T} />
+    </>
+  ),
+  mask: (
+    <>
+      <path d="M18 50c8-3 14-4 18-4M102 50c-8-3-14-4-18-4M18 78c8 2 14 2 18 0M102 78c-8 2-14 2-18 0" />
+      <path d="M36 44c16-5 32-5 48 0v36c-16 7-32 7-48 0Z" fill={W} />
+      <path d="M38 56h44M38 66h44" stroke={T} strokeWidth="3" />
+    </>
+  ),
+  mop: (
+    <>
+      <rect x="57" y="10" width="6" height="66" rx="3" fill={W} />
+      <rect x="44" y="72" width="32" height="10" rx="3" fill={T} />
+      <path d="M46 82l-8 26M52 82l-4 28M58 82v28M64 82l2 28M70 82l6 27M75 82l10 25" strokeWidth="4" />
+    </>
+  ),
+  fuel: (
+    <>
+      <path d="M60 18c8 9 12 16 12 22a12 12 0 0 1-24 0c0-6 4-13 12-22Z" fill={T} />
+      <rect x="34" y="56" width="52" height="46" rx="5" fill={W} />
+      <rect x="31" y="50" width="58" height="10" rx="3" fill={T} />
+      <rect x="42" y="72" width="36" height="16" rx="3" fill={T} />
+    </>
+  ),
 };

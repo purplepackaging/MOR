@@ -129,6 +129,7 @@ const tr: Dict = {
       rolls: "rulo",
       boxes: "kutu",
       pairs: "çift",
+      books: "defter",
     },
   },
   list: {
