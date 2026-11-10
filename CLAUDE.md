@@ -39,6 +39,10 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   cost per case x (1 + tier markup), rounded to cents. Costs and markups are never readable by customers;
   never compute prices in the browser. An account with no tier sees no prices.
 - **Admin:** the Supabase dashboard (Table Editor). Costs load with `public.load_costs` from the cost sheet.
+- **Supabase project:** MOR Supply, ref `kzfjwdqjjpxogoqrzwtc`, East US (us-east-1), next to Vercel's `iad1`.
+  Migration history matches the file names in `supabase/migrations`.
+- **Grants:** since Oct 30, 2026 Supabase gives `anon`, `authenticated` and `service_role` no access to new
+  tables. Every migration that adds a table must grant exactly what the app uses, with RLS on.
 - **New-order email:** `src/lib/notify.ts` via Resend when `RESEND_API_KEY`, `ORDER_EMAIL_FROM` and
   `ORDER_EMAIL_TO` are set; otherwise it logs. It never fails an order.
 - **Language cookie:** set only on real page loads (`Sec-Fetch-Dest: document`). Next strips its router

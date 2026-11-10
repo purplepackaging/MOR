@@ -40,7 +40,8 @@ A first visit picks the browser language; the language menu choice is remembered
 
 ## Turning on the request form
 
-1. Create a Supabase project and run `supabase/migrations/20261109000000_init.sql` in its SQL editor.
+1. Create a Supabase project and apply every file in `supabase/migrations` in order (SQL editor,
+   `supabase db push`, or Claude's Supabase connector).
 2. In Vercel, add `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (server-only, never `NEXT_PUBLIC_`).
 3. Redeploy. Until then the form shows a message asking people to contact their rep.
 
@@ -50,7 +51,7 @@ Phase 1 is ordering. Customers sign in with an email code, see their account's p
 orders, save a usual order and reorder from history. Prices are cost per case x (1 + the account's tier
 markup), computed in the database. An account with no tier sees no prices. It stays off until step 4.
 
-1. Run `supabase/migrations/20261110000000_portal.sql` in the Supabase SQL editor, after the init migration.
+1. Apply the migrations (see above). Production is the Supabase project MOR Supply in East US, set up Nov 10, 2026.
 2. Supabase Auth: turn off new sign-ups, put `{{ .Token }}` in the Magic Link email template, and set up
    custom SMTP (the built-in sender only reaches your own team).
 3. In Vercel, add `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_PORTAL_ENABLED=true`. Optional for new-order
