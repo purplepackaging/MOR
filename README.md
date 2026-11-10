@@ -20,11 +20,12 @@ Never commit secrets. API keys live in Vercel project environment variables only
 | Products | `/products`, `/products/[category]` | Search, category filters, plant-based filter |
 | Product | `/products/[category]/[product]` | Sizes and case packs, Add to list |
 | Your list | `/list` | Saved on the visitor's device until sent |
-| Request an account | `/request-account` | Saves to Supabase with the list and rep code |
-| Sign in | `/account/sign-in` | Email code sign-in. Shows "opens soon" while the portal is off |
+| Request an account | `/request-account` | With the portal on, forwards to account creation. Off: saves a request to Supabase |
+| Sign in | `/account/sign-in` | Email code sign-in and sign-up (`?new=1`). Shows "opens soon" while the portal is off |
+| Business setup | `/account/setup` | First sign-in: business, address, phone, then ordering |
 | Your account | `/account`, `/account/orders` | Client portal: usual order, order history, reorder |
 | Legal | `/privacy`, `/terms`, `/sms-terms` | English text, translated titles |
-| Rep QR codes | `/r/CODE` | Remembers the rep for 180 days, opens the request form |
+| Rep QR codes | `/r/CODE` | Remembers the rep for 180 days, opens account creation |
 
 English lives at the root. Other languages are prefixed: `/es`, `/tr`, `/ar` (right to left).
 A first visit picks the browser language; the language menu choice is remembered.
@@ -34,7 +35,7 @@ A first visit picks the browser language; the language menu choice is remembered
 - **Products:** `src/data/catalog.ts`. SKUs are MOR's own and must never change once used.
   Product photos go in `public/img/products/` as transparent WebP.
 - **Words on the site:** `src/i18n/en.ts`, then the same key in `es.ts`, `tr.ts`, `ar.ts`.
-- **Phone, email, card surcharge:** `src/config/site.ts`.
+- **Phone, email, card surcharge, fees shown in the FAQ:** `src/config/site.ts`.
 - **Sales reps:** `src/config/reps.ts` (display names) and the `reps` table in Supabase.
 - **Design tokens:** `src/styles/tokens.css`. See `DESIGN.md`.
 
@@ -47,28 +48,48 @@ A first visit picks the browser language; the language menu choice is remembered
 
 ## Client portal
 
-Phase 1 is ordering. Customers sign in with an email code, see their account's prices on the list, place
-orders, save a usual order and reorder from history. Prices are cost per case x (1 + the account's tier
-markup), computed in the database. An account with no tier sees no prices. It stays off until step 4.
+Phase 1 is ordering. Anyone can create an account: they enter their email, type in the code we email them,
+and on their first sign-in fill in a short business form. Then they see prices, place orders, save a usual
+order and reorder from history. You confirm each order before it ships.
 
-1. Apply the migrations (see above). Production is the Supabase project MOR Supply in East US, set up Nov 10, 2026.
+Prices and fees are set in the database, never in the browser:
+
+- Price per case = cost per case / (1 - margin), rounded to cents. The margin is 25%, so a $10.00 case
+  sells for $13.33. Everyone gets the same margin.
+- Every order adds a $50 delivery fee. Next-day delivery adds $50 more when the customer ticks it.
+- The margin and both fees are the one row in `public.pricing`. Orders copy prices and fees when they are
+  placed. The FAQ shows the fees from `src/config/site.ts`, so change both together.
+- Credit cards add a 3% surcharge (`cardSurchargePercent` in `src/config/site.ts`), charged by the card
+  processor at payment, never on debit cards or bank payments. Card rules cap it at what card acceptance
+  actually costs you, and the processor needs 30 days' notice before you start.
+
+Setup (done for production on Nov 10, 2026):
+
+1. Apply the migrations (see above). Production is the Supabase project MOR Supply in East US.
+   `20261110190000_open_signup_pricing.sql` drops the old tiers, so run it in the SQL Editor and confirm.
 2. Supabase Auth:
-   - Sign In / Providers: turn off "Allow new users to sign up". Customers are added by hand.
+   - Sign In / Providers: "Allow new users to sign up" on. The site asks for a business before anything else.
    - Emails > SMTP Settings: Resend (`smtp.resend.com`, port 465, user `resend`, password = a Resend API key
      with sending access to `mail.morsupply.com` only). Sender `signin@mail.morsupply.com`, name `MOR Supply`.
      The built-in sender only reaches your own team, and the templates stay locked until custom SMTP is on.
-   - Emails > Magic link or OTP: subject `{{ .Token }} is your MOR Supply sign-in code`, body
-     `supabase/templates/sign-in-code.html`. The portal signs in with the code, not a link.
+   - Emails > Magic link or OTP and Confirm sign up: subject `{{ .Token }} is your MOR Supply sign-in code`,
+     body `supabase/templates/sign-in-code.html`. New emails get the Confirm sign up email, returning
+     customers get Magic link or OTP. The portal signs in with the code, not a link.
    - Codes are 8 digits and last 1 hour (Sign In / Providers > Email).
-3. In Vercel, add `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_PORTAL_ENABLED=true`. Optional for new-order
-   emails: `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `ORDER_EMAIL_TO`.
+3. In Vercel, add `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_PORTAL_ENABLED=true`. For emails to you about
+   new orders and new accounts: `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `ORDER_EMAIL_TO`.
 4. Redeploy.
 
 Day to day, in the Supabase dashboard:
 
-- Add a customer: Authentication > Users > Add user > Create new user (not "Send invitation": the invite
-  email has a link the portal doesn't use), then in the SQL editor
-  `select * from public.link_customer('owner@example.com', 'Business name');`
-- Show prices: set `accounts.tier` to XL, L, M, S or XS (markups in `price_tiers`).
-- Load costs: `public.load_costs` with columns copied from the cost sheet.
+- New accounts: Table Editor > accounts (`created_by` is set when the customer made it themselves).
+  Switch one off with `active`; its people can still sign in but cannot see prices or order.
+- Add someone to an existing business (staff who order), before they sign in: Authentication > Users >
+  Add user > Create new user, then in the SQL editor
+  `select * from public.link_customer('buyer@example.com', 'Business name', 'buyer');`
+  If they sign in first, the site asks them to set up a new business instead.
+- Change the margin or fees: Table Editor > pricing.
+- Load costs: `public.load_costs` with columns copied from the cost sheet. Items without a cost show
+  "To be confirmed".
 - Move orders along: `orders.status` is received, confirmed, out_for_delivery, delivered or canceled.
+  `orders.next_day` marks next-day requests.

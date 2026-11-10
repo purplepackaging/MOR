@@ -19,8 +19,17 @@ export const site = {
   /** E.164 number used for WhatsApp. */
   whatsapp: null as string | null,
   email: null as string | null,
-  /** Credit card surcharge in percent. Debit, ACH and bank payments are never surcharged. */
-  cardSurchargePercent: 2.9,
+  /**
+   * Credit card surcharge in percent. Debit, ACH and bank payments are never surcharged.
+   * Card rules cap it at what card acceptance actually costs you (Visa: 3% at most).
+   */
+  cardSurchargePercent: 3,
+  /**
+   * Delivery fees in dollars, as shown on public pages (the FAQ). Orders are charged
+   * from public.pricing in Supabase, so change both together.
+   */
+  deliveryFee: 50,
+  nextDayFee: 50,
   /** Turns on sign-in and account pages once the portal is built. */
   portalEnabled: process.env.NEXT_PUBLIC_PORTAL_ENABLED === "true",
 };

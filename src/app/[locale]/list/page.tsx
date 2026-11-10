@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { skuIndex } from "@/lib/catalog";
-import { localePath, type Locale } from "@/lib/i18n";
+import { formatNumber, localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
-import { getPortal, getPrices, portalReady } from "@/lib/portal";
-import { ListView, type ListPortal } from "./ListView";
+import { getFees, getPortal, getPrices, portalReady, setupPath } from "@/lib/portal";
+import { ListView, type ListPortal, type ListSignIn } from "./ListView";
 import styles from "./list.module.css";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/list">): Promise<Metadata> {
@@ -25,21 +26,32 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
   const dict = getDictionary(locale);
   const d = dict.product;
 
-  // Signed-in customers order straight from the list, at their tier's prices.
+  // Signed-in customers order straight from the list, at their prices.
   // With the portal on, the page renders per request; with it off, it stays static.
   if (site.portalEnabled) await connection();
   let portal: ListPortal | undefined;
+  let signIn: ListSignIn | undefined;
   if (portalReady()) {
+    const listPath = localePath(locale, "/list");
+    const signInHref = `${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(listPath)}`;
     const session = await getPortal();
     if (session?.account) {
+      const [prices, fees] = await Promise.all([getPrices(session.account.id), getFees()]);
       portal = {
         accountName: session.account.name,
-        prices: await getPrices(session.account.id),
+        prices,
+        fees,
+        cardFeePercent: formatNumber(locale, site.cardSurchargePercent),
         ordersHref: localePath(locale, "/account/orders"),
-        signInHref: `${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(localePath(locale, "/list"))}`,
+        signInHref,
         signInLabel: dict.nav.signIn,
         noPrice: dict.portal.noPrice,
       };
+    } else if (session && !session.paused) {
+      // Signed in for the first time: set up the business, then come back to this list.
+      redirect(setupPath(locale, listPath));
+    } else if (!session) {
+      signIn = { href: signInHref };
     }
   }
 
@@ -67,6 +79,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
           browseHref={localePath(locale, "/products")}
           requestHref={localePath(locale, "/request-account")}
           portal={portal}
+          signIn={signIn}
         />
       </div>
     </div>

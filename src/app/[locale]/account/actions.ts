@@ -2,12 +2,16 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { normalizeRepCode } from "@/config/reps";
+import { REP_COOKIE } from "@/config/site";
+import { getDictionary } from "@/i18n";
 import { findVariant } from "@/lib/catalog";
 import { isLocale, localePath, type Locale } from "@/lib/i18n";
-import { sendOrderEmail } from "@/lib/notify";
-import { ACCOUNT_COOKIE, getPortal, portalReady, safeNext, userClient } from "@/lib/portal";
+import { sendNewAccountEmail, sendOrderEmail } from "@/lib/notify";
+import { ACCOUNT_COOKIE, getPortal, portalReady, safeNext, setupPath, userClient } from "@/lib/portal";
+import { validateSetup, valuesFromForm, type ErrorCode, type SetupKey } from "@/lib/request-validation";
 
-/* ───────── Sign in with an email code ───────── */
+/* ───────── Sign in, or sign up, with an email code ───────── */
 
 export interface SignInState {
   step: "email" | "code";
@@ -24,19 +28,20 @@ function readLocale(form: FormData): Locale {
 }
 
 /**
- * Emails a one-time code. Only people you added in Supabase can sign in
- * (shouldCreateUser: false), and the answer is the same whether or not the
- * email has an account, so the form never reveals who your customers are.
+ * Emails a one-time code. A new email gets a login too (open sign-up); they set
+ * up their business after the first sign-in.
  */
 export async function sendCode(prev: SignInState, form: FormData): Promise<SignInState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
+  // Honeypot: people never see or fill this field, bots often do. Act as if a code went out.
+  if (String(form.get("website") ?? "").trim()) return { step: "code", email };
   if (!EMAIL.test(email) || email.length > 160) return { step: "email", email, error: "email" };
   if (!portalReady()) return { step: prev.step, email, error: "generic" };
 
   const supabase = await userClient();
   let error;
   try {
-    ({ error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }));
+    ({ error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } }));
   } catch (thrown) {
     console.error("[portal] signInWithOtp threw:", thrown);
     return { step: prev.step, email, error: "generic" };
@@ -45,16 +50,10 @@ export async function sendCode(prev: SignInState, form: FormData): Promise<SignI
     if (error.status === 429 || error.code === "over_email_send_rate_limit") {
       return { step: prev.step, email, error: "wait" };
     }
-    // Supabase is down or the project is paused: say so instead of promising a code.
-    // These failures happen for every email alike, so they reveal nothing about who has an account.
-    if (!error.status || error.status >= 500) {
-      console.error("[portal] signInWithOtp failed:", error.status, error.code, error.message);
-      return { step: prev.step, email, error: "generic" };
-    }
-    // Unknown emails land here too (signups are off). Answer as if it worked.
-    if (error.code !== "otp_disabled" && error.code !== "signup_disabled" && error.code !== "user_not_found") {
-      console.error("[portal] signInWithOtp failed:", error.code, error.message);
-    }
+    // Supabase is down, the project is paused, or sign-ups are switched off: say so
+    // instead of promising a code that will never arrive.
+    console.error("[portal] signInWithOtp failed:", error.status, error.code, error.message);
+    return { step: prev.step, email, error: "generic" };
   }
   return { step: "code", email, resent: prev.step === "code" };
 }
@@ -84,7 +83,64 @@ export async function verifyCode(prev: SignInState, form: FormData): Promise<Sig
     }
     return { step: "code", email, error: "code" };
   }
-  redirect(safeNext(String(form.get("next") ?? "")) ?? localePath(locale, "/account"));
+  const next = safeNext(String(form.get("next") ?? ""));
+  // First sign-in: no business yet, so set one up before anything else.
+  const { data: links, error: linkError } = await supabase.from("account_users").select("account_id").limit(1);
+  if (!linkError && !links?.length) {
+    redirect(next?.startsWith(localePath(locale, "/account/setup")) ? next : setupPath(locale, next));
+  }
+  redirect(next ?? localePath(locale, "/account"));
+}
+
+/* ───────── First sign-in: set up the business ───────── */
+
+export interface SetupState {
+  errors?: Partial<Record<SetupKey, ErrorCode>>;
+  failed?: boolean;
+}
+
+export async function createAccount(_prev: SetupState, form: FormData): Promise<SetupState> {
+  const locale = readLocale(form);
+  const next = safeNext(String(form.get("next") ?? ""));
+  const portal = await getPortal();
+  if (!portal) redirect(`${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(setupPath(locale, next))}`);
+  if (portal.account || portal.paused) redirect(localePath(locale, "/account"));
+  if (String(form.get("website") ?? "").trim()) return { failed: true };
+
+  const { errors, clean } = validateSetup(valuesFromForm(form));
+  if (!clean) return { errors };
+
+  // A rep code from the form, or else from the flyer QR code they scanned.
+  const repCode = clean.repCode ?? (normalizeRepCode((await cookies()).get(REP_COOKIE)?.value) || null);
+  const supabase = await userClient();
+  const { data, error } = await supabase.rpc("create_my_account", {
+    p_name: clean.businessName,
+    p_contact_name: clean.contactName,
+    p_phone: clean.phone,
+    p_street: clean.street,
+    p_city: clean.city,
+    p_zip: clean.zip,
+    p_language: clean.language,
+    p_business_type: clean.businessType,
+    p_rep_code: repCode,
+    // Keep the exact wording the person agreed to, in the language they saw it.
+    p_sms_consent_text: clean.smsConsent ? getDictionary(locale).request.sms : null,
+  });
+  if (error) {
+    if (error.code === "23505") redirect(localePath(locale, "/account"));
+    console.error("[portal] create_my_account failed:", error.code, error.message);
+    return { failed: true };
+  }
+
+  (await cookies()).set(ACCOUNT_COOKIE, String(data), {
+    path: "/",
+    sameSite: "lax",
+    secure: true,
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  await sendNewAccountEmail({ ...clean, repCode, email: portal.user.email ?? "" });
+  redirect(next ?? localePath(locale, "/products"));
 }
 
 export async function signOut(form: FormData): Promise<void> {
@@ -131,10 +187,15 @@ function cleanLines(input: unknown): { sku: string; cases: number }[] {
 }
 
 export type PlaceOrderResult =
-  | { ok: true; number: number; subtotal: number | null }
+  | { ok: true; number: number; total: number | null }
   | { ok: false; reason: "signin" | "noAccount" | "empty" | "generic" };
 
-export async function placeOrder(input: { locale: string; lines: unknown; note: unknown }): Promise<PlaceOrderResult> {
+export async function placeOrder(input: {
+  locale: string;
+  lines: unknown;
+  note: unknown;
+  nextDay: unknown;
+}): Promise<PlaceOrderResult> {
   const portal = await getPortal();
   if (!portal) return { ok: false, reason: "signin" };
   if (!portal.account) return { ok: false, reason: "noAccount" };
@@ -142,31 +203,45 @@ export async function placeOrder(input: { locale: string; lines: unknown; note: 
   if (lines.length === 0) return { ok: false, reason: "empty" };
   const note = typeof input.note === "string" ? input.note.trim().slice(0, 500) : "";
   const locale: Locale = isLocale(input.locale) ? input.locale : "en";
+  const nextDay = input.nextDay === true;
 
+  // Prices and fees are set in the database, never here.
   const supabase = await userClient();
   const { data, error } = await supabase.rpc("place_order", {
     p_account: portal.account.id,
     p_lines: lines,
     p_note: note || null,
     p_locale: locale,
+    p_next_day: nextDay,
   });
-  const row = Array.isArray(data) ? (data[0] as { order_number: number | string; order_subtotal: number | string | null }) : null;
+  const row = Array.isArray(data)
+    ? (data[0] as { order_id: string; order_number: number | string; order_subtotal: number | string | null; order_total: number | string | null })
+    : null;
   if (error || !row) {
     console.error("[portal] place_order failed:", error?.code, error?.message);
     return { ok: false, reason: "generic" };
   }
   const number = Number(row.order_number);
-  const subtotal = row.order_subtotal == null ? null : Number(row.order_subtotal);
+  const total = row.order_total == null ? null : Number(row.order_total);
 
+  const { data: saved } = await supabase
+    .from("orders")
+    .select("delivery_fee, next_day_fee")
+    .eq("id", row.order_id)
+    .maybeSingle();
   await sendOrderEmail({
     number,
     accountName: portal.account.name,
     placedBy: portal.user.email ?? "",
     note,
     lines,
-    subtotal,
+    subtotal: row.order_subtotal == null ? null : Number(row.order_subtotal),
+    nextDay,
+    deliveryFee: saved?.delivery_fee == null ? null : Number(saved.delivery_fee),
+    nextDayFee: saved?.next_day_fee == null ? null : Number(saved.next_day_fee),
+    total,
   });
-  return { ok: true, number, subtotal };
+  return { ok: true, number, total };
 }
 
 export type SaveUsualResult = { ok: true; count: number } | { ok: false; reason: "signin" | "noAccount" | "generic" };

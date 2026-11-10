@@ -102,6 +102,54 @@ export function validateRequest(v: RequestValues): {
   };
 }
 
+/** The business form a person fills in after their first sign-in. Type is optional here. */
+export type SetupKey = "businessName" | "contactName" | "phone" | "street" | "city" | "zip";
+
+export interface CleanSetup {
+  businessName: string;
+  businessType: BusinessType | null;
+  contactName: string;
+  phone: string; // E.164
+  street: string;
+  city: string;
+  zip: string;
+  language: Locale;
+  repCode: string | null;
+  smsConsent: boolean;
+}
+
+export function validateSetup(v: RequestValues): {
+  errors: Partial<Record<SetupKey, ErrorCode>>;
+  clean: CleanSetup | null;
+} {
+  // Same rules as the request form, minus email (they signed in with it) and with type optional.
+  const { errors, clean } = validateRequest({
+    ...v,
+    email: "",
+    businessType: (BUSINESS_TYPES as readonly string[]).includes(v.businessType) ? v.businessType : "other",
+  });
+  const setupErrors: Partial<Record<SetupKey, ErrorCode>> = {};
+  for (const key of ["businessName", "contactName", "phone", "street", "city", "zip"] as const) {
+    if (errors[key]) setupErrors[key] = errors[key];
+  }
+  if (!clean || Object.keys(setupErrors).length) return { errors: setupErrors, clean: null };
+  return {
+    errors: setupErrors,
+    clean: {
+      businessName: clean.businessName,
+      businessType: (BUSINESS_TYPES as readonly string[]).includes(v.businessType) ? (v.businessType as BusinessType) : null,
+      contactName: clean.contactName,
+      phone: clean.phone,
+      street: clean.street,
+      city: clean.city,
+      zip: clean.zip,
+      language: clean.language,
+      repCode: clean.repCode,
+      smsConsent: clean.smsConsent,
+    },
+  };
+}
+
 export function valuesFromForm(form: FormData): RequestValues {
   const s = (k: string) => {
     const x = form.get(k);

@@ -20,15 +20,18 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account/
 }
 
 /**
- * Customer portal entry point. While the portal is switched off
- * (NEXT_PUBLIC_PORTAL_ENABLED) or Supabase is not set up, it explains where
+ * Customer portal entry point, for signing in and for creating an account: a new
+ * email gets a code too, then sets up its business. While the portal is switched
+ * off (NEXT_PUBLIC_PORTAL_ENABLED) or Supabase is not set up, it explains where
  * orders go today. Every link to it across the site stays the same.
  */
 export default async function SignInPage({ params, searchParams }: PageProps<"/[locale]/account/sign-in">) {
   const { locale: raw } = await params;
   const locale = raw as Locale;
   const t = getDictionary(locale).signIn;
-  const next = safeNext((await searchParams).next);
+  const query = await searchParams;
+  const next = safeNext(query.next);
+  const create = query.new === "1";
 
   if (!portalReady()) {
     return (
@@ -53,7 +56,7 @@ export default async function SignInPage({ params, searchParams }: PageProps<"/[
 
   return (
     <section className={`container ${styles.page}`}>
-      <SignInForm locale={locale} next={next} labels={t} requestHref={localePath(locale, "/request-account")} />
+      <SignInForm locale={locale} next={next} labels={t} create={create} />
     </section>
   );
 }

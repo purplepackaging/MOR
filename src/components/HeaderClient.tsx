@@ -83,6 +83,16 @@ export function AccountLink({
   );
 }
 
+/** "Create account", hidden once the visitor is signed in. */
+export function CreateAccountLink({ portal, link, className }: { portal: boolean; link: MenuLink; className?: string }) {
+  if (useSignedIn(portal)) return null;
+  return (
+    <Link href={link.href} className={className}>
+      {link.label}
+    </Link>
+  );
+}
+
 function useDismiss(open: boolean, close: () => void, root: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
@@ -186,7 +196,8 @@ export function MobileMenu({
   request: MenuLink;
 }) {
   const [open, setOpen] = useState(false);
-  const me = useSignedIn(portal) ? account : signIn;
+  const signedIn = useSignedIn(portal);
+  const me = signedIn ? account : signIn;
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const pathname = usePathname();
@@ -237,9 +248,11 @@ export function MobileMenu({
             </li>
           </ul>
         </nav>
-        <Link className={`btn ${styles.sheetCta}`} href={request.href} onClick={() => setOpen(false)}>
-          {request.label}
-        </Link>
+        {signedIn ? null : (
+          <Link className={`btn ${styles.sheetCta}`} href={request.href} onClick={() => setOpen(false)}>
+            {request.label}
+          </Link>
+        )}
         <div className={styles.sheetLangs}>
           <p className={styles.sheetLangLabel}>{labels.language}</p>
           <ul role="list">

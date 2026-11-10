@@ -10,7 +10,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/products",
     ...getCategories().map((c) => `/products/${c.id}`),
     ...getProducts().map(productPath),
-    "/request-account",
+    // With the portal on, this page only forwards to account creation.
+    ...(site.portalEnabled ? [] : ["/request-account"]),
     "/privacy",
     "/terms",
     "/sms-terms",

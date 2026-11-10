@@ -14,7 +14,7 @@ import {
   productHref,
   sampleOrder,
 } from "@/lib/catalog";
-import { fill, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
+import { fill, formatMoney, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
 import styles from "./home.module.css";
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
@@ -25,6 +25,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const products = getProducts();
   const order = sampleOrder(locale);
   const surcharge = formatNumber(locale, site.cardSurchargePercent);
+  const delivery = formatMoney(locale, site.deliveryFee);
+  const nextDay = formatMoney(locale, site.nextDayFee);
 
   return (
     <>
@@ -192,7 +194,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                   <span>{item.q}</span>
                   <Plus aria-hidden="true" className={styles.qaIcon} />
                 </summary>
-                <p>{fill(item.a, { surcharge })}</p>
+                <p>{fill(item.a, { surcharge, delivery, nextDay })}</p>
               </details>
             ))}
           </div>

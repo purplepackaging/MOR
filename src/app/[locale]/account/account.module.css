@@ -14,6 +14,15 @@
   outline: none;
 }
 
+/* Honeypot: off screen for people, still in the form for bots. */
+.trap {
+  position: absolute;
+  inset-inline-start: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .form {
   display: grid;
   gap: var(--s-4);
@@ -242,6 +251,47 @@
 .totalRow td {
   border-bottom: 0;
   font-weight: var(--w-strong);
+}
+
+/* Fees and total under an order's lines, like the foot of a receipt. */
+.costs {
+  display: grid;
+  width: min(100%, 26rem);
+  margin: var(--s-2) 0 0;
+  margin-inline-start: auto;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.costs > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.costs dt {
+  color: var(--ink-2);
+}
+
+.costs dd {
+  margin: 0;
+}
+
+.costs > .costsTotal {
+  border-bottom: 0;
+  font-weight: var(--w-strong);
+}
+
+.costsTotal dt {
+  color: var(--ink);
+}
+
+.nextDay {
+  color: var(--mor);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
 }
 
 .note {

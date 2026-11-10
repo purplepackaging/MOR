@@ -5,7 +5,7 @@ import { connection } from "next/server";
 import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
 import { fill, formatDate, localePath, plural, type Locale } from "@/lib/i18n";
-import { getOrders, getPortal, getPrices, getUsualOrder, portalReady } from "@/lib/portal";
+import { getOrders, getPortal, getPrices, getUsualOrder, portalReady, setupPath } from "@/lib/portal";
 import { signOut, switchAccount } from "./actions";
 import { OrdersTable, describe } from "./parts";
 import styles from "./account.module.css";
@@ -38,11 +38,13 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/accou
 
   const account = portal.account;
   if (!account) {
+    // New here: set up the business first. Switched off: say so.
+    if (!portal.paused) redirect(setupPath(locale));
     return (
       <section className={`container ${styles.page}`}>
         <div className={styles.signIn}>
-          <h1 className="h2">{p.notLinkedTitle}</h1>
-          <p className="lede">{p.notLinkedBody}</p>
+          <h1 className="h2">{p.pausedTitle}</h1>
+          <p className="lede">{p.pausedBody}</p>
           {signOutForm}
         </div>
       </section>
