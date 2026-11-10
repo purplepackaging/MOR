@@ -75,11 +75,18 @@
   margin: 0;
 }
 
+/*
+ * One line: photo, name and case, price per case, then cases, what the line comes to, and remove.
+ * The price has its own cell so that on phones the line total can sit on the same row.
+ */
 .line {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "thumb text  controls"
+    "thumb price controls";
   align-items: center;
-  gap: var(--s-4);
+  column-gap: var(--s-4);
   padding: 14px 0;
 }
 
@@ -88,6 +95,7 @@
 }
 
 .thumb {
+  grid-area: thumb;
   display: block;
   width: 72px;
 }
@@ -97,6 +105,8 @@
 }
 
 .text {
+  grid-area: text;
+  align-self: end;
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -119,10 +129,33 @@
   line-height: 1.4;
 }
 
+/* Price per case, for signed-in customers. */
+.price {
+  grid-area: price;
+  align-self: start;
+  margin-top: 2px;
+  color: var(--mor);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  line-height: 1.4;
+}
+
 .controls {
+  grid-area: controls;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Cases times the price per case. Read-only: the database prices the order. */
+.lineTotal {
+  min-width: 9ch;
+  margin: 0;
+  margin-inline-start: var(--s-2);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
 }
 
 .remove {
@@ -151,15 +184,41 @@
 
 @media (max-width: 639px) {
   .line {
-    grid-template-columns: 60px minmax(0, 1fr);
-    gap: 10px 14px;
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "thumb text  text"
+      ".     price total"
+      ".     qty   remove";
+    column-gap: 14px;
   }
   .thumb {
     width: 60px;
   }
+  .text {
+    align-self: center;
+  }
+  /* The controls join the line's own grid: cases under the price, remove under the total. */
   .controls {
-    grid-column: 2;
-    justify-content: space-between;
+    display: contents;
+  }
+  .price,
+  .lineTotal {
+    align-self: baseline;
+  }
+  .lineTotal {
+    grid-area: total;
+    min-width: 0;
+    margin: 2px 0 0;
+  }
+  .qty {
+    grid-area: qty;
+    justify-self: start;
+    margin-top: 10px;
+  }
+  .remove {
+    grid-area: remove;
+    justify-self: end;
+    margin-top: 10px;
   }
 }
 
@@ -211,13 +270,6 @@
 }
 
 /* Signed-in ordering */
-
-.price {
-  color: var(--mor);
-  font-size: var(--fs-small);
-  font-weight: var(--w-medium);
-  line-height: 1.4;
-}
 
 /* Subtotal, delivery fees and total. Read-only: the database prices the order. */
 .costs {
@@ -281,4 +333,57 @@
   flex-wrap: wrap;
   gap: var(--s-3);
   margin-top: var(--s-2);
+}
+
+/*
+ * Phones: the total and the order button stay in reach while the summary is still
+ * below the screen. It floats, so it carries a shadow like the toast and the menus.
+ */
+.bar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: 0 -10px 24px -14px rgb(35 23 46 / 0.28);
+}
+
+.barText {
+  flex: 1 1 0;
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.barLabel {
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+}
+
+.barAmount {
+  font-size: var(--fs-h3);
+  font-weight: var(--w-medium);
+}
+
+/* The button keeps to one line when it can; a long label wraps inside it and the text beside it gives way first. */
+.barButton {
+  flex: none;
+  max-width: 62%;
+  padding-block: 8px;
+  white-space: normal;
+  text-align: center;
+  text-wrap: balance;
+}
+
+@media (min-width: 960px) {
+  .bar {
+    display: none;
+  }
 }

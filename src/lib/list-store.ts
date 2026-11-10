@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { MAX_CASES } from "./limits";
 
 /** One line of the order list: a SKU and how many cases. */
 export interface ListLine {
@@ -24,7 +25,7 @@ function read(): ListLine[] {
     return parsed
       .filter(
         (l): l is ListLine =>
-          !!l && typeof l.sku === "string" && Number.isInteger(l.cases) && l.cases > 0 && l.cases < 1000,
+          !!l && typeof l.sku === "string" && Number.isInteger(l.cases) && l.cases > 0 && l.cases <= MAX_CASES,
       )
       .slice(0, MAX_LINES);
   } catch {
@@ -73,7 +74,7 @@ export const listStore = {
   },
   setCases(sku: string, cases: number) {
     ensureLoaded();
-    const n = Math.max(0, Math.min(999, Math.round(cases)));
+    const n = Math.max(0, Math.min(MAX_CASES, Math.round(cases)));
     const exists = lines.some((l) => l.sku === sku);
     if (n === 0) commit(lines.filter((l) => l.sku !== sku));
     else if (exists) commit(lines.map((l) => (l.sku === sku ? { sku, cases: n } : l)));

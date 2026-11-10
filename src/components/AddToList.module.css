@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 112px;
+  min-width: 120px;
   min-height: 44px;
   padding: 0 16px;
   border: 1px solid var(--mor);
@@ -30,7 +30,8 @@
 .stepper {
   display: inline-flex;
   align-items: center;
-  min-width: 112px;
+  justify-content: space-between;
+  min-width: 120px;
   height: 44px;
   border-radius: var(--r-pill);
   background: var(--mor);
@@ -40,7 +41,8 @@
 .step {
   display: grid;
   place-items: center;
-  width: 40px;
+  flex: none;
+  width: 44px;
   height: 44px;
   border: 0;
   border-radius: var(--r-pill);
@@ -81,7 +83,3 @@
   font-variant-numeric: tabular-nums;
 }
 
-.compact.add,
-.compact.stepper {
-  min-width: 104px;
-}

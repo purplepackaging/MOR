@@ -69,9 +69,13 @@ export function isolate(value: string, locale: Locale): string {
   return textDir(locale) === "rtl" && /[0-9A-Za-z]/.test(value) ? `\u2068${value}\u2069` : value;
 }
 
-/** "$1,234.50" with Latin digits in every language. */
+/**
+ * "$1,234.50" with Latin digits in every language. Arabic uses the English layout:
+ * its own ("1,234.50 US$") puts the dollar sign on the wrong side of "US" once it
+ * sits in right-to-left text.
+ */
 export function formatMoney(locale: Locale, amount: number): string {
-  return new Intl.NumberFormat(htmlLang[locale], {
+  return new Intl.NumberFormat(htmlLang[locale === "ar" ? "en" : locale], {
     style: "currency",
     currency: "USD",
     numberingSystem: "latn",

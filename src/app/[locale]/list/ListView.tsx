@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { X } from "lucide-react";
 import { AddToList, type StepperLabels } from "@/components/AddToList";
 import { ProductVisual } from "@/components/ProductVisual";
@@ -25,6 +25,8 @@ export interface ListPortal {
   signInHref: string;
   signInLabel: string;
   noPrice: string;
+  /** Screen-reader label for what a line comes to. */
+  lineTotal: string;
 }
 
 /** With the portal on and nobody signed in: the list asks them to sign in to order. */
@@ -33,6 +35,17 @@ export interface ListSignIn {
 }
 
 type Placed = { number: number; href: string };
+
+/** Below this width the summary sits under the lines instead of beside them. */
+const STACKED = "(max-width: 959px)";
+/** Space kept clear at the bottom of the screen for the order bar, in px. */
+const BAR_ROOM = 88;
+
+function subscribeStacked(callback: () => void) {
+  const query = window.matchMedia(STACKED);
+  query.addEventListener("change", callback);
+  return () => query.removeEventListener("change", callback);
+}
 
 export function ListView({
   locale,
@@ -67,6 +80,35 @@ export function ListView({
   const [problem, setProblem] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
   const [saving, startSaving] = useTransition();
+  const problemText = useRef<HTMLParagraphElement>(null);
+  /** The order button in the summary, and whether it is still below the screen. */
+  const [action, setAction] = useState<HTMLElement | null>(null);
+  const [actionBelow, setActionBelow] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
+  const stacked = useSyncExternalStore(
+    subscribeStacked,
+    () => window.matchMedia(STACKED).matches,
+    () => false,
+  );
+  const [announced, setAnnounced] = useState("");
+  const firstSummary = useRef(true);
+
+  const totalCases = known.reduce((sum, l) => sum + l.cases, 0);
+  const prices = portal?.prices ?? null;
+  const fees = portal?.fees ?? null;
+  const unpriced = prices ? known.filter((l) => prices[l.sku] == null).length : 0;
+  // Shown for reading only. The order is priced again in the database when it is placed.
+  const cents = (n: number) => Math.round(n * 100);
+  const subtotal = prices ? known.reduce((sum, l) => sum + cents(prices[l.sku] ?? 0) * l.cases, 0) / 100 : 0;
+  const total =
+    prices && fees && unpriced === 0 ? (cents(subtotal) + cents(fees.delivery) + (nextDay ? cents(fees.nextDay) : 0)) / 100 : null;
+  const orderLines = known.map(({ sku, cases }) => ({ sku, cases }));
+  const itemCount = plural(locale, known.length, labels.items);
+  const caseCount = plural(locale, totalCases, labels.cases);
+  const totalLabel = total == null ? labels.total : labels.totalWithDelivery;
+  const totalText = total == null ? (portal?.noPrice ?? "") : formatMoney(locale, total);
+  const summaryText = `${[itemCount, caseCount, ...(portal && fees ? [`${totalLabel}: ${totalText}`] : [])].join(". ")}.`;
+  const barShown = hydrated && stacked && !placed && known.length > 0 && Boolean(portal || signIn) && actionBelow;
 
   // Drop SKUs the catalog no longer has, so counts stay honest.
   useEffect(() => {
@@ -83,6 +125,63 @@ export function ListView({
   useEffect(() => {
     if (placed) placedHeading.current?.focus();
   }, [placed]);
+
+  // On a phone the order button sits below every line. While it is still below the
+  // screen, a bar at the bottom keeps the total and the button in reach.
+  useEffect(() => {
+    if (!action || typeof IntersectionObserver === "undefined") return;
+    // Leave room for the bar, so the button is in full view before the bar goes.
+    const check = () => setActionBelow(action.getBoundingClientRect().bottom > window.innerHeight - BAR_ROOM + 1);
+    // The observer catches the button moving as the list changes; the scroll listener
+    // catches jumps that take it from above the screen to below it in one step.
+    const observer = new IntersectionObserver(check, { rootMargin: `0px 0px -${BAR_ROOM}px 0px`, threshold: [0, 1] });
+    observer.observe(action);
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        check();
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [action]);
+
+  // Toasts and keyboard focus stay clear of the bar while it shows.
+  useEffect(() => {
+    const el = bar.current;
+    if (!barShown || !el) return;
+    const root = document.documentElement;
+    const apply = () => root.style.setProperty("--bottom-bar", `${el.offsetHeight}px`);
+    apply();
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(apply);
+    resize?.observe(el);
+    return () => {
+      resize?.disconnect();
+      root.style.removeProperty("--bottom-bar");
+    };
+  }, [barShown]);
+
+  // Screen readers hear the new count and total a moment after a change, not on every tap.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (firstSummary.current) {
+      firstSummary.current = false;
+      return;
+    }
+    const timer = setTimeout(() => setAnnounced(summaryText), 700);
+    return () => clearTimeout(timer);
+  }, [hydrated, summaryText]);
+
+  // A problem shows beside the order button in the summary, so bring it into view.
+  useEffect(() => {
+    if (problem) problemText.current?.scrollIntoView({ block: "center" });
+  }, [problem]);
 
   if (!hydrated) return <div className={styles.loading} aria-hidden="true" />;
 
@@ -118,17 +217,6 @@ export function ListView({
       </div>
     );
   }
-
-  const totalCases = known.reduce((sum, l) => sum + l.cases, 0);
-  const prices = portal?.prices ?? null;
-  const fees = portal?.fees ?? null;
-  const unpriced = prices ? known.filter((l) => prices[l.sku] == null).length : 0;
-  // Shown for reading only. The order is priced again in the database when it is placed.
-  const cents = (n: number) => Math.round(n * 100);
-  const subtotal = prices ? known.reduce((sum, l) => sum + cents(prices[l.sku] ?? 0) * l.cases, 0) / 100 : 0;
-  const total =
-    prices && fees && unpriced === 0 ? (cents(subtotal) + cents(fees.delivery) + (nextDay ? cents(fees.nextDay) : 0)) / 100 : null;
-  const orderLines = known.map(({ sku, cases }) => ({ sku, cases }));
 
   const failure = (reason: string) =>
     reason === "signin" ? labels.signedOut : reason === "empty" ? labels.emptyTitle : labels.orderError;
@@ -176,11 +264,36 @@ export function ListView({
 
   return (
     <div className={styles.layout}>
+      {barShown ? (
+        <div className={styles.bar} ref={bar} role="group" aria-label={labels.summary} data-order-bar>
+          {portal && fees ? (
+            <p className={styles.barText}>
+              <span className={styles.barLabel}>{totalLabel}</span>
+              <span className={styles.barAmount}>{total == null ? totalText : <bdi>{totalText}</bdi>}</span>
+            </p>
+          ) : (
+            <p className={styles.barText}>
+              <span className={styles.barAmount}>{itemCount}</span>
+              <span className={styles.barLabel}>{caseCount}</span>
+            </p>
+          )}
+          {portal ? (
+            <button type="button" className={`btn ${styles.barButton}`} onClick={place} disabled={placing || saving}>
+              {placing ? labels.placing : labels.place}
+            </button>
+          ) : signIn ? (
+            <Link className={`btn ${styles.barButton}`} href={signIn.href}>
+              {labels.signInToOrder}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       <div className={styles.ticket}>
         <ul role="list" className={styles.lines}>
           {known.map((line) => {
             const info = index[line.sku];
             const full = info.summary ? `${info.name}, ${info.summary}` : info.name;
+            const price = prices?.[line.sku];
             return (
               <li key={line.sku} className={styles.line}>
                 <Link href={info.href} className={styles.thumb} tabIndex={-1} aria-hidden="true">
@@ -194,18 +307,24 @@ export function ListView({
                   <p className={styles.pack}>
                     {caseLabel}: <span className="num">{info.pack}</span>
                   </p>
-                  {prices ? (
-                    <p className={styles.price}>
-                      {prices[line.sku] != null ? (
-                        <bdi>{fill(labels.perCase, { price: formatMoney(locale, prices[line.sku]) })}</bdi>
-                      ) : (
-                        portal?.noPrice
-                      )}
-                    </p>
-                  ) : null}
                 </div>
+                {prices ? (
+                  <p className={styles.price}>
+                    {price != null ? <bdi>{fill(labels.perCase, { price: formatMoney(locale, price) })}</bdi> : portal?.noPrice}
+                  </p>
+                ) : null}
                 <div className={styles.controls}>
-                  <AddToList sku={line.sku} name={full} labels={stepper} min={1} compact />
+                  <div className={styles.qty}>
+                    <AddToList sku={line.sku} name={full} labels={stepper} min={1} />
+                  </div>
+                  {prices && price != null ? (
+                    <p className={styles.lineTotal}>
+                      <span className="visually-hidden">{portal?.lineTotal}: </span>
+                      <bdi>{formatMoney(locale, (cents(price) * line.cases) / 100)}</bdi>
+                    </p>
+                  ) : prices ? (
+                    <span className={styles.lineTotal} aria-hidden="true" />
+                  ) : null}
                   <button
                     type="button"
                     id={`remove-${line.sku}`}
@@ -228,8 +347,11 @@ export function ListView({
         </h2>
         {portal ? <p className="small muted">{fill(labels.orderingFor, { name: portal.accountName })}</p> : null}
         <p className={styles.totals}>
-          <span>{plural(locale, known.length, labels.items)}</span>
-          <span>{plural(locale, totalCases, labels.cases)}</span>
+          <span>{itemCount}</span>
+          <span>{caseCount}</span>
+        </p>
+        <p className="visually-hidden" role="status">
+          {announced}
         </p>
         {portal ? (
           <>
@@ -292,12 +414,12 @@ export function ListView({
               />
             </div>
             {problem ? (
-              <p className="error-text" role="alert">
+              <p className="error-text" role="alert" ref={problemText}>
                 {problem}{" "}
                 {problem === labels.signedOut ? <Link href={portal.signInHref}>{portal.signInLabel}</Link> : null}
               </p>
             ) : null}
-            <button type="button" className={`btn ${styles.send}`} onClick={place} disabled={placing || saving}>
+            <button type="button" className={`btn ${styles.send}`} onClick={place} disabled={placing || saving} ref={setAction}>
               {placing ? labels.placing : labels.place}
             </button>
             <button type="button" className={`btn btn-quiet ${styles.send}`} onClick={saveUsual} disabled={placing || saving}>
@@ -306,7 +428,7 @@ export function ListView({
           </>
         ) : signIn ? (
           <>
-            <Link className={`btn ${styles.send}`} href={signIn.href}>
+            <Link className={`btn ${styles.send}`} href={signIn.href} ref={setAction}>
               {labels.signInToOrder}
             </Link>
             <p className="small muted">{labels.signInToOrderNote}</p>

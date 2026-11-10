@@ -14,6 +14,7 @@ import {
   type PluralForms,
 } from "@/lib/i18n";
 import { useList } from "@/lib/list-store";
+import { checkSession } from "@/lib/session-check";
 import styles from "./Header.module.css";
 
 /** Current path without the language prefix, e.g. "/products". */
@@ -34,8 +35,6 @@ export function NavLink({ href, children, className }: { href: string; children:
   );
 }
 
-let sessionCheck: { path: string; result: Promise<boolean> } | null = null;
-
 /**
  * True once the visitor is known to be signed in. Only runs when the portal is on,
  * and checks again after each navigation so signing in or out shows right away.
@@ -45,17 +44,8 @@ export function useSignedIn(enabled: boolean): boolean {
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => {
     if (!enabled) return;
-    if (sessionCheck?.path !== pathname) {
-      sessionCheck = {
-        path: pathname,
-        result: fetch("/api/session", { cache: "no-store" })
-          .then((r) => (r.ok ? r.json() : { signedIn: false }))
-          .then((j: { signedIn?: boolean }) => Boolean(j.signedIn))
-          .catch(() => false),
-      };
-    }
     let live = true;
-    void sessionCheck.result.then((v) => live && setSignedIn(v));
+    void checkSession(pathname).then((v) => live && setSignedIn(v));
     return () => {
       live = false;
     };

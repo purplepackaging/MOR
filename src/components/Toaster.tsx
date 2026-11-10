@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { Check } from "lucide-react";
+import { Check, Info } from "lucide-react";
 import styles from "./Toaster.module.css";
 
 interface Toast {
   id: number;
   message: string;
+  /** "check" confirms something that was done (the default); "info" is a notice. */
+  icon?: "check" | "info";
   action?: { label: string; href?: string; onClick?: () => void };
 }
 
@@ -48,7 +50,11 @@ export function Toaster() {
     <div className={styles.region} role="status" aria-live="polite" aria-atomic="true">
       {toast ? (
         <div className={styles.toast} key={toast.id}>
-          <Check className={styles.icon} aria-hidden="true" />
+          {toast.icon === "info" ? (
+            <Info className={styles.icon} aria-hidden="true" />
+          ) : (
+            <Check className={styles.icon} aria-hidden="true" />
+          )}
           <span className={styles.message}>{toast.message}</span>
           {toast.action?.href ? (
             <Link className={styles.action} href={toast.action.href} onClick={dismissToast}>

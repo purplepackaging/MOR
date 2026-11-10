@@ -116,7 +116,8 @@
 }
 
 .table th {
-  padding: 0 12px 10px 0;
+  padding-block: 0 10px;
+  padding-inline: 0 12px;
   border-bottom: 2px solid var(--mor);
   color: var(--ink-2);
   font-size: var(--fs-micro);
@@ -125,19 +126,12 @@
   white-space: nowrap;
 }
 
-[dir="rtl"] .table th {
-  padding: 0 0 10px 12px;
-}
-
 .table td {
-  padding: 10px 12px 10px 0;
+  padding-block: 10px;
+  padding-inline: 0 12px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
-}
-
-[dir="rtl"] .table td {
-  padding: 10px 0 10px 12px;
 }
 
 .primary {
@@ -153,6 +147,28 @@
   width: 1%;
   text-align: end;
   white-space: nowrap;
+}
+
+/* Price per case, for signed-in customers. A column here; on phones it joins the case line. */
+.table .priceHead,
+.table .priceCell {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.priceCell,
+.priceInline {
+  color: var(--mor);
+  font-weight: var(--w-medium);
+}
+
+.priceInline {
+  display: none;
+}
+
+.noPrice {
+  color: var(--ink-2);
+  font-weight: var(--w-body);
 }
 
 .table tbody tr:hover td {
@@ -187,18 +203,32 @@
     padding: 1px 0;
     border: 0;
   }
-  .table td[data-label]::before {
+  .table .pack[data-label]::before {
     content: attr(data-label) ": ";
   }
-  .table td.extra {
+  .table td.extra,
+  .table td.priceCell {
     display: none;
   }
   .table td.primary {
     font-size: var(--fs-body);
   }
   .table td.compact,
-  .table td[data-label] {
+  .table td.caseCell {
     color: var(--ink-2);
+  }
+  /* The price sits at the end of the case line, so the row is no taller with it. */
+  .table td.caseCell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    column-gap: 12px;
+  }
+  .table .priceInline {
+    display: inline;
+    margin-inline-start: auto;
+    white-space: nowrap;
   }
   .table .addCell {
     grid-column: 2;

@@ -5,6 +5,7 @@ import { Leaf } from "lucide-react";
 import { AddToList, type StepperLabels } from "@/components/AddToList";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductVisual } from "@/components/ProductVisual";
+import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import {
   categoryHref,
@@ -18,8 +19,10 @@ import {
   txt,
   variantSummary,
 } from "@/lib/catalog";
-import { isolate, localePath, type Locale } from "@/lib/i18n";
+import { fill, formatNumber, isolate, localePath, type Locale } from "@/lib/i18n";
+import { MAX_CASES } from "@/lib/limits";
 import { pageMetadata } from "@/lib/metadata";
+import { Price, PriceHead, PricingNote } from "./Prices";
 import styles from "./product.module.css";
 
 export const dynamicParams = false;
@@ -63,7 +66,11 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
     casesOf: d.casesOf,
     added: dict.list.added,
     view: dict.list.view,
+    max: fill(d.maxCases, { n: formatNumber(locale, MAX_CASES) }),
   };
+  // The page is static. A signed-in customer's prices load after it, from /api/prices.
+  const prices = site.portalEnabled;
+  const priceLabels = { locale, label: dict.portal.price, noPrice: dict.portal.noPrice };
   const related = (p.goesWith ?? []).map((s) => getProduct(s)).filter((x) => !!x).slice(0, 4);
 
   return (
@@ -118,6 +125,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
                   </th>
                 ))}
                 <th scope="col">{d.case}</th>
+                <PriceHead enabled={prices} label={dict.portal.price} />
                 <th scope="col">
                   <span className="visually-hidden">{d.order}</span>
                 </th>
@@ -143,11 +151,15 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
                       </td>
                     ))}
                     {compact ? <td className={styles.compact}>{compact}</td> : null}
-                    <td data-label={d.case} className="num">
-                      <bdi>{packLabel(v, locale, dict)}</bdi>
+                    <td className={`num ${styles.caseCell}`}>
+                      <span className={styles.pack} data-label={d.case}>
+                        <bdi>{packLabel(v, locale, dict)}</bdi>
+                      </span>
+                      <Price enabled={prices} sku={v.sku} {...priceLabels} inline />
                     </td>
+                    <Price enabled={prices} sku={v.sku} {...priceLabels} />
                     <td className={styles.addCell}>
-                      <AddToList sku={v.sku} name={name} labels={labels} listHref={listHref} compact />
+                      <AddToList sku={v.sku} name={name} labels={labels} listHref={listHref} />
                     </td>
                   </tr>
                 );
@@ -155,12 +167,12 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
             </tbody>
           </table>
 
-          <p className={styles.pricing}>
+          <PricingNote enabled={prices} soon={dict.list.pricesSoon}>
             {d.pricing}{" "}
             <Link className="link" href={localePath(locale, "/request-account")}>
               {d.pricingCta}
             </Link>
-          </p>
+          </PricingNote>
         </div>
       </div>
 
