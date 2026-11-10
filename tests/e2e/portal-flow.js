@@ -169,6 +169,32 @@ const setList = (p, lines) => p.evaluate((l) => localStorage.setItem("mor.list.v
     await p.waitForSelector("#si-email");
     check(p.url().includes("/account/sign-in?new=1") && (await p.textContent("h1")) === "Create your account", `${tag} request page opens account creation`);
 
+    // A crafted "next" never sends people to another site after they sign in.
+    // Browsers drop tabs and line breaks from URLs and read "\" as "/", so each of these would become "//example.com".
+    const site = new URL(BASE).origin;
+    for (const [name, bad] of [["a tab", "/%09/example.com/x"], ["a line feed", "/%0A/example.com/x"], ["a carriage return", "/%0D/example.com/x"], ["a backslash", "/%5Cexample.com/x"], ["two slashes", "//example.com/x"]]) {
+      await p.goto(`${BASE}/account/sign-in?next=${bad}`);
+      await p.fill("#si-email", "owner@kebab.test");
+      await p.click("main form button[type=submit]");
+      await p.waitForSelector("#si-code");
+      await p.fill("#si-code", "123456");
+      await Promise.all([p.waitForURL((u) => !u.pathname.includes("/sign-in")), p.click("main form button[type=submit]")]);
+      check(p.url() === `${site}/account`, `${tag} sign-in ignores a next with ${name} (landed on ${p.url()})`);
+      // Signed in with a business already: the business form forwards, and must stay on the site too.
+      const hop = await p.request.get(`${BASE}/account/setup?next=${bad}`, { maxRedirects: 0 });
+      check(hop.status() === 307 && hop.headers()["location"] === "/account", `${tag} business form ignores a next with ${name} (${hop.status()} ${JSON.stringify(hop.headers()["location"])})`);
+      await signOut(p);
+    }
+    // A normal next still works.
+    await p.goto(`${BASE}/account/sign-in?next=%2Faccount%2Forders`);
+    await p.fill("#si-email", "owner@kebab.test");
+    await p.click("main form button[type=submit]");
+    await p.waitForSelector("#si-code");
+    await p.fill("#si-code", "123456");
+    await Promise.all([p.waitForURL(/\/account\/orders$/), p.click("main form button[type=submit]")]);
+    check(p.url() === `${site}/account/orders`, `${tag} sign-in still returns people to the page they came from`);
+    await signOut(p);
+
     // A switched-off account
     await signIn(p, "paused@spot.test");
     check((await p.textContent("h1")).includes("paused"), `${tag} switched-off account sees the paused message`);

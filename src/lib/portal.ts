@@ -207,9 +207,16 @@ export async function getUsualOrder(accountId: string): Promise<UsualOrder | nul
   return lines.length ? { lines, updatedAt: data.updated_at as string } : null;
 }
 
+/**
+ * A path on this site: one leading slash, then only the characters a URL path
+ * and query can hold. Browsers drop tabs and line breaks from URLs and read "\"
+ * as "/", so "/<tab>/example.com" would otherwise become "//example.com".
+ */
+const SAME_SITE_PATH = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]*$/;
+
 /** Only same-site paths, so a sign-in link cannot bounce people to another site. */
 export function safeNext(value: string | string[] | undefined | null): string | null {
   const v = Array.isArray(value) ? value[0] : value;
-  if (!v || !v.startsWith("/") || v.startsWith("//") || v.includes("\\")) return null;
-  return v.slice(0, 200);
+  if (!v || v.length > 200 || !SAME_SITE_PATH.test(v)) return null;
+  return v;
 }
