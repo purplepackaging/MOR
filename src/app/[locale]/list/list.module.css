@@ -1,4 +1,10 @@
+/*
+ * At least one screen tall, so the footer starts below the fold. The list is read
+ * from the device after the page loads; without this the footer jumps when it shows.
+ */
 .band {
+  min-height: calc(100vh - var(--header-h));
+  min-height: calc(100svh - var(--header-h));
   background: var(--lilac);
 }
 
