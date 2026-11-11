@@ -4,6 +4,9 @@ const path = require("path");
 const SHOTS = path.join(__dirname, "shots");
 fs.mkdirSync(SHOTS, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:3123";
+const MOCK = process.env.MOCK ?? "http://127.0.0.1:54321";
+// The emails the site sent to the team, as the mock's stand-in for Resend received them.
+const teamEmails = async () => (await fetch(MOCK + "/__test/emails")).json();
 // The site hides items without a price, as production does. Build and run with SHOW_UNPRICED=true
 // to check the other setting, where they show as "To be confirmed".
 const HIDE = process.env.SHOW_UNPRICED !== "true";
@@ -67,6 +70,10 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
   const b = await chromium.launch();
   for (const vp of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
     const ctx = await b.newContext({ viewport: vp });
+    // Routing every request switches the browser's own cache off. With it on, Chromium re-checks cached
+    // pages in the background ("stale-while-revalidate", which `next start` sends and Vercel does not),
+    // and Playwright never sees those re-checks finish, so waiting for the network to go quiet hangs.
+    await ctx.route("**/*", (route) => route.continue());
     // Adds up layout shifts on each page load, so a check can ask how far things jumped.
     await ctx.addInitScript(() => {
       window.__shift = 0;
@@ -74,11 +81,36 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     });
     const p = await ctx.newPage();
     const errors = []; p.on("pageerror", (e) => errors.push(e.message));
+    // The browser says so in the console when the content security policy blocks something.
+    const blocked = []; p.on("console", (m) => { if (/Content Security Policy/i.test(m.text())) blocked.push(m.text().slice(0, 160)); });
     const tag = vp.width;
+    const policy = (await p.request.get(BASE + "/")).headers()["content-security-policy"] ?? "";
+    check(policy.includes("default-src 'self'") && policy.includes("frame-ancestors 'none'") && policy.includes("form-action 'self'") && policy.includes("object-src 'none'"), `${tag} pages carry a content security policy (${policy.slice(0, 60)}...)`);
 
     // A product with no cost in the mock: hidden by default, on show with SHOW_UNPRICED=true.
     const hidden = (await p.request.get(BASE + "/products/cups-lids/translucent-cups")).status();
     check(hidden === (HIDE ? 404 : 200), `${tag} a product without a price is ${HIDE ? "hidden" : "on show, as SHOW_UNPRICED=true asks"} (${hidden})`);
+
+    // Pages fetch another page when someone reaches for its link, not as soon as the link is on screen.
+    // Fetching the home page ahead of time used to pull its three photos (325 KB) into every page.
+    const fetched = []; const onRequest = (r) => fetched.push(new URL(r.url()).pathname + (r.url().includes("_rsc=") ? " (page data)" : "")); p.on("request", onRequest);
+    await p.goto(BASE + "/privacy", { waitUntil: "networkidle" });
+    check(!fetched.some((u) => u.startsWith("/img/hero/")) && !fetched.includes("/ (page data)"), `${tag} another page does not download the home page photos (${fetched.filter((u) => u.startsWith("/img/hero/")).length} photos, ${fetched.filter((u) => u === "/ (page data)").length} home page fetches)`);
+    await p.hover("header a[href='/']");
+    await p.waitForRequest((r) => new URL(r.url()).pathname === "/" && r.url().includes("_rsc="), { timeout: 5000 }).then(() => check(true, `${tag} reaching for the logo fetches the home page ahead of the click`), () => check(false, `${tag} reaching for the logo fetches the home page ahead of the click`));
+    fetched.length = 0;
+    await p.goto(BASE + "/products", { waitUntil: "networkidle" });
+    const early = fetched.filter((u) => /^\/products\/[a-z-]+(\/[a-z0-9-]+)? \(page data\)$/.test(u));
+    check(early.length === 0, `${tag} the products page fetches no product or category page until one is reached for (${early.length} fetched)`);
+    await p.hover("main a[href$='/hot-cups']");
+    await p.waitForRequest((r) => new URL(r.url()).pathname.endsWith("/hot-cups") && r.url().includes("_rsc="), { timeout: 5000 }).then(() => check(true, `${tag} reaching for a product card fetches that product page`), () => check(false, `${tag} reaching for a product card fetches that product page`));
+    await Promise.all([p.waitForURL(/\/products\/cups-lids\/hot-cups$/), p.click("main a[href$='/hot-cups']")]);
+    check((await p.textContent("h1")).includes("hot cups"), `${tag} and the card opens it`);
+    p.off("request", onRequest);
+
+    // Product cards, signed out: no prices.
+    await p.goto(BASE + "/products", { waitUntil: "networkidle" });
+    check((await p.$$("main a[href*='/products/'] span[class*='price']")).length === 0 && !(await visibleText(p)).includes("$"), `${tag} signed-out product cards show no prices`);
 
     // Product page, signed out: no prices. Keep where the Add buttons are, to compare once prices show.
     await p.goto(BASE + PRODUCT, { waitUntil: "networkidle" });
@@ -159,13 +191,40 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(tag === 1280 ? priceIn.column && !priceIn.caseLine : priceIn.caseLine && !priceIn.column, `${tag} price shows ${tag === 1280 ? "in its own column" : "on the case line"}`);
     check(JSON.stringify(await addButtons(p)) === JSON.stringify(addsBefore), `${tag} Add buttons do not move when prices arrive`);
     await axe(p, `${tag} product page signed in`);
-    for (const [lang, label, price] of [["es", "Precio por caja", "$53.33"], ["tr", "Koli fiyatı", "$53,33"], ["ar", "سعر الكرتونة", "$53.33"]]) {
+    for (const [lang, label, price] of [["es", "Precio por caja", "$53.33"], ["tr", "Koli fiyatı", "$53.33"], ["ar", "سعر الكرتونة", "$53.33"]]) {
       await p.goto(`${BASE}/${lang}${PRODUCT}`);
       await p.waitForFunction((x) => document.querySelector("main").innerText.includes(x), price);
       check((await visibleText(p)).includes(label), `${tag} ${lang} product page shows the price per case (${price})`);
       if (lang === "ar") await axe(p, `${tag} Arabic product page signed in`);
     }
     await p.goto(BASE + "/en/account"); // back to English (the switcher path resets the language cookie)
+
+    // Product cards, signed in: the lowest price per case on the photo tile, and nothing moves when it arrives.
+    const cardPrice = (slug) => p.evaluate((s) => document.querySelector(`main a[href$='/${s}'] span[class*='price'] bdi`)?.textContent ?? null, slug);
+    await p.goto(BASE + "/products", { waitUntil: "networkidle" });
+    await p.waitForFunction(() => document.querySelectorAll("main a[href*='/products/'] span[class*='price']").length > 0);
+    // Hot cups: 8 oz at 36.00 and 12 oz at 42.00. Kraft boxes: 48.00 and 54.67. Dome lids: one priced size at 40.00.
+    const many = HIDE ? "$53.33" : "From $53.33"; // Clear cold cups: one size for sale when hidden, 8 sizes (one priced) when on show
+    check((await cardPrice("hot-cups")) === "From $36.00" && (await cardPrice("kraft-takeout-boxes")) === "From $48.00" && (await cardPrice("clear-cold-cups")) === many, `${tag} product cards show the lowest price per case: ${await cardPrice("hot-cups")}, ${await cardPrice("kraft-takeout-boxes")}, ${await cardPrice("clear-cold-cups")}`);
+    const cardName = await p.evaluate(() => document.querySelector("main a[href$='/hot-cups']").textContent.replace(/\s+/g, " "));
+    check(cardName.includes("From $36.00 a case"), `${tag} screen readers hear the price with "a case" (${cardName.trim()})`);
+    const cardShift = await p.evaluate(() => Math.round(window.__shift * 1000) / 1000);
+    check(cardShift < 0.01, `${tag} cards do not move when prices arrive (layout shift ${cardShift})`);
+    const pill = await p.evaluate(() => { const el = document.querySelector("main a[href$='/kraft-takeout-boxes'] span[class*='price']"); const t = el.parentElement.getBoundingClientRect(); const r = el.getBoundingClientRect(); return r.left >= t.left && r.right <= t.right && r.top >= t.top && r.bottom <= t.bottom; });
+    check(pill, `${tag} the price sits inside the photo tile`);
+    await axe(p, `${tag} products page signed in`);
+    if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "cards-prices-390.png") });
+    else await p.screenshot({ path: path.join(SHOTS, "cards-prices-1280.png") });
+    for (const [lang, want] of [["es", "Desde $48.00"], ["tr", "En düşük $48.00"], ["ar", "ابتداءً من"]]) {
+      await p.goto(`${BASE}/${lang}/products`, { waitUntil: "networkidle" });
+      await p.waitForFunction(() => document.querySelectorAll("main a[href*='/products/'] span[class*='price']").length > 0);
+      const got = await cardPrice("kraft-takeout-boxes");
+      check(got.includes(want) && got.includes("$48.00"), `${tag} ${lang} card price: ${got}`);
+      if (lang === "ar") { await axe(p, `${tag} Arabic products page signed in`); if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "cards-prices-ar-390.png") }); }
+    }
+    await p.goto(BASE + "/en", { waitUntil: "networkidle" });
+    await p.waitForFunction(() => document.querySelectorAll("main a[href*='/products/'] span[class*='price']").length > 0);
+    check((await cardPrice("cold-cup-dome-lids")) === (HIDE ? "$40.00" : "From $40.00"), `${tag} home page staples show prices too (${await cardPrice("cold-cup-dome-lids")})`);
 
     // List: prices at a 25% margin, delivery fee, next-day option, card fee note
     await setList(p, LIST);
@@ -206,6 +265,13 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     const placed = await p.textContent("h2");
     check(/Order 10\d\d is in/.test(placed), `${tag} order placed: ${placed}`);
     check(await p.evaluate(() => JSON.parse(localStorage.getItem("mor.list.v1")).length === 0), `${tag} list cleared after ordering`);
+    // The team's alert email for that order: every line with its price and amount, the fees, the note.
+    const firstNumber = placed.match(/\d+/)[0];
+    let alert = (await teamEmails()).find((e) => e.subject === `New order ${firstNumber} (next day): Kebab House`);
+    check(Boolean(alert) && alert.to.join() === "team@mor.test" && alert.text.includes("Placed by owner@kebab.test") && alert.text.includes("NEXT-DAY DELIVERY requested"), `${tag} the team gets an alert email for the order (${alert ? alert.subject : "none"})`);
+    check(Boolean(alert) && alert.text.includes("  4 cs  CUP-PET-16  Clear cold cups, 16 oz  |  $53.33 a case, $213.32") && alert.text.includes("  2 cs  HBG-96N  ") && alert.text.includes("|  $44.44 a case, $88.88"), `${tag} the alert lists each item with its price per case and what it comes to`);
+    if (HIDE) check(Boolean(alert) && alert.text.includes("Subtotal: $302.20\nDelivery: $50.00\nNext-day delivery: $50.00\nTotal: $402.20\nNote: Back door, before 10 am\n\nConfirm it in Supabase"), `${tag} the alert adds up: subtotal, delivery, next-day fee, total, then the note, with no gaps`);
+    else check(Boolean(alert) && alert.text.includes("KFT-1K") && alert.text.includes("|  price to be confirmed") && alert.text.includes("Subtotal: to be confirmed\nDelivery: $50.00\nNext-day delivery: $50.00\nTotal: to be confirmed\nNote: Back door, before 10 am"), `${tag} the alert marks the item without a price and leaves the totals to be confirmed`);
     await axe(p, `${tag} order placed`);
     await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
     let orderText = await p.textContent("main");
@@ -266,6 +332,9 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
     orderText = await p.textContent("main");
     check(orderText.includes("$156.66") && !orderText.includes("Next-day delivery"), `${tag} order total saved, standard delivery`);
+    // Standard delivery, no note: the alert has no empty line where the next-day fee and the note would be.
+    alert = (await teamEmails()).filter((e) => e.subject.startsWith("New order") && e.subject.endsWith(": Kebab House") && !e.subject.includes("next day")).pop();
+    check(Boolean(alert) && alert.text.includes("\n\n  2 cs  CUP-PET-16  Clear cold cups, 16 oz  |  $53.33 a case, $106.66\n\nSubtotal: $106.66\nDelivery: $50.00\nTotal: $156.66\n\nConfirm it in Supabase") && !/\n\n\n/.test(alert.text), `${tag} a standard order's alert has no stray blank line`);
 
     await p.goto(BASE + "/account");
     const home = await p.textContent("main");
@@ -363,6 +432,8 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.check("#su-sms");
     await Promise.all([p.waitForURL(/\/account$/), p.click("button:has-text('Start ordering')")]);
     check((await p.textContent("h1")) === "Pho Place", `${tag} new account is ready right away`);
+    const welcome = (await teamEmails()).filter((e) => e.subject === "New account: Pho Place").pop();
+    check(Boolean(welcome) && welcome.text.includes(`Email: ${chef}`) && welcome.text.includes("Contact: Linh\nPhone: +14045550123\n") && welcome.text.includes("Address: 1 Peachtree St, Atlanta 30303\nLanguage: en\n\nThey can see prices"), `${tag} the team gets an email about the new account, with no gaps`);
     check((await p.textContent("main")).includes("Your prices show on product pages"), `${tag} new account sees prices`);
     await setList(p, [{ sku: "HBG-96N", cases: 1 }]);
     await p.goto(BASE + "/list");
@@ -447,8 +518,11 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + PRODUCT, { waitUntil: "networkidle" });
     productText = await visibleText(p);
     check(!productText.includes("$") && !productText.includes("Prices show after you sign in"), `${tag} switched-off account sees no prices on product pages`);
+    await p.goto(BASE + "/products", { waitUntil: "networkidle" });
+    check((await p.$$("main a[href*='/products/'] span[class*='price']")).length === 0, `${tag} or on product cards`);
     await signOut(p);
     check(errors.length === 0, `${tag} no page errors ${errors.join(" | ")}`);
+    check(blocked.length === 0, `${tag} the content security policy blocked nothing on any page of this run ${blocked.join(" | ")}`);
     if (tag === 1280) {
       // Screenshots for review
       await signIn(p, "owner@kebab.test");

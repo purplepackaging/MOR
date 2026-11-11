@@ -6,6 +6,8 @@ import { Leaf, Search, X } from "lucide-react";
 import type { CategoryId } from "@/data/types";
 import { fill, plural, type Locale, type PluralForms } from "@/lib/i18n";
 import { matchesQuery } from "@/lib/text";
+import type { CardPriceLabels } from "./CardPrice";
+import { IntentLink } from "./IntentLink";
 import { ProductCard, type CardData } from "./ProductCard";
 import styles from "./ProductBrowser.module.css";
 
@@ -39,6 +41,7 @@ export function ProductBrowser({
   current,
   allHref,
   labels,
+  prices,
 }: {
   locale: Locale;
   items: BrowserItem[];
@@ -46,6 +49,8 @@ export function ProductBrowser({
   current?: CategoryId;
   allHref: string;
   labels: Labels;
+  /** Words for a signed-in customer's price on each card. Left out while the portal is off. */
+  prices?: CardPriceLabels;
 }) {
   const [query, setQuery] = useState("");
   const [plantOnly, setPlantOnly] = useState(false);
@@ -113,9 +118,9 @@ export function ProductBrowser({
             {labels.all}
           </Link>
           {categories.map((c) => (
-            <Link key={c.id} href={c.href} className={styles.chip} aria-current={c.id === current ? "page" : undefined}>
+            <IntentLink key={c.id} href={c.href} className={styles.chip} aria-current={c.id === current ? "page" : undefined}>
               {c.name}
-            </Link>
+            </IntentLink>
           ))}
         </nav>
 
@@ -152,28 +157,28 @@ export function ProductBrowser({
                 <h2 id={`group-${c.id}`} className="h3">
                   {c.name}
                 </h2>
-                <Link href={c.href} className="link small">
+                <IntentLink href={c.href} className="link small">
                   {plural(locale, list.length, labels.results)}
-                </Link>
+                </IntentLink>
               </div>
-              <Grid items={list} headingLevel={3} />
+              <Grid items={list} headingLevel={3} prices={prices} />
             </section>
           );
         })
       ) : (
-        <Grid items={filtered} headingLevel={2} />
+        <Grid items={filtered} headingLevel={2} prices={prices} />
       )}
     </div>
   );
 }
 
 /** Cards are h3 under a category h2, and h2 when the grid stands alone under the page h1. */
-function Grid({ items, headingLevel }: { items: BrowserItem[]; headingLevel: 2 | 3 }) {
+function Grid({ items, headingLevel, prices }: { items: BrowserItem[]; headingLevel: 2 | 3; prices?: CardPriceLabels }) {
   return (
     <ul role="list" className={styles.grid}>
       {items.map((i) => (
         <li key={i.slug}>
-          <ProductCard card={i} headingLevel={headingLevel} />
+          <ProductCard card={i} headingLevel={headingLevel} prices={prices} />
         </li>
       ))}
     </ul>

@@ -1,4 +1,7 @@
 import "server-only";
+import type { CardPriceLabels } from "@/components/CardPrice";
+import type { CardData } from "@/components/ProductCard";
+import { site } from "@/config/site";
 import { categories, products } from "@/data/catalog";
 import type { Category, CategoryId, IconName, Product, Text, Variant } from "@/data/types";
 import type { Dict } from "@/i18n";
@@ -72,12 +75,11 @@ export function variantSummary(v: Variant, locale: Locale): string {
     .join(locale === "ar" ? "، " : ", ");
 }
 
-/** Text for the case column. */
+/** Text for the case column: "1,000", or "6 boxes" and "1 roll" when the case holds counted units. */
 export function packLabel(v: Variant, locale: Locale, dict: Dict): string {
   if (v.packText) return isolate(v.packText, locale);
   if (v.pack == null) return dict.product.askRep;
-  const n = formatNumber(locale, v.pack);
-  return v.unit ? `${n} ${dict.product.units[v.unit]}` : n;
+  return v.unit ? plural(locale, v.pack, dict.product.units[v.unit]) : formatNumber(locale, v.pack);
 }
 
 /** "6 sizes" when only the size changes, otherwise "12 options". */
@@ -86,6 +88,25 @@ export function optionsLabel(p: Product, locale: Locale, dict: Dict): string {
   const sizes = p.variants.map((v) => txt(v.size, locale));
   const onlySize = sizes.every(Boolean) && new Set(sizes).size === n;
   return plural(locale, n, onlySize ? dict.products.sizes : dict.products.options);
+}
+
+/** What a product card shows. Give it a product from the shelf, so it counts only the sizes for sale. */
+export function productCard(p: Product, locale: Locale, dict: Dict): CardData {
+  return {
+    slug: p.slug,
+    href: productHref(locale, p),
+    name: p.name[locale],
+    meta: optionsLabel(p, locale, dict),
+    image: p.image,
+    icon: p.icon,
+    skus: p.variants.map((v) => v.sku),
+  };
+}
+
+/** The words for a customer's price on product cards, while the portal is on. */
+export function cardPriceLabels(locale: Locale, dict: Dict): CardPriceLabels | undefined {
+  if (!site.portalEnabled) return undefined;
+  return { locale, from: dict.portal.fromPrice, fromSpoken: dict.portal.fromPriceSpoken, perCase: dict.list.perCase };
 }
 
 export interface Visual {

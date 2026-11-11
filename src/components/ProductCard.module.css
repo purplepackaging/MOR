@@ -7,8 +7,29 @@
   border-radius: var(--r-m);
 }
 
+.visual {
+  position: relative;
+}
+
 .tile {
   transition: background-color var(--t-med) ease;
+}
+
+/* A signed-in customer's price. On the tile, so the card keeps its height when it arrives. */
+.price {
+  position: absolute;
+  inset-block-end: 8px;
+  inset-inline-start: 8px;
+  max-width: calc(100% - 16px);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  line-height: 1.5;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .tile img,

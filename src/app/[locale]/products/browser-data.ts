@@ -1,19 +1,14 @@
 import "server-only";
 import type { BrowserCategory, BrowserItem } from "@/components/ProductBrowser";
 import type { Dict } from "@/i18n";
-import { categoryHref, optionsLabel, productHref, searchText } from "@/lib/catalog";
+import { cardPriceLabels, categoryHref, productCard, searchText } from "@/lib/catalog";
 import type { Locale } from "@/lib/i18n";
 import type { Shelf } from "@/lib/shelf";
 
 /** What the product browser shows: only what is on the shelf. */
 export function browserData(locale: Locale, dict: Dict, shelf: Shelf) {
   const items: BrowserItem[] = shelf.products.map((p) => ({
-    slug: p.slug,
-    href: productHref(locale, p),
-    name: p.name[locale],
-    meta: optionsLabel(p, locale, dict),
-    image: p.image,
-    icon: p.icon,
+    ...productCard(p, locale, dict),
     plantBased: p.plantBased,
     plantLabel: dict.products.plantBased,
     category: p.category,
@@ -36,5 +31,5 @@ export function browserData(locale: Locale, dict: Dict, shelf: Shelf) {
     noResults: p.noResults,
     noResultsHint: p.noResultsHint,
   };
-  return { items, categories, labels };
+  return { items, categories, labels, prices: cardPriceLabels(locale, dict) };
 }

@@ -1,9 +1,9 @@
-import Link from "next/link";
 import type { Dict } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { site } from "@/config/site";
 import { Wordmark } from "./Wordmark";
 import { AccountLink, CreateAccountLink, LanguageMenu, ListButton, MobileMenu, NavLink } from "./HeaderClient";
+import { IntentLink } from "./IntentLink";
 import styles from "./Header.module.css";
 
 export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
@@ -17,15 +17,15 @@ export function Header({ locale, dict }: { locale: Locale; dict: Dict }) {
   return (
     <header className={styles.header}>
       <div className={`container ${styles.bar}`}>
-        <Link href={home} className={styles.brand} aria-label={dict.nav.home}>
+        <IntentLink href={home} className={styles.brand} aria-label={dict.nav.home}>
           <Wordmark />
-        </Link>
+        </IntentLink>
 
         <nav className={styles.nav} aria-label={dict.nav.primary}>
           <NavLink href={products} className={styles.navLink}>
             {dict.nav.products}
           </NavLink>
-          <NavLink href={how} className={styles.navLink}>
+          <NavLink href={how} className={styles.navLink} onIntent>
             {dict.nav.how}
           </NavLink>
         </nav>

@@ -103,6 +103,20 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
   ok = await until("plates go", async () => (await status("/products/plates-bowls/bagasse-plates")) === 404 && (await status("/products/plates-bowls")) === 404 && !productLinks(await html("/products")).includes("bagasse-plates") && !footerCategories(await html("/privacy")).includes("plates-bowls"));
   check(ok, "taking the cost away hides the product, its category and the footer link again");
 
+  // ───── Site data fixed on Nov 11: the blue foil sheet, case packs for film, and "1 roll" not "1 rolls" ─────
+  await setCosts({ "FSH-9-500B": 20, "FLM-12": 20, "FLM-M18-4": 20 });
+  ok = await until("fixed items show", async () => (await status("/products/foil-wrap/food-film")) === 200 && (await status("/products/foil-wrap/foil-sheets")) === 200 && (await status("/ar/products/foil-wrap/food-film")) === 200 && (await status("/es/products/foil-wrap/food-film")) === 200 && (await status("/tr/products/foil-wrap/food-film")) === 200);
+  const cells = (page) => [...page.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/<[^>]+>/g, "").replace(/[\u2066-\u2069]/g, "").trim());
+  let film = cells(await html("/products/foil-wrap/food-film"));
+  check(ok && film.includes("1 roll") && film.includes("2 rolls") && !film.includes("1 rolls") && !film.includes("Ask your rep"), `film shows its case packs: 1 roll for the 2,000 ft roll, 2 rolls for meat film (${film.filter((c) => /roll/.test(c)).join("; ")})`);
+  const sheet = cells(await html("/products/foil-wrap/foil-sheets"));
+  check(sheet.includes("Blue") && !sheet.includes("Black"), `the striped foil sheet is called blue, not black (${sheet.filter((c) => /Blue|Black/.test(c)).join("; ")})`);
+  const packs = {};
+  for (const lang of ["es", "tr", "ar"]) packs[lang] = cells(await html(`/${lang}/products/foil-wrap/food-film`));
+  check(packs.es.includes("1 rollo") && packs.es.includes("2 rollos") && packs.tr.includes("1 rulo") && packs.tr.includes("2 rulo") && packs.ar.includes("لفة واحدة") && packs.ar.includes("لفتان"), `unit words follow the count in every language (es: ${packs.es.filter((c) => /roll/.test(c)).join(", ")}; tr: ${packs.tr.filter((c) => /rulo/.test(c)).join(", ")}; ar: ${packs.ar.filter((c) => /لف/.test(c)).join("، ")})`);
+  await setCosts({ "FSH-9-500B": null, "FLM-12": null, "FLM-M18-4": null });
+  await until("fixed items hidden again", async () => (await status("/products/foil-wrap/food-film")) === 404 && (await status("/products/foil-wrap/foil-sheets")) === 404 && !productLinks(await html("/products")).includes("food-film"));
+
   // ───── Supabase out of reach: pages keep their last good version ─────
   await settle();
   await outage(true);
@@ -123,12 +137,17 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
   const b = await chromium.launch();
   for (const vp of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
     const ctx = await b.newContext({ viewport: vp });
+    // Routing every request switches the browser's own cache off. With it on, Chromium re-checks cached
+    // pages in the background ("stale-while-revalidate", which `next start` sends and Vercel does not),
+    // and Playwright never sees those re-checks finish, so waiting for the network to go quiet hangs.
+    await ctx.route("**/*", (route) => route.continue());
     await ctx.addInitScript(() => {
       window.__shift = 0;
       new PerformanceObserver((list) => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__shift += e.value; }).observe({ type: "layout-shift", buffered: true });
     });
     const p = await ctx.newPage();
     const errors = []; p.on("pageerror", (e) => errors.push(e.message));
+    const blocked = []; p.on("console", (m) => { if (/Content Security Policy/i.test(m.text())) blocked.push(m.text().slice(0, 160)); });
     const tag = vp.width;
     await settle();
 
@@ -260,6 +279,7 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await outage(false);
 
     check(errors.length === 0, `${tag} no page errors ${errors.join(" | ")}`);
+    check(blocked.length === 0, `${tag} the content security policy blocked nothing ${blocked.join(" | ")}`);
     await ctx.close();
   }
   await b.close();

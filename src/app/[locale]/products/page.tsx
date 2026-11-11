@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/products
 export default async function ProductsPage({ params }: PageProps<"/[locale]/products">) {
   const locale = (await params).locale as Locale;
   const dict = getDictionary(locale);
-  const { items, categories, labels } = browserData(locale, dict, await getShelf());
+  const { items, categories, labels, prices } = browserData(locale, dict, await getShelf());
 
   return (
     <div className={`container ${styles.page}`}>
@@ -30,6 +30,7 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
         categories={categories}
         allHref={localePath(locale, "/products")}
         labels={labels}
+        prices={prices}
       />
     </div>
   );

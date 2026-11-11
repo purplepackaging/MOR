@@ -21,6 +21,8 @@ const COSTS = {
 // The server key the site reads priced_skus with. Customers never have it.
 const SECRET = "sb_secret_test";
 let outage = false; // true: priced_skus answers 503, as when Supabase is down
+// A stand-in for Resend's email API, so the tests can read what the site sends.
+const emails = [];
 const price = (cost) => Math.round((cost / (1 - PRICING.margin)) * 100) / 100;
 const orders = []; const usual = {}; let next = 1001;
 const tokens = new Map(); // access token -> email
@@ -67,6 +69,13 @@ http.createServer(async (req, res) => {
     outage = body.on === true;
     return send(res, 200, { outage });
   }
+  // The site sends its emails here when RESEND_API_URL points at this mock.
+  if (p === "/resend/emails" && req.method === "POST") {
+    if (bearer !== "re_test") return send(res, 401, { message: "API key is invalid" });
+    emails.push({ from: body.from, to: body.to, subject: body.subject, text: body.text ?? null, html: body.html ?? null, reply_to: body.reply_to ?? null });
+    return send(res, 200, { id: crypto.randomUUID() });
+  }
+  if (p === "/__test/emails") return send(res, 200, emails);
   if (p === "/auth/v1/otp") {
     // Open sign-up: an unknown email gets a login.
     if (!USERS[body.email]) {

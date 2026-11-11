@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { X } from "lucide-react";
 import { AddToList, type StepperLabels } from "@/components/AddToList";
+import { IntentLink } from "@/components/IntentLink";
 import { ProductVisual } from "@/components/ProductVisual";
 import { showToast } from "@/components/Toaster";
 import type { Dict } from "@/i18n";
@@ -332,13 +333,13 @@ export function ListView({
             const price = prices?.[line.sku];
             return (
               <li key={line.sku} className={styles.line}>
-                <Link href={info.href} className={styles.thumb} tabIndex={-1} aria-hidden="true">
+                <IntentLink href={info.href} className={styles.thumb} tabIndex={-1} aria-hidden="true">
                   <ProductVisual image={info.image} icon={info.icon} sizes={128} />
-                </Link>
+                </IntentLink>
                 <div className={styles.text}>
-                  <Link href={info.href} className={styles.name}>
+                  <IntentLink href={info.href} className={styles.name}>
                     {info.name}
-                  </Link>
+                  </IntentLink>
                   {info.summary ? <p className={styles.summary}>{info.summary}</p> : null}
                   <p className={styles.pack}>
                     {caseLabel}: <span className="num">{info.pack}</span>

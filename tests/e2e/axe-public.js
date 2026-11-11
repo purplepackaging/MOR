@@ -8,6 +8,10 @@ const pages = ["/", "/products", "/products/containers", "/products/containers/b
   const b = await chromium.launch();
   for (const vp of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
     const ctx = await b.newContext({ viewport: vp });
+    // Routing every request switches the browser's own cache off. With it on, Chromium re-checks cached
+    // pages in the background ("stale-while-revalidate", which `next start` sends and Vercel does not),
+    // and Playwright never sees those re-checks finish, so waiting for the network to go quiet hangs.
+    await ctx.route("**/*", (route) => route.continue());
     // seed a list so the list page renders lines
     await ctx.addInitScript(() => { try { if (!localStorage.getItem("mor.list.v1")) localStorage.setItem("mor.list.v1", JSON.stringify([{ sku: "CUP-PET-16", cases: 4 }, { sku: "HMF-993W", cases: 2 }])); } catch {} });
     const p = await ctx.newPage();
