@@ -31,7 +31,7 @@ export function ProductCard({
   return (
     <IntentLink href={card.href} className={styles.card}>
       <div className={styles.visual}>
-        <ProductVisual image={card.image} icon={card.icon} className={styles.tile} sizes={320} />
+        <ProductVisual image={card.image} icon={card.icon} className={styles.tile} />
         {prices && card.skus?.length ? <CardPrice skus={card.skus} labels={prices} /> : null}
       </div>
       <div className={styles.body}>

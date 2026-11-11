@@ -7,7 +7,8 @@
     "mock": "node mock-supabase/server.mjs",
     "portal": "node e2e/portal-flow.js",
     "hidden": "node e2e/availability.js",
-    "axe": "node e2e/axe-public.js"
+    "axe": "node e2e/axe-public.js",
+    "photos": "node e2e/photos.js"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16",

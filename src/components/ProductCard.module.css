@@ -38,7 +38,7 @@
 }
 
 .card:hover .tile {
-  background: var(--lilac-2);
+  background-color: var(--lilac-2);
 }
 
 .card:hover .tile img,

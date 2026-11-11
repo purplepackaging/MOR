@@ -309,6 +309,8 @@ textarea {
   border-radius: var(--r-m);
   background: var(--lilac);
   overflow: hidden;
+  /* Lets the photo's shadow follow the size of the tile (cqw below). */
+  container-type: inline-size;
 }
 
 /* Centered absolutely so tall photos (cups) can never stretch the tile. */
@@ -320,9 +322,22 @@ textarea {
 }
 
 .tile > img {
-  width: 76%;
-  height: 76%;
+  width: 80%;
+  height: 80%;
   object-fit: contain;
+  /* The product sits on the tile: a fine edge and a soft shadow under it, so white and clear items read. */
+  filter: drop-shadow(0 1px 1px rgb(35 23 46 / 0.2)) drop-shadow(0 12px 12px rgb(35 23 46 / 0.13));
+  /* The shadow is a share of the tile's width, so a thumbnail on the list gets a small one and the
+     product page a deeper one. The line above stays for browsers without container units. */
+  filter: drop-shadow(0 max(0.5px, 0.35cqw) max(0.5px, 0.35cqw) rgb(35 23 46 / 0.2))
+    drop-shadow(0 4.2cqw 4.2cqw rgb(35 23 46 / 0.13));
+}
+
+/* A tile that holds a photo gets a deeper floor than one that holds a drawing. The tile keeps its own
+   color underneath (a card deepens it under the pointer); this lays a little brand violet over its foot. */
+.tile:has(> img) {
+  background-image: linear-gradient(180deg, rgb(91 42 134 / 0) 0%, rgb(91 42 134 / 0.08) 100%);
+  background-image: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--mor) 8%, transparent) 100%);
 }
 
 .tile > svg {
