@@ -106,3 +106,18 @@
 .langs a[aria-current="true"] {
   background: rgb(246 242 251 / 0.14);
 }
+
+/* A page with one job (the business form) keeps only the closing line of the footer. */
+:global(body:has([data-one-job])) .top {
+  display: none;
+}
+
+:global(body:has([data-one-job])) .footer {
+  padding-block: var(--s-5);
+}
+
+:global(body:has([data-one-job])) .bottom {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}

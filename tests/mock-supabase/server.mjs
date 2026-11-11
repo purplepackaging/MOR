@@ -21,6 +21,7 @@ const COSTS = {
 // The server key the site reads priced_skus with. Customers never have it.
 const SECRET = "sb_secret_test";
 let outage = false; // true: priced_skus answers 503, as when Supabase is down
+let failAccounts = 0; // how many create_my_account calls answer 500 before it works again
 // A stand-in for Resend's email API, so the tests can read what the site sends.
 const emails = [];
 const price = (cost) => Math.round((cost / (1 - PRICING.margin)) * 100) / 100;
@@ -64,6 +65,10 @@ http.createServer(async (req, res) => {
       else COSTS[sku] = cost;
     }
     return send(res, 200, Object.keys(COSTS).sort());
+  }
+  if (p === "/__test/fail-account" && req.method === "POST") {
+    failAccounts = Number(body.times) || 1;
+    return send(res, 200, { failAccounts });
   }
   if (p === "/__test/outage" && req.method === "POST") {
     outage = body.on === true;
@@ -121,6 +126,10 @@ http.createServer(async (req, res) => {
   }
   if (p === "/rest/v1/rpc/order_fees") return send(res, 200, [{ delivery_fee: PRICING.delivery_fee, next_day_fee: PRICING.next_day_fee }]);
   if (p === "/rest/v1/rpc/create_my_account") {
+    if (failAccounts > 0) {
+      failAccounts--;
+      return send(res, 500, { code: "XX000", message: "failed for the test" });
+    }
     if (USERS[email].accounts.length) return send(res, 409, { code: "23505", message: "already has an account" });
     const key = "N" + Object.keys(ACCOUNTS).length;
     ACCOUNTS[key] = { id: crypto.randomUUID(), name: body.p_name, delivery_day: null, created_at: new Date().toISOString(), active: true, details: body };

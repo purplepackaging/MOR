@@ -367,6 +367,8 @@ const en = {
     phoneHint: "We call or text this number about your deliveries.",
     submit: "Start ordering",
     saving: "Saving…",
+    more: "Add more details (optional)",
+    welcome: "Your account is ready. Add what you need, then place your order.",
     failed: "We couldn’t save your business. Try again in a minute.",
   },
   footer: {

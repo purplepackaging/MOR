@@ -418,22 +418,44 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(p.url().includes("/account/setup?next=%2Faccount"), `${tag} first sign-in goes to the business form`);
     check((await p.textContent("main")).includes(`Signed in as ${chef}`), `${tag} business form shows the email`);
     await axe(p, `${tag} business form`);
+    // The form is short: required fields, the text message box, and one closed group of optional details.
+    const formSize = await p.evaluate(() => ({ screens: document.documentElement.scrollHeight / innerHeight, open: document.querySelector("main form details").open, wide: document.documentElement.scrollWidth - innerWidth }));
+    if (vp.width < 600) check(formSize.screens <= 1.75, `${tag} business form page is ${formSize.screens.toFixed(2)} screens on a phone`);
+    check(!formSize.open && formSize.wide <= 0, `${tag} optional details start closed and nothing runs off the side`);
+    // Fields are checked in the browser first: nothing goes to the server, so nothing typed is lost.
+    let setupPosts = 0;
+    const countPost = (r) => { if (r.method() === "POST" && r.url().includes("/account/setup")) setupPosts++; };
+    p.on("request", countPost);
     await p.click("button:has-text('Start ordering')");
     await p.waitForSelector("#su-businessName-error");
     check((await p.textContent("#su-businessName-error")).includes("Enter your business name"), `${tag} business form explains missing fields`);
     check(await p.evaluate(() => document.activeElement?.id === "su-businessName"), `${tag} focus moves to the first problem`);
+    check((await p.$$(".error-text")).length === 6 && setupPosts === 0, `${tag} an empty business form is stopped in the browser (${setupPosts} sent)`);
     await axe(p, `${tag} business form errors`);
     await p.fill("#su-businessName", "Pho Place");
+    check((await p.$("#su-businessName-error")) === null, `${tag} a message goes away once its field is right`);
     await p.fill("#su-street", "1 Peachtree St");
     await p.fill("#su-city", "Atlanta");
-    await p.fill("#su-zip", "30303");
+    await p.fill("#su-zip", "3030");
     await p.fill("#su-contactName", "Linh");
     await p.fill("#su-phone", "404 555 0123");
+    await p.click("button:has-text('Start ordering')");
+    check((await p.textContent("#su-zip-error")) === "Enter a 5-digit ZIP code." && setupPosts === 0 && (await p.inputValue("#su-city")) === "Atlanta", `${tag} a short ZIP is caught before sending and the rest stays typed`);
+    await p.fill("#su-zip", "30303");
+    await p.click("main form summary");
+    await p.selectOption("#su-businessType", "restaurant");
     await p.check("#su-sms");
+    // The server cannot save it this once: everything typed is still there for another try.
+    await p.request.post(`${MOCK}/__test/fail-account`, { data: { times: 1 } });
+    await p.click("button:has-text('Start ordering')");
+    await p.waitForSelector("text=We couldn’t save your business");
+    const keptForm = await p.evaluate(() => ["businessName", "street", "city", "zip", "contactName", "phone", "businessType", "language"].map((n) => document.querySelector(`[name="${n}"]`).value).concat([document.querySelector("#su-sms").checked, document.querySelector("main form details").open]).join("|"));
+    check(keptForm === "Pho Place|1 Peachtree St|Atlanta|30303|Linh|404 555 0123|restaurant|en|true|true", `${tag} the business form keeps what was typed when saving fails (${keptForm})`);
+    p.off("request", countPost);
     await Promise.all([p.waitForURL(/\/account$/), p.click("button:has-text('Start ordering')")]);
     check((await p.textContent("h1")) === "Pho Place", `${tag} new account is ready right away`);
     const welcome = (await teamEmails()).filter((e) => e.subject === "New account: Pho Place").pop();
-    check(Boolean(welcome) && welcome.text.includes(`Email: ${chef}`) && welcome.text.includes("Contact: Linh\nPhone: +14045550123\n") && welcome.text.includes("Address: 1 Peachtree St, Atlanta 30303\nLanguage: en\n\nThey can see prices"), `${tag} the team gets an email about the new account, with no gaps`);
+    check(Boolean(welcome) && welcome.text.includes(`Email: ${chef}`) && welcome.text.includes("Contact: Linh\nPhone: +14045550123\n") && welcome.text.includes("Address: 1 Peachtree St, Atlanta 30303\nType: restaurant\nLanguage: en\n\nThey can see prices"), `${tag} the team gets an email about the new account, with the type they chose`);
     check((await p.textContent("main")).includes("Your prices show on product pages"), `${tag} new account sees prices`);
     await setList(p, [{ sku: "HBG-96N", cases: 1 }]);
     await p.goto(BASE + "/list");
@@ -448,6 +470,30 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/request-account");
     await p.waitForSelector("#si-email");
     check(p.url().includes("/account/sign-in?new=1") && (await p.textContent("h1")) === "Create your account", `${tag} request page opens account creation`);
+    // With nowhere else to go, a new account lands on the products and is told it is ready, once.
+    await p.fill("#si-email", `baker${tag}@new.test`); await p.click("main form button[type=submit]");
+    await p.waitForSelector("#si-code");
+    await sendCodeStep(p, `bake-shop-${tag}`, /\/account\/setup$/);
+    await p.fill("#su-businessName", "Bake Shop"); await p.fill("#su-street", "5 Elm St"); await p.fill("#su-city", "Decatur"); await p.fill("#su-zip", "30030"); await p.fill("#su-contactName", "Rosa"); await p.fill("#su-phone", "404 555 0177");
+    await Promise.all([p.waitForURL(/\/products/), p.click("button:has-text('Start ordering')")]);
+    await p.waitForSelector("text=Your account is ready");
+    check(!p.url().includes("welcome") && (await p.textContent("[role=status][aria-live]")).includes("Add what you need, then place your order."), `${tag} a new account lands on the products and hears it is ready (${p.url()})`);
+    const bakeMail = (await teamEmails()).filter((e) => e.subject === "New account: Bake Shop").pop();
+    check(Boolean(bakeMail) && bakeMail.text.includes("Address: 5 Elm St, Decatur 30030\nLanguage: en\n\nThey can see prices"), `${tag} the team email leaves no gap for details that were skipped`);
+    // A toast belongs to the page it was shown on: it does not follow the customer to the next one.
+    await p.goto(BASE + "/products/cups-lids/clear-cold-cups");
+    await p.click("main button[aria-label^='Add ']");
+    await p.waitForSelector("text=View list");
+    await p.evaluate(() => document.querySelector("header a[href='/list']").click());
+    await p.waitForURL(/\/list$/);
+    await p.waitForSelector("text=Ordering for Bake Shop");
+    check(!(await p.textContent("[role=status][aria-live]")).includes("View list"), `${tag} the Added toast stays behind when the customer opens the list`);
+    await p.evaluate(() => localStorage.removeItem("mor.list.v1"));
+    await signOut(p);
+    // The note is for the person who just made the account, not for anyone who opens the same address.
+    await p.goto(BASE + "/products?welcome=1");
+    await p.waitForLoadState("networkidle");
+    check(!p.url().includes("welcome") && !(await p.textContent("[role=status][aria-live]")).includes("Your account is ready"), `${tag} a signed-out visitor is not told an account is ready`);
 
     // A crafted "next" never sends people to another site after they sign in.
     // Browsers drop tabs and line breaks from URLs and read "\" as "/", so each of these would become "//example.com".

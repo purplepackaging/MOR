@@ -367,6 +367,8 @@ const es: Dict = {
     phoneHint: "Le llamamos o escribimos a este número sobre sus entregas.",
     submit: "Empezar a pedir",
     saving: "Guardando…",
+    more: "Agregar más detalles (opcional)",
+    welcome: "Su cuenta está lista. Agregue lo que necesita y haga su pedido.",
     failed: "No pudimos guardar su negocio. Inténtelo de nuevo en un minuto.",
   },
   footer: {

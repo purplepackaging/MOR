@@ -25,7 +25,7 @@ export function ToListButton({
       className={className}
       onClick={() => {
         for (const l of lines) listStore.setCases(l.sku, l.cases);
-        showToast({ message: done });
+        showToast({ message: done, travels: true });
         router.push(href);
       }}
     >
