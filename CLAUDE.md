@@ -71,5 +71,7 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   tables. Every migration that adds a table must grant exactly what the app uses, with RLS on.
 - **Team emails:** `src/lib/notify.ts` sends new orders and new accounts via Resend when `RESEND_API_KEY`,
   `ORDER_EMAIL_FROM` and `ORDER_EMAIL_TO` are set; otherwise it logs. It never fails the customer's action.
+  All three are set in Vercel for production only. The sender is on `mail.morsupply.com`, the domain
+  verified in Resend.
 - **Language cookie:** set only on real page loads (`Sec-Fetch-Dest: document`). Next strips its router
   headers before the proxy runs, so `rsc` and `next-router-prefetch` are not visible there.

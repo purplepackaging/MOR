@@ -77,7 +77,8 @@ Setup (done for production on Nov 10, 2026):
      customers get Magic link or OTP. The portal signs in with the code, not a link.
    - Codes are 8 digits and last 1 hour (Sign In / Providers > Email).
 3. In Vercel, add `SUPABASE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_PORTAL_ENABLED=true`. For emails to you about
-   new orders and new accounts: `RESEND_API_KEY`, `ORDER_EMAIL_FROM`, `ORDER_EMAIL_TO`.
+   new orders and new accounts: `RESEND_API_KEY` (a Resend key with sending access), `ORDER_EMAIL_FROM`
+   (a sender on `mail.morsupply.com`, the domain verified in Resend) and `ORDER_EMAIL_TO`. Production only.
 4. Redeploy.
 
 Day to day, in the Supabase dashboard:
