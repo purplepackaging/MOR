@@ -124,6 +124,10 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.waitForSelector("#si-code");
     await sendCodeStep(p, ownerPassword, /\/account$/);
     check((await p.textContent("h1")) === "Kebab House", `${tag} account page shows the business`);
+    // The sign-in cookie: only the server reads it, so page scripts must not see it, and it travels over https only.
+    const sessionCookies = (await ctx.cookies()).filter((c) => c.name.startsWith("sb-"));
+    check(sessionCookies.length > 0 && sessionCookies.every((c) => c.httpOnly && c.secure && c.sameSite === "Lax"), `${tag} the sign-in cookie is HttpOnly, Secure and SameSite=Lax (${sessionCookies.map((c) => `${c.name}: ${c.httpOnly ? "HttpOnly" : "readable"} ${c.secure ? "Secure" : "any scheme"} ${c.sameSite}`).join("; ")})`);
+    check(await p.evaluate(() => !document.cookie.includes("sb-")), `${tag} page scripts cannot read the sign-in cookie`);
     check((await p.textContent("main")).includes("Delivery day: Thursday"), `${tag} delivery day pill`);
     check((await p.textContent("main")).includes("Your prices show on product pages"), `${tag} priced account message`);
     if (tag === 1280) {
