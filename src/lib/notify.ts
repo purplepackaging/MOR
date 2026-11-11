@@ -156,3 +156,31 @@ export async function sendOrderCanceledEmail(order: {
     `order ${order.number} canceled`,
   );
 }
+
+/** A customer asked for a weekly order, or turned it off. */
+export async function sendWeeklyChangedEmail(change: {
+  accountName: string;
+  changedBy: string;
+  on: boolean;
+  /** "Thursday", or null when the account has no delivery day yet. */
+  deliveryDay: string | null;
+}): Promise<void> {
+  await sendTeamEmail(
+    change.on ? `Weekly order asked for: ${change.accountName}` : `Weekly order turned off: ${change.accountName}`,
+    change.on
+      ? [
+          `${change.accountName} asked for a weekly order on morsupply.com.`,
+          `Asked by ${change.changedBy}`,
+          "",
+          change.deliveryDay
+            ? `Delivery day: ${change.deliveryDay}`
+            : "No delivery day yet. Set one in Supabase (Table Editor > accounts > delivery_day).",
+          "Nothing is placed automatically until weekly orders are switched on (pricing > weekly_orders_on).",
+        ]
+      : [
+          `${change.accountName} turned its weekly order off on morsupply.com.`,
+          `Turned off by ${change.changedBy}`,
+        ],
+    `weekly order ${change.on ? "asked for" : "turned off"} ${change.accountName}`,
+  );
+}

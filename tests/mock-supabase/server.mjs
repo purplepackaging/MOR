@@ -25,6 +25,33 @@ const SECRET = "sb_secret_test";
 let outage = false; // true: priced_skus answers 503, as when Supabase is down
 let failAccounts = 0; // how many create_my_account calls answer 500 before it works again
 let failDetails = 0; // the same for update_my_account
+let failWeekly = 0; // the same for set_weekly_order
+let weeklyLive = false; // pricing.weekly_orders_on: off until the team switches weekly orders on
+
+// 5 pm on a calendar day in Atlanta, as a moment in time (Eastern is 5 or 4 hours behind UTC).
+function fivePmEastern(ymd) {
+  for (const behind of [5, 4]) {
+    const t = new Date(`${ymd}T${17 + behind}:00:00Z`);
+    const hour = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", hourCycle: "h23" }).format(t);
+    if (Number(hour) === 17) return t;
+  }
+}
+// The same rule as public.next_delivery: an order closes at 5 pm Eastern, two days before the delivery date.
+function nextDelivery(day, now = new Date()) {
+  const weekday = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"].indexOf(day);
+  if (weekday < 1) return [];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  for (let n = 0; n <= 9; n++) {
+    const d = new Date(`${today}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    if (d.getUTCDay() !== weekday) continue;
+    const twoBefore = new Date(d);
+    twoBefore.setUTCDate(twoBefore.getUTCDate() - 2);
+    const closes = fivePmEastern(twoBefore.toISOString().slice(0, 10));
+    if (closes > now) return [{ delivery_date: d.toISOString().slice(0, 10), closes_at: closes.toISOString() }];
+  }
+  return [];
+}
 // A stand-in for Resend's email API, so the tests can read what the site sends.
 const emails = [];
 const price = (cost) => Math.round((cost / (1 - PRICING.margin)) * 100) / 100;
@@ -68,6 +95,11 @@ http.createServer(async (req, res) => {
       else COSTS[sku] = cost;
     }
     return send(res, 200, Object.keys(COSTS).sort());
+  }
+  if (p === "/__test/weekly" && req.method === "POST") {
+    if (typeof body.live === "boolean") weeklyLive = body.live;
+    if (body.fail) failWeekly = Number(body.fail) || 1;
+    return send(res, 200, { weeklyLive, failWeekly });
   }
   if (p === "/__test/fail-details" && req.method === "POST") {
     failDetails = Number(body.times) || 1;
@@ -212,8 +244,34 @@ http.createServer(async (req, res) => {
   if (p === "/rest/v1/rpc/save_usual_order") {
     const a = mine(email).find((x) => x.id === body.p_account);
     if (!a) return send(res, 403, { code: "42501", message: "not a member" });
-    usual[a.id] = { lines: body.p_lines, updated_at: new Date().toISOString() };
+    // Saving new lines keeps the weekly choice, like the real upsert.
+    usual[a.id] = { weekly: false, skip_date: null, ...(usual[a.id] ?? {}), lines: body.p_lines, updated_at: new Date().toISOString() };
     return send(res, 200, body.p_lines.length);
+  }
+  // The weekly order: the switch for the site, the calendar, asking for it and skipping.
+  if (p === "/rest/v1/rpc/weekly_orders_live") return send(res, 200, weeklyLive);
+  if (p === "/rest/v1/rpc/next_delivery") return send(res, 200, nextDelivery(body.p_day));
+  if (p === "/rest/v1/rpc/set_weekly_order") {
+    const a = mine(email).find((x) => x.id === body.p_account);
+    if (!a) return send(res, 403, { code: "42501", message: "not a member of this account" });
+    if (failWeekly > 0) { failWeekly--; return send(res, 500, { code: "XX000", message: "failed for the test" }); }
+    const u = usual[a.id];
+    if (body.p_on) {
+      if (!u?.lines?.length) return send(res, 400, { code: "22023", message: "save a usual order first" });
+      u.weekly = true;
+    } else if (u) {
+      u.weekly = false; u.skip_date = null;
+    }
+    return send(res, 204);
+  }
+  if (p === "/rest/v1/rpc/skip_weekly_order") {
+    const a = mine(email).find((x) => x.id === body.p_account);
+    if (!a) return send(res, 403, { code: "42501", message: "not a member of this account" });
+    const next = nextDelivery(a.delivery_day)[0];
+    if (!next) return send(res, 400, { code: "22023", message: "this account has no delivery day yet" });
+    if (!usual[a.id]?.weekly) return send(res, 400, { code: "22023", message: "the weekly order is off" });
+    usual[a.id].skip_date = body.p_skip ? next.delivery_date : null;
+    return send(res, 200, next.delivery_date);
   }
   send(res, 404, { message: "not mocked: " + p });
 }).listen(54321, "127.0.0.1", () => console.log("mock supabase on 54321"));

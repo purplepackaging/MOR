@@ -399,6 +399,57 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/account");
     await p.goto(BASE + "/account/orders");
     await axe(p, `${tag} order history`);
+    // The weekly order. While weekly orders are switched off for the site, a customer can only ask.
+    await p.request.post(`${MOCK}/__test/weekly`, { data: { live: false } });
+    await p.goto(BASE + "/account");
+    let weeklyBox = await p.textContent("section[aria-labelledby=usual-title]");
+    check(weeklyBox.includes("Weekly order") && weeklyBox.includes("Get your usual order every week.") && weeklyBox.includes("Ask for a weekly order") && !weeklyBox.includes("Turn on my weekly order"), `${tag} the usual order offers a weekly order, as a request while the site has not switched them on`);
+    await Promise.all([p.waitForURL(/\/account\?weekly=asked$/), p.click("button:has-text('Ask for a weekly order')")]);
+    weeklyBox = await p.textContent("main");
+    check((weeklyBox.match(/You asked for a weekly order\. We will tell you before the first one goes out\./g) ?? []).length === 2 && weeklyBox.includes("Cancel my request") && !weeklyBox.includes("Next delivery"), `${tag} asking is confirmed, and promises nothing that is not running yet`);
+    await axe(p, `${tag} weekly order asked for`);
+    let weeklyMail = (await teamEmails()).filter((e) => e.subject === "Weekly order asked for: Kebab House").pop();
+    check(Boolean(weeklyMail) && weeklyMail.text.includes("Asked by owner@kebab.test") && weeklyMail.text.includes("Delivery day: Thursday") && weeklyMail.text.includes("Nothing is placed automatically until weekly orders are switched on"), `${tag} the team hears who asked for a weekly order`);
+    await Promise.all([p.waitForURL(/\/account\?weekly=off$/), p.click("button:has-text('Cancel my request')")]);
+    check((await p.textContent("main")).includes("Your weekly order is off.") && (await p.textContent("main")).includes("Ask for a weekly order"), `${tag} the request can be taken back`);
+    weeklyMail = (await teamEmails()).filter((e) => e.subject === "Weekly order turned off: Kebab House").pop();
+    check(Boolean(weeklyMail) && weeklyMail.text.includes("Turned off by owner@kebab.test"), `${tag} and the team hears that too`);
+    // Switched on for the site, with a delivery day: it runs, shows the next delivery and when its order closes.
+    await p.request.post(`${MOCK}/__test/weekly`, { data: { live: true } });
+    await p.goto(BASE + "/account");
+    await Promise.all([p.waitForURL(/\/account\?weekly=asked$/), p.click("button:has-text('Turn on my weekly order')")]);
+    weeklyBox = await p.textContent("section[aria-labelledby=usual-title]");
+    const nextLine = weeklyBox.match(/Next delivery: (Thursday, [A-Z][a-z]+ \d{1,2})\. We place the order on (Tuesday, [A-Z][a-z]+ \d{1,2})(?:,| at) 5:00 PM\./);
+    check(Boolean(nextLine) && weeklyBox.includes("Your weekly order is on.") && weeklyBox.includes("To change what comes, change your usual order before then."), `${tag} a running weekly order names the next delivery and when its order closes (${nextLine ? nextLine[0] : weeklyBox.slice(-200)})`);
+    check((await p.textContent("header + div, main header")).includes("Your weekly order is on."), `${tag} turning it on is confirmed at the top of the page`);
+    await axe(p, `${tag} weekly order on`);
+    const skipName = `Skip ${nextLine ? nextLine[1] : ""}`;
+    await Promise.all([p.waitForURL(/\/account\?weekly=skipped$/), p.click(`button:has-text("${skipName}")`)]);
+    weeklyBox = await p.textContent("section[aria-labelledby=usual-title]");
+    check(new RegExp(`You are skipping ${nextLine ? nextLine[1] : "x"}\\. The next one is Thursday, [A-Z][a-z]+ \\d{1,2}\\.`).test(weeklyBox) && weeklyBox.includes("Don’t skip") && !weeklyBox.includes("Next delivery:"), `${tag} one delivery can be skipped, and the page says which comes next`);
+    await Promise.all([p.waitForURL(/\/account\?weekly=unskipped$/), p.click("button:has-text('Don’t skip')")]);
+    check((await p.textContent("section[aria-labelledby=usual-title]")).includes("Next delivery:"), `${tag} the skip can be taken back`);
+    // Saving a different usual order keeps the weekly order on.
+    await setList(p, [{ sku: "CUP-PET-16", cases: 2 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    await p.click("text=Save as my usual order"); await p.waitForSelector("text=Saved as your usual order");
+    await setList(p, []);
+    await p.goto(BASE + "/account");
+    check((await p.textContent("section[aria-labelledby=usual-title]")).includes("Your weekly order is on."), `${tag} saving the usual order again keeps the weekly order on`);
+    // A change that fails says so and changes nothing.
+    await p.request.post(`${MOCK}/__test/weekly`, { data: { fail: 1 } });
+    await Promise.all([p.waitForURL(/\/account\?weekly=failed$/), p.click("button:has-text('Turn off my weekly order')")]);
+    check((await p.textContent("main")).includes("We couldn’t change your weekly order.") && (await p.textContent("section[aria-labelledby=usual-title]")).includes("Your weekly order is on."), `${tag} a change that fails says so and leaves the weekly order as it was`);
+    for (const [lang, want] of [["es", "Próxima entrega: jueves"], ["tr", "Sonraki teslimat:"], ["ar", "التوصيل القادم: الخميس"]]) {
+      await p.goto(`${BASE}/${lang}/account`);
+      const box = await p.textContent("section[aria-labelledby=usual-title]");
+      check(box.includes(want) && await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${tag} ${lang} weekly order reads right and fits (${(box.match(new RegExp(want + "[^.]*\\.")) ?? [""])[0]})`);
+      if (lang === "ar") await axe(p, `${tag} Arabic weekly order`);
+    }
+    await p.goto(BASE + "/en/account");
+    await Promise.all([p.waitForURL(/\/account\?weekly=off$/), p.click("button:has-text('Turn off my weekly order')")]);
+    await p.request.post(`${MOCK}/__test/weekly`, { data: { live: false } });
+
     // Self-service: the business card, and the owner correcting the details.
     await p.goto(BASE + "/account");
     const card = await p.textContent("section[aria-labelledby=business-title]");
@@ -602,6 +653,14 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/list");
     await p.waitForSelector("text=Ordering for Pho Place");
     check((await p.textContent("main")).includes("$44.44 a case") && (await p.textContent("aside")).includes("$94.44"), `${tag} new account can order at the same prices`);
+    // A new account has no delivery day yet: it can ask for a weekly order, and is told the day comes first.
+    await p.click("text=Save as my usual order"); await p.waitForSelector("text=Saved as your usual order");
+    await setList(p, []);
+    await p.goto(BASE + "/account");
+    await Promise.all([p.waitForURL(/\/account\?weekly=asked$/), p.click("button:has-text('Ask for a weekly order')")]);
+    check((await p.textContent("main")).includes("We will set your delivery day and tell you before the first one."), `${tag} without a delivery day, asking says the day comes first`);
+    const askedMail = (await teamEmails()).filter((e) => e.subject === "Weekly order asked for: Pho Place").pop();
+    check(Boolean(askedMail) && askedMail.text.includes(`Asked by ${chef}`) && askedMail.text.includes("No delivery day yet. Set one in Supabase"), `${tag} the team is told to set a delivery day`);
     await signOut(p);
     await signInWithPassword(p, chef, `pho-place-${tag}`);
     check((await p.textContent("h1")) === "Pho Place", `${tag} the new account signs in with its password`);
