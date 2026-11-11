@@ -18,9 +18,19 @@ import { checkSession } from "@/lib/session-check";
 import { IntentLink } from "./IntentLink";
 import styles from "./Header.module.css";
 
+/**
+ * The page's address as the visitor sees it. English is served at the root, but a page built ahead of
+ * time knows itself as /en/..., and whatever the server writes into a link stays there once the page is
+ * running. So the /en is dropped here, on the server and in the browser alike.
+ */
+function usePublicPath(): string {
+  const pathname = usePathname() || "/";
+  return pathname.replace(/^\/en(?=\/|$)/, "") || "/";
+}
+
 /** Current path without the language prefix, e.g. "/products". */
 function useBarePath(): string {
-  const pathname = usePathname() || "/";
+  const pathname = usePublicPath();
   const m = pathname.match(/^\/(es|tr|ar)(?=\/|$)/);
   return m ? pathname.slice(m[0].length) || "/" : pathname;
 }
@@ -37,7 +47,7 @@ export function NavLink({
   /** Fetch the page only when someone reaches for the link. For the links to the home page. */
   onIntent?: boolean;
 }) {
-  const pathname = usePathname();
+  const pathname = usePublicPath();
   const base = href.split("#")[0];
   const current = !href.includes("#") && (pathname === base || pathname.startsWith(`${base}/`));
   const A = onIntent ? IntentLink : Link;

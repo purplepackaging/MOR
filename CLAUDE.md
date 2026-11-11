@@ -17,7 +17,9 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
 - **Right to left:** Arabic pages set `dir="rtl"`. Use logical CSS (`inset-inline-start`, `padding-inline`,
   `text-align: start`). Mirror only directional icons.
 - **Routing:** `src/proxy.ts` serves English at the root and rewrites to `/en`. Build links with
-  `localePath(locale, path)`, never by hand.
+  `localePath(locale, path)`, never by hand. A page built ahead of time knows itself as `/en/...`, and
+  whatever the server writes into a link stays once the page is running, so read the current path in the
+  header through `usePublicPath()` (`HeaderClient.tsx`), never straight from `usePathname()`.
 - **Catalog:** `src/data/catalog.ts`. SKUs are permanent IDs; never rename one that has been used.
   The build fails on duplicate SKUs or broken `goesWith` links.
 - **Copy:** sentence case, short sentences, plain verbs, no em dashes. Prices are never shown publicly
