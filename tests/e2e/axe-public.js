@@ -2,7 +2,8 @@ const { chromium } = require("playwright");
 const fs = require("fs");
 const axe = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 const BASE = process.env.BASE ?? "http://localhost:3123";
-const pages = ["/", "/products", "/products/containers/bagasse-hinged", "/products/containers/clear-containers", "/ar/products/containers/kraft-takeout-boxes", "/es/products/cups-lids/hot-cups", "/tr/products/napkins-paper/guest-checks", "/products/gloves-safety/face-masks", "/products/cleaning/mops-brooms", "/products/foil-wrap/chafing-fuel", "/list"];
+// Every product here has a cost in the mock, so these pages exist while items without a price are hidden.
+const pages = ["/", "/products", "/products/containers", "/products/containers/bagasse-hinged", "/products/containers/clear-containers", "/ar/products/containers/kraft-takeout-boxes", "/es/products/cups-lids/hot-cups", "/tr/products/napkins-paper/guest-checks", "/products/gloves-safety/face-masks", "/products/cleaning/mops-brooms", "/products/foil-wrap/chafing-fuel", "/list", "/products/cups-lids/translucent-cups"];
 (async () => {
   const b = await chromium.launch();
   for (const vp of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {

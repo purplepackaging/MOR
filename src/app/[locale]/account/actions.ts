@@ -9,6 +9,7 @@ import { findVariant } from "@/lib/catalog";
 import { isLocale, localePath, type Locale } from "@/lib/i18n";
 import { sendNewAccountEmail, sendOrderEmail } from "@/lib/notify";
 import { ACCOUNT_COOKIE, getPortal, portalReady, safeNext, setupPath, userClient } from "@/lib/portal";
+import { getShelfNow } from "@/lib/shelf";
 import { validateSetup, valuesFromForm, type ErrorCode, type SetupKey } from "@/lib/request-validation";
 
 /* ───────── Sign in with a password, or sign in and sign up with an email code ───────── */
@@ -258,25 +259,36 @@ export interface ListInput {
   lines: { sku: string; cases: number }[];
 }
 
-/** Keeps only SKUs the catalog sells, whole cases from 1 to 999, first line per SKU. */
-function cleanLines(input: unknown): { sku: string; cases: number }[] {
-  if (!Array.isArray(input)) return [];
+/**
+ * Keeps only SKUs the catalog lists, whole cases from 1 to 999, first line per SKU.
+ * Lines for items that are not for sale right now are set aside, so the customer
+ * hears about them instead of getting an order that quietly leaves them out.
+ */
+async function cleanLines(input: unknown): Promise<{ lines: { sku: string; cases: number }[]; unavailable: string[] }> {
+  const lines: { sku: string; cases: number }[] = [];
+  const unavailable: string[] = [];
+  if (!Array.isArray(input)) return { lines, unavailable };
+  const shelf = await getShelfNow();
   const seen = new Set<string>();
-  const out: { sku: string; cases: number }[] = [];
   for (const raw of input.slice(0, 150)) {
     if (!raw || typeof raw !== "object") continue;
     const { sku, cases } = raw as { sku?: unknown; cases?: unknown };
     if (typeof sku !== "string" || seen.has(sku) || !findVariant(sku)) continue;
     if (typeof cases !== "number" || !Number.isInteger(cases) || cases < 1 || cases > 999) continue;
     seen.add(sku);
-    out.push({ sku, cases });
+    if (shelf.has(sku)) lines.push({ sku, cases });
+    else unavailable.push(sku);
   }
-  return out;
+  return { lines, unavailable };
 }
+
+/** Some lines are for items that went off sale: nothing was ordered or saved. */
+type Unavailable = { ok: false; reason: "unavailable"; skus: string[] };
 
 export type PlaceOrderResult =
   | { ok: true; number: number; total: number | null }
-  | { ok: false; reason: "signin" | "noAccount" | "empty" | "generic" };
+  | { ok: false; reason: "signin" | "noAccount" | "empty" | "generic" }
+  | Unavailable;
 
 export async function placeOrder(input: {
   locale: string;
@@ -287,7 +299,8 @@ export async function placeOrder(input: {
   const portal = await getPortal();
   if (!portal) return { ok: false, reason: "signin" };
   if (!portal.account) return { ok: false, reason: "noAccount" };
-  const lines = cleanLines(input.lines);
+  const { lines, unavailable } = await cleanLines(input.lines);
+  if (unavailable.length) return { ok: false, reason: "unavailable", skus: unavailable };
   if (lines.length === 0) return { ok: false, reason: "empty" };
   const note = typeof input.note === "string" ? input.note.trim().slice(0, 500) : "";
   const locale: Locale = isLocale(input.locale) ? input.locale : "en";
@@ -332,16 +345,21 @@ export async function placeOrder(input: {
   return { ok: true, number, total };
 }
 
-export type SaveUsualResult = { ok: true; count: number } | { ok: false; reason: "signin" | "noAccount" | "generic" };
+export type SaveUsualResult =
+  | { ok: true; count: number }
+  | { ok: false; reason: "signin" | "noAccount" | "generic" }
+  | Unavailable;
 
 export async function saveUsualOrder(input: ListInput): Promise<SaveUsualResult> {
   const portal = await getPortal();
   if (!portal) return { ok: false, reason: "signin" };
   if (!portal.account) return { ok: false, reason: "noAccount" };
+  const { lines, unavailable } = await cleanLines(input.lines);
+  if (unavailable.length) return { ok: false, reason: "unavailable", skus: unavailable };
   const supabase = await userClient();
   const { data, error } = await supabase.rpc("save_usual_order", {
     p_account: portal.account.id,
-    p_lines: cleanLines(input.lines),
+    p_lines: lines,
   });
   if (error) {
     console.error("[portal] save_usual_order failed:", error.code, error.message);

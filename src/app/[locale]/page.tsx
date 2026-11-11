@@ -5,25 +5,22 @@ import { ProductVisual } from "@/components/ProductVisual";
 import { Ticket } from "@/components/Ticket";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
-import {
-  categoryHref,
-  getCategories,
-  getProducts,
-  getStaples,
-  optionsLabel,
-  productHref,
-  sampleOrder,
-} from "@/lib/catalog";
+import { categoryHref, optionsLabel, productHref } from "@/lib/catalog";
 import { fill, formatMoney, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
+import { getShelf, sampleOrder } from "@/lib/shelf";
 import styles from "./home.module.css";
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = (await params).locale as Locale;
   const dict = getDictionary(locale);
   const h = dict.home;
-  const categories = getCategories();
-  const products = getProducts();
-  const order = sampleOrder(locale);
+  const shelf = await getShelf();
+  const { categories, products, staples } = shelf;
+  const order = sampleOrder(shelf, locale);
+  // Three tiles across on wide screens, or four when that fills the last row better
+  // (eight categories make two rows of four, not three, three and two).
+  const n = categories.length;
+  const catColumns = n % 3 === 0 ? 3 : n % 4 === 0 || n % 3 === 1 ? 4 : 3;
   const surcharge = formatNumber(locale, site.cardSurchargePercent);
   const delivery = formatMoney(locale, site.deliveryFee);
   const nextDay = formatMoney(locale, site.nextDayFee);
@@ -80,19 +77,21 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 height={644}
               />
             </div>
-            <div className={styles.ticketSlot}>
-              <Ticket
-                tilted
-                label={h.ticketLabel}
-                title={h.ticketTitle}
-                day={h.ticketDay}
-                casesLabel={h.ticketCases}
-                note={h.ticketNote}
-                lines={order
-                  .slice(0, 4)
-                  .map((l) => ({ key: l.sku, cases: l.cases, name: l.name, summary: l.summary }))}
-              />
-            </div>
+            {order.length ? (
+              <div className={styles.ticketSlot}>
+                <Ticket
+                  tilted
+                  label={h.ticketLabel}
+                  title={h.ticketTitle}
+                  day={h.ticketDay}
+                  casesLabel={h.ticketCases}
+                  note={h.ticketNote}
+                  lines={order
+                    .slice(0, 4)
+                    .map((l) => ({ key: l.sku, cases: l.cases, name: l.name, summary: l.summary }))}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
@@ -115,7 +114,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               {h.carryAll}
             </Link>
           </div>
-          <ul role="list" className={styles.cats}>
+          <ul role="list" className={styles.cats} data-columns={catColumns}>
             {categories.map((c) => {
               const count = products.filter((p) => p.category === c.id).length;
               return (
@@ -153,34 +152,36 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </div>
       </section>
 
-      <section className="section" aria-labelledby="staples-title">
-        <div className="container">
-          <div className="section-head">
-            <div>
-              <h2 id="staples-title" className="h2">
-                {h.staplesTitle}
-              </h2>
-              <p className="muted">{h.staplesBody}</p>
+      {staples.length ? (
+        <section className="section" aria-labelledby="staples-title">
+          <div className="container">
+            <div className="section-head">
+              <div>
+                <h2 id="staples-title" className="h2">
+                  {h.staplesTitle}
+                </h2>
+                <p className="muted">{h.staplesBody}</p>
+              </div>
             </div>
+            <ul role="list" className={styles.staples}>
+              {staples.map((p) => (
+                <li key={p.slug}>
+                  <ProductCard
+                    card={{
+                      slug: p.slug,
+                      href: productHref(locale, p),
+                      name: p.name[locale],
+                      meta: optionsLabel(p, locale, dict),
+                      image: p.image,
+                      icon: p.icon,
+                    }}
+                  />
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul role="list" className={styles.staples}>
-            {getStaples().map((p) => (
-              <li key={p.slug}>
-                <ProductCard
-                  card={{
-                    slug: p.slug,
-                    href: productHref(locale, p),
-                    name: p.name[locale],
-                    meta: optionsLabel(p, locale, dict),
-                    image: p.image,
-                    icon: p.icon,
-                  }}
-                />
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className={`section ${styles.faqSection}`} aria-labelledby="faq-title">
         <div className={`container ${styles.faqGrid}`}>

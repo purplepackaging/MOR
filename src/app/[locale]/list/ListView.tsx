@@ -92,6 +92,10 @@ export function ListView({
   );
   const [announced, setAnnounced] = useState("");
   const firstSummary = useRef(true);
+  /** Above zero once lines for items that are not for sale came off the list, so we can say so. */
+  const [dropped, setDropped] = useState(0);
+  const droppedNote = useRef<HTMLParagraphElement>(null);
+  const focusDropped = useRef(false);
 
   const totalCases = known.reduce((sum, l) => sum + l.cases, 0);
   const prices = portal?.prices ?? null;
@@ -110,10 +114,22 @@ export function ListView({
   const summaryText = `${[itemCount, caseCount, ...(portal && fees ? [`${totalLabel}: ${totalText}`] : [])].join(". ")}.`;
   const barShown = hydrated && stacked && !placed && known.length > 0 && Boolean(portal || signIn) && actionBelow;
 
-  // Drop SKUs the catalog no longer has, so counts stay honest.
+  // Take lines for items that are not for sale off the list, so counts stay honest, and say so.
   useEffect(() => {
-    if (hydrated && known.length !== lines.length) listStore.replace(known);
+    if (hydrated && known.length !== lines.length) {
+      listStore.replace(known);
+      setDropped((n) => n || 1);
+    }
   }, [hydrated, known, lines.length]);
+
+  // When an order was held back for it, the note is what the customer needs to read next.
+  useEffect(() => {
+    if (dropped && focusDropped.current) {
+      focusDropped.current = false;
+      droppedNote.current?.focus();
+      droppedNote.current?.scrollIntoView({ block: "center" });
+    }
+  }, [dropped]);
 
   useEffect(() => {
     if (known.length === 0 && focusEmpty.current) {
@@ -185,6 +201,14 @@ export function ListView({
 
   if (!hydrated) return <div className={styles.loading} aria-hidden="true" />;
 
+  // Shown in the same paint as the list, before the lines come off, so nothing jumps.
+  const droppedNotice =
+    dropped || known.length !== lines.length ? (
+      <p className={styles.notice} role="status" ref={droppedNote} tabIndex={-1}>
+        {labels.unavailable}
+      </p>
+    ) : null;
+
   if (placed) {
     return (
       <div className={styles.empty}>
@@ -207,6 +231,7 @@ export function ListView({
   if (known.length === 0) {
     return (
       <div className={styles.empty}>
+        {droppedNotice}
         <h2 className="h3" ref={emptyHeading} tabIndex={-1}>
           {labels.emptyTitle}
         </h2>
@@ -221,12 +246,21 @@ export function ListView({
   const failure = (reason: string) =>
     reason === "signin" ? labels.signedOut : reason === "empty" ? labels.emptyTitle : labels.orderError;
 
+  // The server found items that went off sale after this page loaded. Nothing was
+  // ordered or saved: take them off the list and say so, so the customer can check it.
+  const takeOff = (skus: string[]) => {
+    focusDropped.current = true;
+    listStore.replace(listStore.getSnapshot().filter((l) => !skus.includes(l.sku)));
+    setDropped((n) => n + 1);
+  };
+
   const place = () => {
     setProblem(null);
     startPlacing(async () => {
       const result = await placeOrder({ locale, lines: orderLines, note, nextDay });
       if (!result.ok) {
-        setProblem(failure(result.reason));
+        if (result.reason === "unavailable") takeOff(result.skus);
+        else setProblem(failure(result.reason));
         return;
       }
       listStore.clear();
@@ -241,6 +275,7 @@ export function ListView({
     startSaving(async () => {
       const result = await saveUsualOrder({ lines: orderLines });
       if (result.ok) showToast({ message: labels.savedUsual });
+      else if (result.reason === "unavailable") takeOff(result.skus);
       else setProblem(result.reason === "signin" ? labels.signedOut : labels.usualError);
     });
   };
@@ -289,6 +324,7 @@ export function ListView({
         </div>
       ) : null}
       <div className={styles.ticket}>
+        {droppedNotice}
         <ul role="list" className={styles.lines}>
           {known.map((line) => {
             const info = index[line.sku];

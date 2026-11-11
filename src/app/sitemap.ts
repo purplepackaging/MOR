@@ -1,15 +1,17 @@
 import type { MetadataRoute } from "next";
 import { site } from "@/config/site";
-import { getCategories, getProducts, productPath } from "@/lib/catalog";
+import { productPath } from "@/lib/catalog";
 import { htmlLang, localePath, locales } from "@/lib/i18n";
+import { getShelf } from "@/lib/shelf";
 
-/** Every public page in every language, with language alternates. */
-export default function sitemap(): MetadataRoute.Sitemap {
+/** Every public page in every language, with language alternates. Only products that are for sale. */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const shelf = await getShelf();
   const paths = [
     "/",
     "/products",
-    ...getCategories().map((c) => `/products/${c.id}`),
-    ...getProducts().map(productPath),
+    ...shelf.categories.map((c) => `/products/${c.id}`),
+    ...shelf.products.map(productPath),
     // With the portal on, this page only forwards to account creation.
     ...(site.portalEnabled ? [] : ["/request-account"]),
     "/privacy",

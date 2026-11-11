@@ -11,7 +11,8 @@ export function supabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY);
 }
 
-function config() {
+/** Where the Data API lives and the headers that carry the server key. Throws when Supabase is not set up. */
+export function serverRest() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) throw new Error("Supabase is not configured");
@@ -25,7 +26,7 @@ function config() {
 /** Inserts one row. Returns false (and logs why) instead of throwing. */
 export async function insertRow(table: string, row: Record<string, unknown>): Promise<boolean> {
   try {
-    const { base, headers } = config();
+    const { base, headers } = serverRest();
     const res = await fetch(`${base}/${encodeURIComponent(table)}`, {
       method: "POST",
       headers: { ...headers, Prefer: "return=minimal" },

@@ -6,6 +6,7 @@
     "db": "node db/migrations.test.mjs",
     "mock": "node mock-supabase/server.mjs",
     "portal": "node e2e/portal-flow.js",
+    "hidden": "node e2e/availability.js",
     "axe": "node e2e/axe-public.js"
   },
   "devDependencies": {

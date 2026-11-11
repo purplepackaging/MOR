@@ -8,6 +8,7 @@ import { fill, formatNumber, localePath, type Locale } from "@/lib/i18n";
 import { MAX_CASES } from "@/lib/limits";
 import { pageMetadata } from "@/lib/metadata";
 import { getFees, getPortal, getPrices, portalReady, setupPath } from "@/lib/portal";
+import { getShelfOrAll } from "@/lib/shelf";
 import { ListView, type ListPortal, type ListSignIn } from "./ListView";
 import styles from "./list.module.css";
 
@@ -57,6 +58,9 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
     }
   }
 
+  // Lines for items that are not for sale right now come off the list, with a note.
+  const shelf = await getShelfOrAll();
+
   return (
     <div className={styles.band}>
       <div className={`container ${styles.page}`}>
@@ -66,7 +70,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
         </header>
         <ListView
           locale={locale}
-          index={skuIndex(locale, dict)}
+          index={skuIndex(locale, dict, shelf.products)}
           labels={dict.list}
           caseLabel={d.case}
           stepper={{

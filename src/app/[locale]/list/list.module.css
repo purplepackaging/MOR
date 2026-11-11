@@ -39,6 +39,24 @@
   outline: none;
 }
 
+/* Says that items went off sale and came off the list. Sits on the ticket or the empty panel. */
+.notice {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-s);
+  background: var(--lilac);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+.notice:focus {
+  outline: none;
+}
+
+.ticket .notice {
+  margin-bottom: var(--s-3);
+}
+
 .empty :global(.btn) {
   margin-top: var(--s-2);
 }

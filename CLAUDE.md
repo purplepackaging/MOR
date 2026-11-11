@@ -46,15 +46,28 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   with the publishable key, so row level security applies to every read. The proxy refreshes the session on
   `/account/*` and `/list`. The sign-in cookie is HttpOnly and Secure (`src/lib/session-cookie.ts`): only the
   server reads it, so never add a Supabase client that runs in the browser.
-- **Data:** `supabase/migrations/20261110000000_portal.sql` and `20261110190000_open_signup_pricing.sql`.
+- **Data:** `supabase/migrations/20261110000000_portal.sql`, `20261110190000_open_signup_pricing.sql` and
+  `20261111150518_priced_skus.sql`.
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
   `save_usual_order` and `create_my_account`. Prices: cost per case / (1 - margin), rounded to cents, one
   margin for everyone (25%). Each order copies a delivery fee and, if `next_day`, a next-day fee. The margin
   and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
   margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
   (`accounts.active = false`) see no prices and cannot order.
-- **Prices on product pages:** the pages are static, so a signed-in customer's prices load after the page
-  from `/api/prices` (the same `my_prices` call as the list), once `/api/session` says someone is signed in.
+- **Items without a price are hidden:** the site sells only SKUs that have a cost in `public.product_costs`.
+  `src/lib/availability.ts` asks `public.priced_skus()` with the server key (SKUs only, never a cost), and
+  `src/lib/shelf.ts` turns the answer into the shelf: the products, sizes and categories that are for sale.
+  Every page that shows products reads the shelf, never `src/data/catalog.ts` directly. `allProducts()` and
+  `allCategories()` only name the pages to build; `findVariant()` names SKUs on past orders and in emails.
+  A product or category with nothing to sell answers 404. Pages refresh by themselves about every
+  5 minutes (ISR, set by the fetch in `availability.ts`), so a loaded cost needs no deploy. If Supabase
+  cannot be reached, built pages keep their last good version, and a build fails rather than put unpriced
+  items on show. `placeOrder` and `saveUsualOrder` ask again at that moment and hold the order back if an
+  item went off sale. `SHOW_UNPRICED=true` (server env, needs a deploy) shows everything again, with
+  "To be confirmed" on items without a price.
+- **Prices on product pages:** the pages are built ahead of time, the same for everyone, so a signed-in
+  customer's prices load after the page from `/api/prices` (the same `my_prices` call as the list), once
+  `/api/session` says someone is signed in.
   `src/lib/price-store.ts` keeps them in memory between product pages and drops them at sign-out. On phones
   the price sits at the end of the case line, so rows do not grow when it arrives.
 - **Your list:** each priced line shows what it comes to. Below 960px an order bar (total and Place order)

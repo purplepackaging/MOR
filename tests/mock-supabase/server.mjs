@@ -11,7 +11,16 @@ const ACCOUNTS = {
 };
 // Same rules as public.pricing: price = cost / (1 - margin); fees per order.
 const PRICING = { margin: 0.25, delivery_fee: 50, next_day_fee: 50 };
-const COSTS = { "CUP-PET-16": 40, "LID-DOME-98H": 30, "HBG-96N": 33.33, "POR-020C": 25 };
+// SKUs with a cost. The site sells only these, so the rest of the catalog stays hidden.
+// The first four carry the prices the portal checks add up; the rest fill out the shelves.
+const COSTS = {
+  "CUP-PET-16": 40, "LID-DOME-98H": 30, "HBG-96N": 33.33, "POR-020C": 25,
+  "HMF-993W": 28, "NDN-W": 21, "KBX-1": 36, "KBX-8": 41, "HOT-08": 27, "HOT-12": 31.5,
+  "GCK-1": 18, "MSK-BL": 12, "MOP-24": 45, "CHF-GEL": 39, "CLC-08": 24, "KRB-6": 22,
+};
+// The server key the site reads priced_skus with. Customers never have it.
+const SECRET = "sb_secret_test";
+let outage = false; // true: priced_skus answers 503, as when Supabase is down
 const price = (cost) => Math.round((cost / (1 - PRICING.margin)) * 100) / 100;
 const orders = []; const usual = {}; let next = 1001;
 const tokens = new Map(); // access token -> email
@@ -40,6 +49,24 @@ http.createServer(async (req, res) => {
   const email = tokens.get(bearer);
   const p = url.pathname;
   console.log(req.method, p + url.search, email ?? "-");
+  // Which SKUs have a cost: SKUs only, and only for the server key.
+  if (p === "/rest/v1/rpc/priced_skus") {
+    if (req.headers.apikey !== SECRET) return send(res, 401, { message: "Invalid API key" });
+    if (outage) return send(res, 503, { message: "down for the test" });
+    return send(res, 200, Object.keys(COSTS).sort());
+  }
+  // For the tests only: load or remove costs as the dashboard would, or take priced_skus down.
+  if (p === "/__test/costs" && req.method === "POST") {
+    for (const [sku, cost] of Object.entries(body)) {
+      if (cost == null) delete COSTS[sku];
+      else COSTS[sku] = cost;
+    }
+    return send(res, 200, Object.keys(COSTS).sort());
+  }
+  if (p === "/__test/outage" && req.method === "POST") {
+    outage = body.on === true;
+    return send(res, 200, { outage });
+  }
   if (p === "/auth/v1/otp") {
     // Open sign-up: an unknown email gets a login.
     if (!USERS[body.email]) {

@@ -63,6 +63,12 @@ Prices and fees are set in the database, never in the browser:
   processor at payment, never on debit cards or bank payments. Card rules cap it at what card acceptance
   actually costs you, and the processor needs 30 days' notice before you start.
 
+Only items with a price are on the site. A product shows once at least one of its sizes has a cost in
+Supabase, and it lists only those sizes. A category with nothing to sell is left out of the menus.
+Load a cost and the item appears by itself within about 5 minutes. No deploy is needed. The first visit
+to a page after a change can still get the old page; refresh once. To show every item again, with
+"To be confirmed" on the ones without a price, set `SHOW_UNPRICED=true` in Vercel and redeploy.
+
 Setup (done for production on Nov 10, 2026):
 
 1. Apply the migrations (see above). Production is the Supabase project MOR Supply in East US.
@@ -90,7 +96,7 @@ Day to day, in the Supabase dashboard:
   `select * from public.link_customer('buyer@example.com', 'Business name', 'buyer');`
   If they sign in first, the site asks them to set up a new business instead.
 - Change the margin or fees: Table Editor > pricing.
-- Load costs: `public.load_costs` with columns copied from the cost sheet. Items without a cost show
-  "To be confirmed".
+- Load costs: `public.load_costs` with columns copied from the cost sheet. Items without a cost stay off
+  the site until they have one.
 - Move orders along: `orders.status` is received, confirmed, out_for_delivery, delivered or canceled.
   `orders.next_day` marks next-day requests.

@@ -8,10 +8,9 @@ import { ProductVisual } from "@/components/ProductVisual";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import {
+  allProducts,
   categoryHref,
   getCategory,
-  getProduct,
-  getProducts,
   optionsLabel,
   packLabel,
   productHref,
@@ -22,13 +21,16 @@ import {
 import { fill, formatNumber, isolate, localePath, type Locale } from "@/lib/i18n";
 import { MAX_CASES } from "@/lib/limits";
 import { pageMetadata } from "@/lib/metadata";
+import { getShelf } from "@/lib/shelf";
 import { Price, PriceHead, PricingNote } from "./Prices";
 import styles from "./product.module.css";
 
 export const dynamicParams = false;
 
+// Every product gets a page, so one that gets a price later needs no new deploy.
+// A product with nothing to sell right now answers "not found".
 export function generateStaticParams() {
-  return getProducts().map((p) => ({ category: p.category, product: p.slug }));
+  return allProducts().map((p) => ({ category: p.category, product: p.slug }));
 }
 
 export async function generateMetadata({
@@ -36,7 +38,7 @@ export async function generateMetadata({
 }: PageProps<"/[locale]/products/[category]/[product]">): Promise<Metadata> {
   const { locale: raw, product: slug } = await params;
   const locale = raw as Locale;
-  const p = getProduct(slug);
+  const p = (await getShelf()).product(slug);
   if (!p) return {};
   const dict = getDictionary(locale);
   return pageMetadata(locale, productPath(p), {
@@ -51,7 +53,9 @@ const COLUMNS: Column[] = ["item", "size", "detail", "color", "fits"];
 export default async function ProductPage({ params }: PageProps<"/[locale]/products/[category]/[product]">) {
   const { locale: raw, category, product: slug } = await params;
   const locale = raw as Locale;
-  const p = getProduct(slug);
+  // Only the sizes that are for sale; a product with none is not found.
+  const shelf = await getShelf();
+  const p = shelf.product(slug);
   if (!p || p.category !== category) notFound();
   const dict = getDictionary(locale);
   const d = dict.product;
@@ -71,7 +75,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
   // The page is static. A signed-in customer's prices load after it, from /api/prices.
   const prices = site.portalEnabled;
   const priceLabels = { locale, label: dict.portal.price, noPrice: dict.portal.noPrice };
-  const related = (p.goesWith ?? []).map((s) => getProduct(s)).filter((x) => !!x).slice(0, 4);
+  const related = (p.goesWith ?? []).map((s) => shelf.product(s)).filter((x) => !!x).slice(0, 4);
 
   return (
     <div className={`container ${styles.page}`}>

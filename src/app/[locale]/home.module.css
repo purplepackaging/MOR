@@ -141,6 +141,12 @@
   }
 }
 
+@media (min-width: 960px) {
+  .cats[data-columns="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .cat {
   display: grid;
   gap: 12px;
