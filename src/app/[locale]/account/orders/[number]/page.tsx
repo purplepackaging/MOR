@@ -7,6 +7,7 @@ import { fill, formatDate, formatMoney, formatNumber, localePath, type Locale } 
 import { getOrder, getPortal, portalReady } from "@/lib/portal";
 import { getShelfOrAll } from "@/lib/shelf";
 import { StatusPill, describe } from "../../parts";
+import { CancelOrder } from "./CancelOrder";
 import styles from "../../account.module.css";
 
 // Order numbers are not known at build time.
@@ -20,8 +21,9 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account/
   };
 }
 
-export default async function OrderPage({ params }: PageProps<"/[locale]/account/orders/[number]">) {
+export default async function OrderPage({ params, searchParams }: PageProps<"/[locale]/account/orders/[number]">) {
   const { locale: raw, number: rawNumber } = await params;
+  const { canceled: canceledNote, late: lateNote } = await searchParams;
   const locale = raw as Locale;
   const dict = getDictionary(locale);
   const p = dict.portal;
@@ -58,6 +60,16 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
           </p>
           {order.nextDay ? <p className={styles.nextDay}>{p.nextDay}</p> : null}
         </div>
+        {/* What just happened to this order, said once, in the page. */}
+        {canceledNote && order.status === "canceled" ? (
+          <p className={styles.notice} role="status">
+            {fill(p.canceledNote, { n: order.number })}
+          </p>
+        ) : lateNote && order.status !== "received" && order.status !== "canceled" ? (
+          <p className={`${styles.notice} ${styles.noticeProblem}`} role="status">
+            {p.cancelTooLate}
+          </p>
+        ) : null}
         {order.note ? (
           <p className={styles.note}>
             <strong>{p.note}:</strong> {order.note}
@@ -157,6 +169,23 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
         <div className={`${styles.row} ${styles.footer}`}>
           <ToListButton lines={forSale} label={p.reorder} done={p.reordered} href={localePath(locale, "/list")} />
         </div>
+      ) : null}
+
+      {/* Until the team confirms it, the customer can still call the order off. */}
+      {order.status === "received" ? (
+        <CancelOrder
+          locale={locale}
+          number={order.number}
+          labels={{
+            cancel: p.cancelOrder,
+            hint: p.cancelHint,
+            ask: fill(p.cancelAsk, { n: order.number }),
+            yes: p.cancelYes,
+            no: p.cancelNo,
+            canceling: p.canceling,
+            failed: p.cancelFailed,
+          }}
+        />
       ) : null}
     </section>
   );

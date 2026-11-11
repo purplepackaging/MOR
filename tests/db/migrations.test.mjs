@@ -1,5 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 const dir = process.argv[2] ?? new URL("../../supabase/migrations", import.meta.url).pathname;
 const db = new PGlite();
 const ok = (m) => console.log("PASS", m);
@@ -9,6 +9,7 @@ async function expectError(sql, params, code, label) {
   catch (e) { (e.code === code ? ok : bad)(`${label} -> ${e.code} ${e.message}`); }
 }
 const run = (f) => db.exec(readFileSync(`${dir}/${f}`, "utf8"));
+const SELF_SERVICE = readdirSync(dir).find((f) => f.endsWith("_self_service.sql"));
 // Supabase stand-ins
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
@@ -44,6 +45,9 @@ ok("open sign-up migration is re-runnable");
 await run("20261111150518_priced_skus.sql");
 await run("20261111150518_priced_skus.sql");
 ok("priced SKUs migration ran, twice");
+await run(SELF_SERVICE);
+await run(SELF_SERVICE);
+ok("self-service migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
@@ -241,4 +245,66 @@ r = await db.query(`select public.priced_skus() skus`);
 await db.exec(`reset role; rollback;`);
 r = await db.query(`select count(*)::int n from public.product_costs`);
 (r.rows[0].n === 4 ? ok : bad)(`costs untouched after the empty-list check (${r.rows[0].n})`);
+
+// Self-service: the owner corrects the business details; any member cancels an order that is still received.
+await db.exec(`reset role;
+  insert into public.account_users (account_id, user_id, role) values ('${A}', '${U3}', 'buyer') on conflict do nothing;`);
+// Kebab House was switched off further up: its owner can change nothing until it is back on.
+await as(U1);
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, "Kebab House", "Ali", "+14045550188", "1 St", "Atlanta", "30309"], "42501", "a switched-off account cannot change its details");
+await db.exec(`reset role; update public.accounts set active = true where id = '${A}';`);
+await as(U1);
+await db.query(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7, $8)`, [A, "  Kebab House Midtown ", " Ali ", "+14045550188", " 77 Tenth St ", " Atlanta ", "30309", "tr"]);
+r = await db.query(`select name, contact_name, phone, street, city, zip, preferred_language from public.accounts where id = $1`, [A]);
+(JSON.stringify(r.rows[0]) === JSON.stringify({ name: "Kebab House Midtown", contact_name: "Ali", phone: "+14045550188", street: "77 Tenth St", city: "Atlanta", zip: "30309", preferred_language: "tr" }) ? ok : bad)(`the owner changes the business details, trimmed: ${JSON.stringify(r.rows[0])}`);
+await db.query(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7, $8)`, [A, "Kebab House", "Ali", "+14045550188", "77 Tenth St", "Atlanta", "30309", "xx"]);
+r = await db.query(`select name, preferred_language from public.accounts where id = $1`, [A]);
+(r.rows[0].name === "Kebab House" && r.rows[0].preferred_language === "tr" ? ok : bad)(`an unknown language leaves the language as it was (${r.rows[0].preferred_language})`);
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, " ", "Ali", "+14045550188", "77 Tenth St", "Atlanta", "30309"], "22023", "details need a business name");
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, "Kebab House", "Ali", "404-555-0188", "77 Tenth St", "Atlanta", "30309"], "23514", "details keep the phone format");
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, "Kebab House", "Ali", "+14045550188", "77 Tenth St", "Atlanta", "3030"], "23514", "details keep the ZIP format");
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [B, "Mine now", "Ali", "+14045550188", "1 St", "Atlanta", "30309"], "42501", "an owner cannot change another business");
+await expectError(`update public.accounts set name = 'Direct' where id = $1`, [A], "42501", "details change only through the function");
+await as(U3);
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, "Buyer Was Here", "Bo", "+14045550188", "1 St", "Atlanta", "30309"], "42501", "a buyer cannot change the business details");
+r = await db.query(`select contact_name, phone, street, city, zip, preferred_language from public.accounts where id = $1`, [A]);
+(r.rows.length === 1 && r.rows[0].street === "77 Tenth St" ? ok : bad)(`a member reads the details of their business (${r.rows.length} row)`);
+r = await db.query(`select count(*)::int n from public.accounts where id = $1`, [B]);
+(r.rows[0].n === 0 ? ok : bad)("and not another business's");
+await db.exec(`reset role;`);
+r = await db.query(`select details_updated_at is not null stamped from public.accounts where id = $1`, [A]);
+(r.rows[0].stamped ? ok : bad)("the change is stamped with its time");
+
+// Cancel: a fresh order, placed by the owner, canceled by the buyer on the same account.
+await as(U1);
+r = await db.query(`select order_number n from public.place_order($1, $2::jsonb)`, [A, JSON.stringify([{ sku: "CUP-PET-16", cases: 1 }])]);
+const N1 = Number(r.rows[0].n);
+r = await db.query(`select order_number n from public.place_order($1, $2::jsonb)`, [A, JSON.stringify([{ sku: "CUP-PET-16", cases: 2 }])]);
+const N2 = Number(r.rows[0].n);
+await as(U2);
+await expectError(`select public.cancel_my_order($1, $2)`, [A, N1], "42501", "someone from another business cannot cancel the order");
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [B, N1]);
+(r.rows[0].s === "not_found" ? ok : bad)(`an order number from another business is not found (${r.rows[0].s})`);
+await as(U3);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, N1]);
+(r.rows[0].s === "canceled" ? ok : bad)(`a member cancels a received order (${r.rows[0].s})`);
+r = await db.query(`select status, canceled_at is not null stamped from public.orders where number = $1`, [N1]);
+(r.rows[0].status === "canceled" && r.rows[0].stamped ? ok : bad)(`the order reads canceled, with the time (${JSON.stringify(r.rows[0])})`);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, N1]);
+(r.rows[0].s === "canceled" ? ok : bad)("canceling it again changes nothing and still says canceled");
+await db.exec(`reset role;`);
+r = await db.query(`select canceled_by::text u from public.orders where number = $1`, [N1]);
+(r.rows[0].u === U3 ? ok : bad)("the order records who canceled it");
+await db.query(`update public.orders set status = 'confirmed' where number = $1`, [N2]);
+await as(U1);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, N2]);
+const still = await db.query(`select status from public.orders where number = $1`, [N2]);
+(r.rows[0].s === "too_late" && still.rows[0].status === "confirmed" ? ok : bad)(`a confirmed order is too late to cancel and stays confirmed (${r.rows[0].s}, ${still.rows[0].status})`);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, 999999]);
+(r.rows[0].s === "not_found" ? ok : bad)("an unknown order number is not found");
+await expectError(`update public.orders set status = 'canceled' where number = $1`, [N2], "42501", "orders change only through the function");
+await db.exec(`reset role; set role anon; select set_config('request.jwt.claims', '', false);`);
+await expectError(`select public.cancel_my_order($1, $2)`, [A, N2], "42501", "anon cannot cancel orders");
+await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, "x", "x", "+14045550188", "x", "x", "30309"], "42501", "anon cannot change details");
+await db.exec(`reset role;`);
 console.log(process.exitCode ? "SOME TESTS FAILED" : "ALL PASSED");

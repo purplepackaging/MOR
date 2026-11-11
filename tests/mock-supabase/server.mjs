@@ -3,10 +3,12 @@ import http from "node:http";
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 const USERS = {
   "owner@kebab.test": { id: "11111111-1111-1111-1111-111111111111", accounts: ["A"] },
+  // Staff who order for Kebab House: can order and cancel, cannot change the business details.
+  "buyer@kebab.test": { id: "33333333-3333-3333-3333-333333333333", accounts: ["A"], roles: { A: "buyer" } },
   "paused@spot.test": { id: "22222222-2222-2222-2222-222222222222", accounts: ["P"] },
 };
 const ACCOUNTS = {
-  A: { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Kebab House", delivery_day: "thu", created_at: "2026-11-01T12:00:00Z", active: true },
+  A: { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Kebab House", delivery_day: "thu", created_at: "2026-11-01T12:00:00Z", active: true, contact_name: "Ali", phone: "+14045550101", street: "100 Buford Hwy", city: "Doraville", zip: "30340", preferred_language: "en" },
   P: { id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", name: "Taco Spot", delivery_day: null, created_at: "2026-11-02T12:00:00Z", active: false },
 };
 // Same rules as public.pricing: price = cost / (1 - margin); fees per order.
@@ -22,6 +24,7 @@ const COSTS = {
 const SECRET = "sb_secret_test";
 let outage = false; // true: priced_skus answers 503, as when Supabase is down
 let failAccounts = 0; // how many create_my_account calls answer 500 before it works again
+let failDetails = 0; // the same for update_my_account
 // A stand-in for Resend's email API, so the tests can read what the site sends.
 const emails = [];
 const price = (cost) => Math.round((cost / (1 - PRICING.margin)) * 100) / 100;
@@ -65,6 +68,17 @@ http.createServer(async (req, res) => {
       else COSTS[sku] = cost;
     }
     return send(res, 200, Object.keys(COSTS).sort());
+  }
+  if (p === "/__test/fail-details" && req.method === "POST") {
+    failDetails = Number(body.times) || 1;
+    return send(res, 200, { failDetails });
+  }
+  // The team moves an order along in the dashboard.
+  if (p === "/__test/order-status" && req.method === "POST") {
+    const o = orders.find((x) => String(x.number) === String(body.number));
+    if (!o) return send(res, 404, { message: "no such order" });
+    o.status = body.status;
+    return send(res, 200, { number: o.number, status: o.status });
   }
   if (p === "/__test/fail-account" && req.method === "POST") {
     failAccounts = Number(body.times) || 1;
@@ -118,8 +132,40 @@ http.createServer(async (req, res) => {
   if (p === "/auth/v1/logout") { tokens.delete(bearer); return send(res, 204); }
   if (!email) return send(res, 401, { message: "JWT expired" });
   const eq = (k) => (url.searchParams.get(k) || "").replace(/^eq\./, "");
-  if (p === "/rest/v1/accounts") return send(res, 200, mine(email).map(({ id, name, delivery_day, created_at }) => ({ id, name, delivery_day, created_at })));
-  if (p === "/rest/v1/account_users") return send(res, 200, USERS[email].accounts.map((k) => ({ account_id: ACCOUNTS[k].id })));
+  // Only the columns the migrations grant to signed-in customers, and only the ones asked for.
+  if (p === "/rest/v1/accounts") {
+    const granted = ["id", "name", "delivery_day", "created_at", "contact_name", "phone", "street", "city", "zip", "preferred_language"];
+    const asked = (url.searchParams.get("select") || "").split(",").map((c) => c.trim()).filter(Boolean);
+    const refused = asked.find((c) => !granted.includes(c));
+    if (refused) return send(res, 403, { code: "42501", message: `permission denied for column ${refused}` });
+    let rows = mine(email);
+    if (url.searchParams.get("id")) rows = rows.filter((a) => a.id === eq("id"));
+    return single(req, res, rows.map((a) => Object.fromEntries((asked.length ? asked : granted).map((c) => [c, a[c] ?? null]))));
+  }
+  if (p === "/rest/v1/account_users") {
+    let rows = USERS[email].accounts.map((k) => ({ account_id: ACCOUNTS[k].id, user_id: USERS[email].id, role: USERS[email].roles?.[k] ?? "owner" }));
+    if (url.searchParams.get("account_id")) rows = rows.filter((r) => r.account_id === eq("account_id"));
+    return single(req, res, rows);
+  }
+  // The owner of an active business corrects its details. The table's checks hold the formats.
+  if (p === "/rest/v1/rpc/update_my_account") {
+    const key = USERS[email].accounts.find((k) => ACCOUNTS[k].id === body.p_account);
+    if (!key || !ACCOUNTS[key].active || (USERS[email].roles?.[key] ?? "owner") !== "owner") return send(res, 403, { code: "42501", message: "only the owner of an active account can change its details" });
+    if (failDetails > 0) { failDetails--; return send(res, 500, { code: "XX000", message: "failed for the test" }); }
+    if (![body.p_name, body.p_contact_name, body.p_street, body.p_city].every((v) => typeof v === "string" && v.trim())) return send(res, 400, { code: "22023", message: "business name, contact name, phone and address are required" });
+    if (!/^\+1[2-9][0-9]{9}$/.test(body.p_phone ?? "") || !/^[0-9]{5}$/.test(body.p_zip ?? "")) return send(res, 400, { code: "23514", message: "violates check constraint" });
+    Object.assign(ACCOUNTS[key], { name: body.p_name.trim(), contact_name: body.p_contact_name.trim(), phone: body.p_phone, street: body.p_street.trim(), city: body.p_city.trim(), zip: body.p_zip, preferred_language: ["en", "es", "tr", "ar"].includes(body.p_language) ? body.p_language : ACCOUNTS[key].preferred_language });
+    return send(res, 204);
+  }
+  // A member cancels an order that is still received.
+  if (p === "/rest/v1/rpc/cancel_my_order") {
+    const a = mine(email).find((x) => x.id === body.p_account);
+    if (!a) return send(res, 403, { code: "42501", message: "not a member of this account" });
+    const o = orders.find((x) => x.account_id === a.id && String(x.number) === String(body.p_number));
+    if (!o) return send(res, 200, "not_found");
+    if (o.status === "received") { o.status = "canceled"; o.canceled_at = new Date().toISOString(); return send(res, 200, "canceled"); }
+    return send(res, 200, o.status === "canceled" ? "canceled" : "too_late");
+  }
   if (p === "/rest/v1/rpc/my_prices") {
     if (!mine(email).some((x) => x.id === body.p_account)) return send(res, 200, []);
     return send(res, 200, Object.entries(COSTS).map(([sku, c]) => ({ sku, price_per_case: price(c) })));
@@ -132,7 +178,7 @@ http.createServer(async (req, res) => {
     }
     if (USERS[email].accounts.length) return send(res, 409, { code: "23505", message: "already has an account" });
     const key = "N" + Object.keys(ACCOUNTS).length;
-    ACCOUNTS[key] = { id: crypto.randomUUID(), name: body.p_name, delivery_day: null, created_at: new Date().toISOString(), active: true, details: body };
+    ACCOUNTS[key] = { id: crypto.randomUUID(), name: body.p_name, delivery_day: null, created_at: new Date().toISOString(), active: true, details: body, contact_name: body.p_contact_name, phone: body.p_phone, street: body.p_street, city: body.p_city, zip: body.p_zip, preferred_language: body.p_language ?? "en" };
     USERS[email].accounts.push(key);
     return send(res, 200, ACCOUNTS[key].id);
   }

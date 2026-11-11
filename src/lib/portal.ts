@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { site } from "@/config/site";
-import { localePath, type Locale } from "@/lib/i18n";
+import { isLocale, localePath, type Locale } from "@/lib/i18n";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 /**
@@ -79,6 +79,54 @@ export const getPortal = cache(async (): Promise<Portal | null> => {
   }
   return { user: data.user, account, accounts, paused };
 });
+
+export interface AccountDetails {
+  name: string;
+  contactName: string;
+  /** E.164, as stored. */
+  phone: string;
+  street: string;
+  city: string;
+  zip: string;
+  language: Locale;
+}
+
+/** The details of a business, for the people who order for it. Null if they cannot be read. */
+export async function getAccountDetails(accountId: string): Promise<AccountDetails | null> {
+  const supabase = await userClient();
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("name, contact_name, phone, street, city, zip, preferred_language")
+    .eq("id", accountId)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error("[portal] account details failed:", error.message);
+    return null;
+  }
+  const text = (v: unknown) => (typeof v === "string" ? v : "");
+  const language = text(data.preferred_language);
+  return {
+    name: text(data.name),
+    contactName: text(data.contact_name),
+    phone: text(data.phone),
+    street: text(data.street),
+    city: text(data.city),
+    zip: text(data.zip),
+    language: isLocale(language) ? language : "en",
+  };
+}
+
+/** Owners change the details of a business. Staff added as buyers only order for it. */
+export async function isOwner(accountId: string, userId: string): Promise<boolean> {
+  const supabase = await userClient();
+  const { data, error } = await supabase
+    .from("account_users")
+    .select("role")
+    .eq("account_id", accountId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !error && data?.role === "owner";
+}
 
 /** Where a signed-in person without a business goes to set one up. */
 export function setupPath(locale: Locale, next?: string | null): string {

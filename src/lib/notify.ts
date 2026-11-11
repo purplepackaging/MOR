@@ -117,3 +117,42 @@ export async function sendNewAccountEmail(account: {
     `new account ${account.businessName}`,
   );
 }
+
+/** A customer changed their business details. Only what changed is listed, old value then new. */
+export async function sendDetailsChangedEmail(change: {
+  accountName: string;
+  changedBy: string;
+  changes: { label: string; before: string; after: string }[];
+}): Promise<void> {
+  if (change.changes.length === 0) return;
+  await sendTeamEmail(
+    `Details changed: ${change.accountName}`,
+    [
+      `${change.accountName} changed its details on morsupply.com.`,
+      `Changed by ${change.changedBy}`,
+      "",
+      ...change.changes.map((c) => `${c.label}: ${c.before || "(empty)"} -> ${c.after || "(empty)"}`),
+      "",
+      "Check the delivery day if the address moved.",
+    ],
+    `details changed ${change.accountName}`,
+  );
+}
+
+/** A customer canceled an order that was still "received". */
+export async function sendOrderCanceledEmail(order: {
+  number: number;
+  accountName: string;
+  canceledBy: string;
+}): Promise<void> {
+  await sendTeamEmail(
+    `Order ${order.number} canceled: ${order.accountName}`,
+    [
+      `${order.accountName} canceled order ${order.number} on morsupply.com before it was confirmed.`,
+      `Canceled by ${order.canceledBy}`,
+      "",
+      "Nothing to deliver for this order. It reads Canceled in Supabase (Table Editor > orders).",
+    ],
+    `order ${order.number} canceled`,
+  );
+}

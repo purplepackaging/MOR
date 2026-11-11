@@ -143,10 +143,27 @@
   align-items: start;
 }
 
+/* Wide screens: the usual order and the business on one side, recent orders down the other. */
 @media (min-width: 960px) {
   .grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: var(--s-7);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "usual recent"
+      "business recent";
+    gap: var(--s-6) var(--s-7);
+  }
+
+  .usual {
+    grid-area: usual;
+  }
+
+  .recent {
+    grid-area: recent;
+  }
+
+  .business {
+    grid-area: business;
   }
 }
 
@@ -245,6 +262,44 @@
 
 .aside {
   margin-top: var(--s-5);
+}
+
+/* The business as it would be written on a delivery label. */
+.address {
+  display: grid;
+  gap: 2px;
+  font-style: normal;
+  font-size: var(--fs-small);
+}
+
+.business a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--mor);
+  font-weight: var(--w-medium);
+}
+
+/* Canceling an order: a quiet link first, then the question in its place. */
+.cancel {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-2);
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.cancelAsk {
+  gap: var(--s-3);
+}
+
+.cancelQuestion {
+  font-weight: var(--w-medium);
+}
+
+.cancelQuestion:focus {
+  outline: none;
 }
 
 /* "Order again" in the orders table: reads as a link, sized for a thumb. */
