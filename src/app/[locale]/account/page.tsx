@@ -6,6 +6,7 @@ import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
 import { fill, formatDate, localePath, plural, type Locale } from "@/lib/i18n";
 import { getOrders, getPortal, getPrices, getUsualOrder, portalReady, setupPath } from "@/lib/portal";
+import { getShelfOrAll } from "@/lib/shelf";
 import { signOut, switchAccount } from "./actions";
 import { OrdersTable, describe } from "./parts";
 import styles from "./account.module.css";
@@ -59,12 +60,15 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     );
   }
 
-  const [prices, usual, orders] = await Promise.all([
+  const [prices, usual, orders, shelf] = await Promise.all([
     getPrices(account.id),
     getUsualOrder(account.id),
     getOrders(account.id, 5),
+    getShelfOrAll(),
   ]);
   const listHref = localePath(locale, "/list");
+  // Only what is for sale goes on the list. The rest stays in the usual order, marked.
+  const usualForSale = usual?.lines.filter((l) => shelf.has(l.sku)) ?? [];
 
   return (
     <section className={`container ${styles.page}`}>
@@ -114,12 +118,13 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             <>
               <ul className={styles.lines} role="list">
                 {usual.lines.slice(0, 8).map((l) => {
-                  const d = describe(l.sku, locale, dict);
+                  const d = describe(l.sku, locale, dict, shelf);
                   return (
                     <li key={l.sku}>
                       <span>
                         <span className={styles.lineName}>{d.name}</span>
                         <span className={styles.lineMeta}>{d.summary}</span>
+                        {d.note ? <span className={styles.lineMeta}>{d.note}</span> : null}
                       </span>
                       <span className={styles.qty}>{plural(locale, l.cases, dict.list.cases)}</span>
                     </li>
@@ -130,9 +135,11 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
                 <p className={styles.more}>{plural(locale, usual.lines.length - 8, dict.list.items)} +</p>
               ) : null}
               <p className={styles.more}>{fill(p.usualSaved, { date: formatDate(locale, usual.updatedAt) })}</p>
-              <div>
-                <ToListButton lines={usual.lines} label={p.usualToList} done={p.usualAdded} href={listHref} />
-              </div>
+              {usualForSale.length ? (
+                <div>
+                  <ToListButton lines={usualForSale} label={p.usualToList} done={p.usualAdded} href={listHref} />
+                </div>
+              ) : null}
             </>
           ) : (
             <>

@@ -4,6 +4,9 @@ const path = require("path");
 const SHOTS = path.join(__dirname, "shots");
 fs.mkdirSync(SHOTS, { recursive: true });
 const BASE = process.env.BASE ?? "http://localhost:3123";
+// The site hides items without a price, as production does. Build and run with SHOW_UNPRICED=true
+// to check the other setting, where they show as "To be confirmed".
+const HIDE = process.env.SHOW_UNPRICED !== "true";
 const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
 let fails = 0;
 const check = (cond, msg) => { console.log((cond ? "PASS " : "FAIL ") + msg); if (!cond) fails++; };
@@ -49,6 +52,7 @@ async function signOut(p) {
   await p.goto(BASE + "/account");
   await Promise.all([p.waitForURL((u) => u.pathname === "/"), p.click("button:has-text('Sign out')")]);
 }
+// KFT-1K has no cost in the mock: hidden by default, "To be confirmed" with SHOW_UNPRICED=true.
 const LIST = [{ sku: "CUP-PET-16", cases: 4 }, { sku: "HBG-96N", cases: 2 }, { sku: "KFT-1K", cases: 1 }];
 // Four priced lines: 2 x 53.33 + 40.00 + 44.44 + 3 x 33.33 = 291.09, plus 50 delivery = 341.09.
 const PRICED = [{ sku: "CUP-PET-16", cases: 2 }, { sku: "LID-DOME-98H", cases: 1 }, { sku: "HBG-96N", cases: 1 }, { sku: "POR-020C", cases: 3 }];
@@ -71,6 +75,10 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     const p = await ctx.newPage();
     const errors = []; p.on("pageerror", (e) => errors.push(e.message));
     const tag = vp.width;
+
+    // A product with no cost in the mock: hidden by default, on show with SHOW_UNPRICED=true.
+    const hidden = (await p.request.get(BASE + "/products/cups-lids/translucent-cups")).status();
+    check(hidden === (HIDE ? 404 : 200), `${tag} a product without a price is ${HIDE ? "hidden" : "on show, as SHOW_UNPRICED=true asks"} (${hidden})`);
 
     // Product page, signed out: no prices. Keep where the Add buttons are, to compare once prices show.
     await p.goto(BASE + PRODUCT, { waitUntil: "networkidle" });
@@ -141,7 +149,8 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + PRODUCT);
     await p.waitForFunction(() => document.querySelector("main").innerText.includes("$53.33"));
     productText = await visibleText(p);
-    check(productText.includes("To be confirmed"), `${tag} product page shows the price per case, and marks sizes without one`);
+    if (HIDE) check(productText.includes("16 oz") && !productText.includes("24 oz") && !productText.includes("To be confirmed"), `${tag} product page shows the price per case, and only the sizes that have one`);
+    else check(productText.includes("To be confirmed"), `${tag} product page shows the price per case, and marks sizes without one`);
     check(!productText.includes("Prices show after you sign in"), `${tag} product page drops the sign-in line for customers`);
     const priceIn = await p.evaluate(() => {
       const shown = (sel) => [...document.querySelectorAll(sel)].some((el) => getComputedStyle(el).display !== "none");
@@ -163,16 +172,24 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/list");
     await p.waitForSelector("text=Ordering for Kebab House");
     let listText = await p.textContent("main");
-    check(listText.includes("$53.33 a case") && listText.includes("$44.44 a case") && listText.includes("To be confirmed"), `${tag} per-case prices (cost / 0.75) and unpriced item on the list`);
+    if (HIDE) {
+      check(listText.includes("$53.33 a case") && listText.includes("$44.44 a case") && !listText.includes("To be confirmed"), `${tag} per-case prices (cost / 0.75), and no line without a price`);
+      check(listText.includes("Some items are not available right now. We took them off your list."), `${tag} the list says the item without a price came off`);
+      check(await p.evaluate(() => JSON.parse(localStorage.getItem("mor.list.v1")).map((l) => l.sku).join() === "CUP-PET-16,HBG-96N"), `${tag} the item without a price is off the saved list too`);
+    } else {
+      check(listText.includes("$53.33 a case") && listText.includes("$44.44 a case") && listText.includes("To be confirmed"), `${tag} per-case prices (cost / 0.75) and unpriced item on the list`);
+    }
     check(listText.includes("$213.32") && listText.includes("$88.88"), `${tag} each priced line shows what it comes to (4 x 53.33 = 213.32, 2 x 44.44 = 88.88)`);
     check(listText.includes("$302.20"), `${tag} subtotal of priced lines (4 x 53.33 + 2 x 44.44 = 302.20)`);
     check(listText.includes("Delivery") && listText.includes("$50.00"), `${tag} delivery fee shown before ordering`);
     check(listText.includes("Paying by credit card adds 3%"), `${tag} card fee note`);
-    check(!listText.includes("$352.20"), `${tag} no total while an item has no price`);
+    if (HIDE) check(listText.includes("$352.20"), `${tag} total with delivery, since every line has a price (302.20 + 50 = 352.20)`);
+    else check(!listText.includes("$352.20"), `${tag} no total while an item has no price`);
     if (tag === 390) {
       await p.waitForSelector("[data-order-bar]");
       const bar = await orderBar(p);
-      check(bar.includes("To be confirmed") && bar.includes("Place order") && !bar.includes("$"), `${tag} order bar gives no total while an item has no price (${bar})`);
+      if (HIDE) check(bar.includes("$352.20") && bar.includes("Place order"), `${tag} order bar shows the total with delivery (${bar})`);
+      else check(bar.includes("To be confirmed") && bar.includes("Place order") && !bar.includes("$"), `${tag} order bar gives no total while an item has no price (${bar})`);
     } else {
       check((await orderBar(p)) === null, `${tag} no order bar when the summary sits beside the list`);
     }
@@ -197,7 +214,8 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await axe(p, `${tag} order page`);
     await p.click("text=Order these again");
     await p.waitForURL(/\/list$/);
-    check(await p.evaluate(() => JSON.parse(localStorage.getItem("mor.list.v1")).length === 3), `${tag} reorder puts 3 lines on the list`);
+    const reordered = HIDE ? 2 : 3;
+    check(await p.evaluate((n) => JSON.parse(localStorage.getItem("mor.list.v1")).length === n, reordered), `${tag} reorder puts ${reordered} lines on the list`);
 
     // A longer, fully priced list: the 999-case limit, 44 px steppers, the spoken total, and the order bar on phones
     await setList(p, PRICED);

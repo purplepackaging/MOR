@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { site } from "@/config/site";
 import type { Dict } from "@/i18n";
-import { categoryHref, getCategories } from "@/lib/catalog";
+import { categoryHref } from "@/lib/catalog";
 import { htmlLang, languageNames, localePath, locales, switchPath, type Locale } from "@/lib/i18n";
+import { getShelfOrAll } from "@/lib/shelf";
 import { Wordmark } from "./Wordmark";
 import styles from "./Footer.module.css";
 
-export function Footer({ locale, dict }: { locale: Locale; dict: Dict }) {
+export async function Footer({ locale, dict }: { locale: Locale; dict: Dict }) {
   const f = dict.footer;
+  // Only categories with something to sell. On every page, so it must never fail one.
+  const { categories } = await getShelfOrAll();
   const year = new Date().getFullYear();
   return (
     <footer className={styles.footer}>
@@ -23,7 +26,7 @@ export function Footer({ locale, dict }: { locale: Locale; dict: Dict }) {
               {f.shop}
             </h2>
             <ul role="list" className={styles.links}>
-              {getCategories().map((c) => (
+              {categories.map((c) => (
                 <li key={c.id}>
                   <Link href={categoryHref(locale, c.id)}>{c.name[locale]}</Link>
                 </li>

@@ -1,5 +1,5 @@
 import "server-only";
-import { categories, products, sampleUsualOrder, stapleSlugs } from "@/data/catalog";
+import { categories, products } from "@/data/catalog";
 import type { Category, CategoryId, IconName, Product, Text, Variant } from "@/data/types";
 import type { Dict } from "@/i18n";
 import { formatNumber, isolate, localePath, plural, type Locale } from "./i18n";
@@ -25,26 +25,25 @@ export function txt(value: Text | undefined, locale: Locale): string {
   return typeof value === "string" ? value : value[locale];
 }
 
-export function getCategories(): Category[] {
+/*
+ * The whole catalog, including items that are not for sale right now. Pages that
+ * show products read src/lib/shelf.ts instead, which leaves those out. Use these
+ * only to name the pages to build, and to name SKUs on past orders and in emails.
+ */
+
+export function allCategories(): Category[] {
   return categories;
+}
+
+export function allProducts(): Product[] {
+  return products;
 }
 
 export function getCategory(id: string): Category | undefined {
   return categories.find((c) => c.id === id);
 }
 
-export function getProducts(category?: CategoryId): Product[] {
-  return category ? products.filter((p) => p.category === category) : products;
-}
-
-export function getProduct(slug: string): Product | undefined {
-  return products.find((p) => p.slug === slug);
-}
-
-export function getStaples(): Product[] {
-  return stapleSlugs.map((s) => getProduct(s)).filter((p): p is Product => !!p);
-}
-
+/** Any SKU the catalog has ever listed, for sale or not. */
 export function findVariant(sku: string): { product: Product; variant: Variant } | undefined {
   for (const product of products) {
     const variant = product.variants.find((v) => v.sku === sku);
@@ -108,7 +107,7 @@ export interface SkuInfo {
   icon?: IconName;
 }
 
-export function skuIndex(locale: Locale, dict: Dict): Record<string, SkuInfo> {
+export function skuIndex(locale: Locale, dict: Dict, products: Product[]): Record<string, SkuInfo> {
   const index: Record<string, SkuInfo> = {};
   for (const p of products) {
     for (const v of p.variants) {
@@ -123,21 +122,6 @@ export function skuIndex(locale: Locale, dict: Dict): Record<string, SkuInfo> {
     }
   }
   return index;
-}
-
-export function sampleOrder(locale: Locale) {
-  return sampleUsualOrder
-    .map(({ sku, cases }) => {
-      const found = findVariant(sku);
-      if (!found) return null;
-      return {
-        sku,
-        cases,
-        name: found.product.name[locale],
-        summary: variantSummary(found.variant, locale),
-      };
-    })
-    .filter((x): x is NonNullable<typeof x> => !!x);
 }
 
 export function searchText(p: Product): string {

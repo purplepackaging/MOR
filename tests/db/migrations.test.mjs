@@ -18,11 +18,11 @@ await db.exec(`
     select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid $$;
   grant usage on schema auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
-  grant usage on schema public to anon, authenticated;
+  grant usage on schema public to anon, authenticated, service_role;
 `);
 // Supabase grants broad default privileges in public; mimic that so the migration's revokes are tested.
-await db.exec(`alter default privileges in schema public grant all on tables to anon, authenticated;
-               alter default privileges in schema public grant all on functions to anon, authenticated;`);
+await db.exec(`alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+               alter default privileges in schema public grant all on functions to anon, authenticated, service_role;`);
 for (const f of ["20261109000000_init.sql", "20261110000000_portal.sql", "20261110155000_api_grants.sql"]) await run(f);
 ok("first migrations ran");
 await run("20261110000000_portal.sql");
@@ -41,6 +41,9 @@ await run("20261110190000_open_signup_pricing.sql");
 ok("open sign-up migration ran over existing data");
 await run("20261110190000_open_signup_pricing.sql");
 ok("open sign-up migration is re-runnable");
+await run("20261111150518_priced_skus.sql");
+await run("20261111150518_priced_skus.sql");
+ok("priced SKUs migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
@@ -214,4 +217,28 @@ await expectError(`select * from public.link_customer('d@x.com', 'Kebab House')`
 await db.exec(`reset role; set role anon; select set_config('request.jwt.claims', '', false);`);
 await expectError(`select * from public.link_customer('d@x.com', 'Kebab House')`, [], "42501", "anon cannot link customers");
 await db.exec(`reset role;`);
+
+// priced_skus: the site's server asks which SKUs have a cost. The answer holds SKUs only.
+const asServer = () => db.exec(`reset role; set role service_role; select set_config('request.jwt.claims', '', false);`);
+await asServer();
+r = await db.query(`select public.priced_skus() skus`);
+(JSON.stringify(r.rows[0].skus) === JSON.stringify(["CUP-PET-16", "HBG-96N", "POR-020C"]) ? ok : bad)(`the server key gets the SKUs that have a cost, in order: ${JSON.stringify(r.rows[0].skus)}`);
+r = await db.query(`select pg_typeof(public.priced_skus())::text t, prosecdef from pg_proc where proname = 'priced_skus'`);
+(r.rows.length === 1 && r.rows[0].t === "text[]" && r.rows[0].prosecdef === false ? ok : bad)(`priced_skus returns SKUs only, with the caller's rights: ${JSON.stringify(r.rows)}`);
+await as(U1);
+await expectError(`select public.priced_skus()`, [], "42501", "customers cannot call priced_skus");
+await db.exec(`reset role; set role anon; select set_config('request.jwt.claims', '', false);`);
+await expectError(`select public.priced_skus()`, [], "42501", "anon cannot call priced_skus");
+// A new cost shows up in the list; with no costs at all the list is empty, never null.
+await db.exec(`reset role; select * from public.load_costs('LID-DOME-98H	30');`);
+await asServer();
+r = await db.query(`select public.priced_skus() skus`);
+(r.rows[0].skus.length === 4 && r.rows[0].skus.includes("LID-DOME-98H") ? ok : bad)(`a newly loaded cost joins the list (${r.rows[0].skus.length} SKUs)`);
+await db.exec(`reset role; begin; delete from public.product_costs;`);
+await asServer();
+r = await db.query(`select public.priced_skus() skus`);
+(Array.isArray(r.rows[0].skus) && r.rows[0].skus.length === 0 ? ok : bad)(`no costs gives an empty list: ${JSON.stringify(r.rows[0].skus)}`);
+await db.exec(`reset role; rollback;`);
+r = await db.query(`select count(*)::int n from public.product_costs`);
+(r.rows[0].n === 4 ? ok : bad)(`costs untouched after the empty-list check (${r.rows[0].n})`);
 console.log(process.exitCode ? "SOME TESTS FAILED" : "ALL PASSED");

@@ -3,13 +3,21 @@ import type { Dict } from "@/i18n";
 import { findVariant, variantSummary } from "@/lib/catalog";
 import { fill, formatDate, formatMoney, formatNumber, isolate, localePath, type Locale } from "@/lib/i18n";
 import { orderAmount, type OrderSummary } from "@/lib/portal";
+import type { Shelf } from "@/lib/shelf";
 import styles from "./account.module.css";
 
-/** Product name and option summary for a SKU, or a plain note when it left the catalog. */
-export function describe(sku: string, locale: Locale, dict: Dict) {
+/**
+ * Product name and option summary for a SKU, or a plain note when it left the catalog.
+ * `note` says so when the item is in the catalog but not for sale right now.
+ */
+export function describe(sku: string, locale: Locale, dict: Dict, shelf: Shelf) {
   const found = findVariant(sku);
-  if (!found) return { name: isolate(sku, locale), summary: dict.portal.removedItem };
-  return { name: found.product.name[locale], summary: variantSummary(found.variant, locale) };
+  if (!found) return { name: isolate(sku, locale), summary: dict.portal.removedItem, note: null };
+  return {
+    name: found.product.name[locale],
+    summary: variantSummary(found.variant, locale),
+    note: shelf.has(sku) ? null : dict.portal.unavailable,
+  };
 }
 
 export function StatusPill({ status, dict }: { status: OrderSummary["status"]; dict: Dict }) {

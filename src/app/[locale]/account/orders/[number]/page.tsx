@@ -5,6 +5,7 @@ import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
 import { fill, formatDate, formatMoney, formatNumber, localePath, type Locale } from "@/lib/i18n";
 import { getOrder, getPortal, portalReady } from "@/lib/portal";
+import { getShelfOrAll } from "@/lib/shelf";
 import { StatusPill, describe } from "../../parts";
 import styles from "../../account.module.css";
 
@@ -31,8 +32,10 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
   if (!portal) redirect(`${signInPath}?next=${encodeURIComponent(localePath(locale, `/account/orders/${rawNumber}`))}`);
   if (!portal.account) redirect(localePath(locale, "/account"));
 
-  const order = await getOrder(portal.account.id, Number(rawNumber));
+  const [order, shelf] = await Promise.all([getOrder(portal.account.id, Number(rawNumber)), getShelfOrAll()]);
   if (!order) notFound();
+  // Ordering these again puts only what is for sale on the list. The rest is marked below.
+  const forSale = order.lines.filter((l) => shelf.has(l.sku)).map(({ sku, cases }) => ({ sku, cases }));
 
   const priced = order.lines.some((l) => l.price != null);
   const totalCases = order.lines.reduce((sum, l) => sum + l.cases, 0);
@@ -85,13 +88,14 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
           </thead>
           <tbody>
             {order.lines.map((l) => {
-              const d = describe(l.sku, locale, dict);
+              const d = describe(l.sku, locale, dict, shelf);
               const each = l.price == null ? p.noPrice : <bdi>{formatMoney(locale, l.price)}</bdi>;
               return (
                 <tr key={l.sku}>
                   <td>
                     <span className={styles.lineName}>{d.name}</span>
                     <span className={styles.lineMeta}>{d.summary}</span>
+                    {d.note ? <span className={styles.lineMeta}>{d.note}</span> : null}
                     {priced ? (
                       <span className={`${styles.lineMeta} ${styles.narrowOnly}`}>
                         {l.price == null ? p.noPrice : <bdi>{fill(dict.list.perCase, { price: formatMoney(locale, l.price) })}</bdi>}
@@ -149,14 +153,11 @@ export default async function OrderPage({ params }: PageProps<"/[locale]/account
       ) : null}
       {order.subtotal == null ? <p className="small muted">{priced ? dict.list.needsPrice : dict.list.pricesSoon}</p> : null}
 
-      <div className={`${styles.row} ${styles.footer}`}>
-        <ToListButton
-          lines={order.lines.map(({ sku, cases }) => ({ sku, cases }))}
-          label={p.reorder}
-          done={p.reordered}
-          href={localePath(locale, "/list")}
-        />
-      </div>
+      {forSale.length ? (
+        <div className={`${styles.row} ${styles.footer}`}>
+          <ToListButton lines={forSale} label={p.reorder} done={p.reordered} href={localePath(locale, "/list")} />
+        </div>
+      ) : null}
     </section>
   );
 }

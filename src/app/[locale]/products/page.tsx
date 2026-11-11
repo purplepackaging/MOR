@@ -3,6 +3,7 @@ import { ProductBrowser } from "@/components/ProductBrowser";
 import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
+import { getShelf } from "@/lib/shelf";
 import { browserData } from "./browser-data";
 import styles from "./products.module.css";
 
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/products
 export default async function ProductsPage({ params }: PageProps<"/[locale]/products">) {
   const locale = (await params).locale as Locale;
   const dict = getDictionary(locale);
-  const { items, categories, labels } = browserData(locale, dict);
+  const { items, categories, labels } = browserData(locale, dict, await getShelf());
 
   return (
     <div className={`container ${styles.page}`}>
