@@ -5,7 +5,18 @@ import { connection } from "next/server";
 import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
 import { fill, formatDate, formatMoney, localePath, plural, type Locale } from "@/lib/i18n";
-import { getFees, getOrders, getPortal, getPrices, getUsualOrder, portalReady, setupPath } from "@/lib/portal";
+import {
+  getAccountDetails,
+  getFees,
+  getOrders,
+  getPortal,
+  getPrices,
+  getUsualOrder,
+  isOwner,
+  portalReady,
+  setupPath,
+} from "@/lib/portal";
+import { formatUsPhone } from "@/lib/request-validation";
 import { getShelfOrAll } from "@/lib/shelf";
 import { signOut, switchAccount } from "./actions";
 import { OrdersTable, describe } from "./parts";
@@ -23,7 +34,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account"
 export default async function AccountPage({ params, searchParams }: PageProps<"/[locale]/account">) {
   await connection(); // Always per request: it shows one customer's account.
   const { locale: raw } = await params;
-  const { password: passwordNote } = await searchParams;
+  const { password: passwordNote, details: detailsNote } = await searchParams;
   const locale = raw as Locale;
   const dict = getDictionary(locale);
   const p = dict.portal;
@@ -63,12 +74,14 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     );
   }
 
-  const [prices, usual, orders, shelf, fees] = await Promise.all([
+  const [prices, usual, orders, shelf, fees, details, owner] = await Promise.all([
     getPrices(account.id),
     getUsualOrder(account.id),
     getOrders(account.id, 5),
     getShelfOrAll(),
     getFees(),
+    getAccountDetails(account.id),
+    isOwner(account.id, portal.user.id),
   ]);
   const listHref = localePath(locale, "/list");
   // Only what is for sale goes on the list. The rest stays in the usual order, marked.
@@ -94,6 +107,10 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
         ) : passwordNote === "unsaved" ? (
           <p className={`${styles.notice} ${styles.noticeProblem}`} role="status">
             {p.passwordUnsaved} {passwordLink}
+          </p>
+        ) : detailsNote === "saved" ? (
+          <p className={styles.notice} role="status">
+            {p.detailsSaved}
           </p>
         ) : null}
         {account.deliveryDay || !prices ? (
@@ -185,7 +202,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
           )}
         </section>
 
-        <section aria-labelledby="recent-title" className={styles.card}>
+        <section aria-labelledby="recent-title" className={`${styles.card} ${styles.recent}`}>
           <h2 id="recent-title">{p.recentTitle}</h2>
           {orders.length ? (
             <>
@@ -198,6 +215,36 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             <p className="muted">{p.noOrders}</p>
           )}
         </section>
+
+        {/* Where we deliver and whom we call. The owner can correct it; staff who only order can read it. */}
+        {details ? (
+          <section aria-labelledby="business-title" className={`${styles.card} ${styles.business}`}>
+            <h2 id="business-title">{p.businessTitle}</h2>
+            <address className={styles.address}>
+              <span className={styles.lineName}>{details.name}</span>
+              <span>{details.street}</span>
+              <span>
+                {details.city} <bdi>{details.zip}</bdi>
+              </span>
+              <span>
+                {details.contactName}
+                {details.phone ? (
+                  <>
+                    {", "}
+                    <bdi>{formatUsPhone(details.phone)}</bdi>
+                  </>
+                ) : null}
+              </span>
+            </address>
+            {owner ? (
+              <p>
+                <Link href={localePath(locale, "/account/details")}>{p.editDetails}</Link>
+              </p>
+            ) : (
+              <p className={styles.more}>{p.detailsOwnerOnly}</p>
+            )}
+          </section>
+        ) : null}
       </div>
 
       {prices ? <p className={`small muted ${styles.aside}`}>{p.pricesOn}</p> : null}

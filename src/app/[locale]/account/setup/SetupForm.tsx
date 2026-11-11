@@ -6,21 +6,11 @@ import { ChevronDown, LoaderCircle } from "lucide-react";
 import { LoopMark } from "@/components/Wordmark";
 import type { Dict } from "@/i18n";
 import { fill, languageNames, locales, type Locale } from "@/lib/i18n";
-import {
-  BUSINESS_TYPES,
-  validateSetup,
-  valuesFromForm,
-  type ErrorCode,
-  type SetupKey,
-} from "@/lib/request-validation";
+import { BUSINESS_TYPES, type SetupKey } from "@/lib/request-validation";
 import { createAccount, type SetupState } from "../actions";
 import shared from "../../request-account/request.module.css";
+import { TextField, checkSetup, focusFirst, type Errors } from "./fields";
 import styles from "./setup.module.css";
-
-/** Order used to move focus to the first problem. Matches the order on screen. */
-const FIELD_ORDER: SetupKey[] = ["businessName", "street", "city", "zip", "contactName", "phone"];
-
-type Errors = Partial<Record<SetupKey, ErrorCode>>;
 
 interface Props {
   locale: Locale;
@@ -30,13 +20,6 @@ interface Props {
   t: Dict["setup"];
   r: Dict["request"];
   hrefs: { sms: string; privacy: string };
-}
-
-const check = (form: HTMLFormElement): Errors => validateSetup(valuesFromForm(new FormData(form))).errors;
-
-function focusFirst(form: HTMLFormElement | null, found: Errors | undefined) {
-  const first = found && FIELD_ORDER.find((k) => found[k]);
-  if (first) form?.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
 }
 
 /**
@@ -60,7 +43,7 @@ export function SetupForm({ locale, next, email, rep, t, r, hrefs }: Props) {
   }, [state]);
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    const found = check(event.currentTarget);
+    const found = checkSetup(event.currentTarget);
     if (Object.keys(found).length === 0) return;
     // Nothing is sent, so nothing typed is lost.
     event.preventDefault();
@@ -73,7 +56,7 @@ export function SetupForm({ locale, next, email, rep, t, r, hrefs }: Props) {
   const onChange = (event: React.FormEvent<HTMLFormElement>) => {
     const name = (event.target as unknown as HTMLInputElement).name as SetupKey;
     if (!errors[name]) return;
-    const found = check(event.currentTarget)[name];
+    const found = checkSetup(event.currentTarget)[name];
     if (found === errors[name]) return;
     const rest = { ...errors };
     if (found) rest[name] = found;
@@ -254,50 +237,6 @@ export function SetupForm({ locale, next, email, rep, t, r, hrefs }: Props) {
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-function TextField({
-  name,
-  label,
-  hint,
-  error,
-  ...input
-}: {
-  name: SetupKey;
-  label: string;
-  hint?: string;
-  error?: string;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "name" | "id" | "className">) {
-  const id = `su-${name}`;
-  const hintId = hint ? `${id}-hint` : undefined;
-  const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
-  return (
-    <div className="field">
-      <label className="label" htmlFor={id}>
-        {label}
-      </label>
-      {hint ? (
-        <p className="hint" id={hintId}>
-          {hint}
-        </p>
-      ) : null}
-      {error ? (
-        <p className="error-text" id={errorId}>
-          {error}
-        </p>
-      ) : null}
-      <input
-        id={id}
-        name={name}
-        className="input"
-        type="text"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...input}
-      />
     </div>
   );
 }

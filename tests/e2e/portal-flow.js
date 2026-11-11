@@ -399,6 +399,86 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/account");
     await p.goto(BASE + "/account/orders");
     await axe(p, `${tag} order history`);
+    // Self-service: the business card, and the owner correcting the details.
+    await p.goto(BASE + "/account");
+    const card = await p.textContent("section[aria-labelledby=business-title]");
+    check(card.includes("Kebab House") && / 30\d{3}/.test(card) && card.includes("(404) 555-") && card.includes("Edit details"), `${tag} the account page shows where we deliver and whom we call (${card.replace(/\s+/g, " ").slice(0, 90)})`);
+    await Promise.all([p.waitForURL(/\/account\/details$/), p.click("text=Edit details")]);
+    await p.waitForSelector("#su-street");
+    const onFile = await p.evaluate(() => ["businessName", "street", "city", "zip", "contactName", "phone", "language"].map((n) => document.querySelector(`[name="${n}"]`).value).join("|"));
+    check(/^Kebab House\|.+\|.+\|\d{5}\|Ali\|\(404\) 555-\d{4}\|en$/.test(onFile), `${tag} the details form opens with what is on file (${onFile})`);
+    await axe(p, `${tag} business details form`);
+    // Each screen size moves the business somewhere new, so every field below really changes.
+    const street = `${tag} Tenth St`;
+    const [town, zip, phone] = tag === 1280 ? ["Atlanta", "30309", "404 555 0188"] : ["Decatur", "30030", "404 555 0199"];
+    const shownPhone = `(404) 555-${phone.slice(-4)}`;
+    await p.fill("#su-street", street); await p.fill("#su-city", town); await p.fill("#su-zip", zip.slice(0, 4));
+    await p.click("button:has-text('Save details')");
+    check((await p.textContent("#su-zip-error")) === "Enter a 5-digit ZIP code." && (await p.inputValue("#su-street")) === street, `${tag} a short ZIP is caught and the rest stays typed`);
+    await p.fill("#su-zip", zip); await p.fill("#su-phone", phone);
+    await p.request.post(`${MOCK}/__test/fail-details`, { data: { times: 1 } });
+    await p.click("button:has-text('Save details')");
+    await p.waitForSelector("text=We couldn’t save your details");
+    check((await p.inputValue("#su-street")) === street && (await p.inputValue("#su-phone")) === phone, `${tag} when saving fails the details form keeps what was typed`);
+    await Promise.all([p.waitForURL(/\/account\?details=saved$/), p.click("button:has-text('Save details')")]);
+    const saved = await p.textContent("main");
+    check(saved.includes("Your business details are saved.") && saved.includes(street) && saved.includes(`${town} ${zip}`) && saved.includes(shownPhone), `${tag} the account page confirms the change and shows it`);
+    await axe(p, `${tag} account page, details saved`);
+    const changed = (await teamEmails()).filter((e) => e.subject === "Details changed: Kebab House").pop();
+    check(Boolean(changed) && changed.text.includes("Changed by owner@kebab.test") && changed.text.includes(` -> ${street}`) && changed.text.includes(` -> ${zip}`) && changed.text.includes(` -> ${shownPhone}`) && !changed.text.includes("Business:") && !changed.text.includes("Contact:"), `${tag} the team hears what changed, and only that`);
+    // Saving again with nothing changed sends no second email.
+    const before = (await teamEmails()).filter((e) => e.subject === "Details changed: Kebab House").length;
+    await p.goto(BASE + "/account/details"); await p.waitForSelector("#su-street");
+    await Promise.all([p.waitForURL(/\/account\?details=saved$/), p.click("button:has-text('Save details')")]);
+    check((await teamEmails()).filter((e) => e.subject === "Details changed: Kebab House").length === before, `${tag} saving with nothing changed sends no email`);
+
+    // Canceling: only while the order is still received, and only after a second tap.
+    await setList(p, [{ sku: "HBG-96N", cases: 1 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    await p.click("button:has-text('Place order')");
+    await p.waitForSelector("text=/Order \\d+ is in/");
+    const cancelNumber = (await p.textContent("h2")).match(/\d+/)[0];
+    await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
+    check((await p.textContent("main")).includes("You can cancel until we confirm the order."), `${tag} a received order can be canceled, and says until when`);
+    await p.click("button:has-text('Cancel this order')");
+    await p.waitForSelector("text=This cannot be undone.");
+    check(await p.evaluate(() => document.activeElement?.textContent?.includes("This cannot be undone")), `${tag} the first tap only asks, and focus moves to the question`);
+    await axe(p, `${tag} cancel question`);
+    await p.click("button:has-text('Keep it')");
+    check((await p.$("text=This cannot be undone.")) === null && (await p.textContent("main")).includes("Received") && await p.evaluate(() => document.activeElement?.textContent === "Cancel this order"), `${tag} "Keep it" leaves the order alone`);
+    await p.click("button:has-text('Cancel this order')");
+    await Promise.all([p.waitForURL(/\?canceled=1$/), p.click("button:has-text('Yes, cancel it')")]);
+    const canceledText = await p.textContent("main");
+    check(canceledText.includes(`Order ${cancelNumber} is canceled.`) && canceledText.includes("Canceled") && !canceledText.includes("Cancel this order"), `${tag} the order reads canceled and cannot be canceled twice`);
+    await axe(p, `${tag} canceled order`);
+    const gone = (await teamEmails()).filter((e) => e.subject === `Order ${cancelNumber} canceled: Kebab House`);
+    check(gone.length === 1 && gone[0].text.includes("Canceled by owner@kebab.test"), `${tag} the team gets one email about the canceled order`);
+    // The team confirms an order while the customer still has the page open: too late, and the page says so.
+    await setList(p, [{ sku: "HBG-96N", cases: 2 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    await p.click("button:has-text('Place order')");
+    await p.waitForSelector("text=/Order \\d+ is in/");
+    const lateNumber = (await p.textContent("h2")).match(/\d+/)[0];
+    await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
+    await p.request.post(`${MOCK}/__test/order-status`, { data: { number: lateNumber, status: "confirmed" } });
+    await p.click("button:has-text('Cancel this order')");
+    await Promise.all([p.waitForURL(/\?late=1$/), p.click("button:has-text('Yes, cancel it')")]);
+    const lateText = await p.textContent("main");
+    check(lateText.includes("already confirmed") && lateText.includes("Confirmed") && !lateText.includes("Cancel this order"), `${tag} a confirmed order is too late to cancel, and the page says so`);
+    check((await teamEmails()).filter((e) => e.subject === `Order ${lateNumber} canceled: Kebab House`).length === 0, `${tag} no cancel email for an order that stayed`);
+    // Staff who only order can cancel, and can read the details but not change them.
+    await signOut(p);
+    await signIn(p, "buyer@kebab.test");
+    const buyerCard = await p.textContent("section[aria-labelledby=business-title]");
+    check(buyerCard.includes(street) && buyerCard.includes("Only the account owner can change these details.") && !buyerCard.includes("Edit details"), `${tag} a buyer reads the business details and is told who can change them`);
+    await p.goto(BASE + "/account/details");
+    check(new URL(p.url()).pathname === "/account", `${tag} the details form sends a buyer back to the account (${p.url()})`);
+    await signOut(p);
+    await signIn(p, "owner@kebab.test");
+
+    await p.goto(BASE + "/ar/account/details"); await p.waitForSelector("#su-street");
+    check((await p.getAttribute("html", "dir")) === "rtl" && await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${tag} Arabic details form fits the screen`);
+    await axe(p, `${tag} Arabic details form`);
     await p.goto(BASE + "/ar/account");
     check((await p.getAttribute("html", "dir")) === "rtl" && (await p.textContent("main")).includes("يوم التوصيل"), `${tag} Arabic account page`);
     await axe(p, `${tag} Arabic account`);

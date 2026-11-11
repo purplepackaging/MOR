@@ -7,10 +7,25 @@ import { REP_COOKIE } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { findVariant } from "@/lib/catalog";
 import { isLocale, localePath, type Locale } from "@/lib/i18n";
-import { sendNewAccountEmail, sendOrderEmail } from "@/lib/notify";
-import { ACCOUNT_COOKIE, getPortal, portalReady, safeNext, setupPath, userClient } from "@/lib/portal";
+import {
+  sendDetailsChangedEmail,
+  sendNewAccountEmail,
+  sendOrderCanceledEmail,
+  sendOrderEmail,
+} from "@/lib/notify";
+import {
+  ACCOUNT_COOKIE,
+  getAccountDetails,
+  getOrder,
+  getPortal,
+  portalReady,
+  safeNext,
+  setupPath,
+  userClient,
+} from "@/lib/portal";
 import { getShelfNow } from "@/lib/shelf";
 import {
+  formatUsPhone,
   validateSetup,
   valuesFromForm,
   type ErrorCode,
@@ -270,6 +285,105 @@ export async function createAccount(_prev: SetupState, form: FormData): Promise<
   await sendNewAccountEmail({ ...clean, repCode, email: portal.user.email ?? "" });
   // Straight to the products, with a line that says the account is ready.
   redirect(next ?? `${localePath(locale, "/products")}?welcome=1`);
+}
+
+/* ───────── Self-service: business details, canceling an order ───────── */
+
+export interface DetailsState {
+  errors?: Partial<Record<SetupKey, ErrorCode>>;
+  failed?: boolean;
+  values?: SetupValues;
+}
+
+/** The owner corrects the business details. The team hears what changed. */
+export async function updateDetails(_prev: DetailsState, form: FormData): Promise<DetailsState> {
+  const locale = readLocale(form);
+  const account = localePath(locale, "/account");
+  const portal = await getPortal();
+  if (!portal) {
+    redirect(`${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(localePath(locale, "/account/details"))}`);
+  }
+  if (!portal.account) redirect(account);
+
+  const typed = valuesFromForm(form);
+  const values = setupValues(typed);
+  const { errors, clean } = validateSetup(typed);
+  if (!clean) return { errors, values };
+
+  const before = await getAccountDetails(portal.account.id);
+  const supabase = await userClient();
+  const { error } = await supabase.rpc("update_my_account", {
+    p_account: portal.account.id,
+    p_name: clean.businessName,
+    p_contact_name: clean.contactName,
+    p_phone: clean.phone,
+    p_street: clean.street,
+    p_city: clean.city,
+    p_zip: clean.zip,
+    p_language: clean.language,
+  });
+  if (error) {
+    console.error("[portal] update_my_account failed:", error.code, error.message);
+    return { failed: true, values };
+  }
+
+  if (before) {
+    const rows: [string, string, string][] = [
+      ["Business", before.name, clean.businessName],
+      ["Contact", before.contactName, clean.contactName],
+      ["Phone", before.phone, clean.phone],
+      ["Street", before.street, clean.street],
+      ["City", before.city, clean.city],
+      ["ZIP", before.zip, clean.zip],
+      ["Language", before.language, clean.language],
+    ];
+    await sendDetailsChangedEmail({
+      accountName: before.name,
+      changedBy: portal.user.email ?? "",
+      changes: rows
+        .filter(([, was, now]) => was !== now)
+        .map(([label, was, now]) =>
+          label === "Phone"
+            ? { label, before: was ? formatUsPhone(was) : "", after: formatUsPhone(now) }
+            : { label, before: was, after: now },
+        ),
+    });
+  }
+  redirect(`${account}?details=saved`);
+}
+
+export interface CancelState {
+  failed?: boolean;
+}
+
+/**
+ * Cancels an order that is still "received". The database decides: once the team
+ * has confirmed it, the order stays as it is and the page says so.
+ */
+export async function cancelOrder(_prev: CancelState, form: FormData): Promise<CancelState> {
+  const locale = readLocale(form);
+  const number = Number(form.get("number"));
+  if (!Number.isSafeInteger(number) || number <= 0) return { failed: true };
+  const orderPath = localePath(locale, `/account/orders/${number}`);
+  const portal = await getPortal();
+  if (!portal) redirect(`${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(orderPath)}`);
+  if (!portal.account) redirect(localePath(locale, "/account"));
+
+  // Already canceled (a second tap, or another tab): nothing to do, and no second email.
+  const order = await getOrder(portal.account.id, number);
+  if (!order) return { failed: true };
+  if (order.status === "canceled") redirect(`${orderPath}?canceled=1`);
+
+  const supabase = await userClient();
+  const { data, error } = await supabase.rpc("cancel_my_order", { p_account: portal.account.id, p_number: number });
+  if (error) {
+    console.error("[portal] cancel_my_order failed:", error.code, error.message);
+    return { failed: true };
+  }
+  if (data === "too_late") redirect(`${orderPath}?late=1`);
+  if (data !== "canceled") return { failed: true };
+  await sendOrderCanceledEmail({ number, accountName: portal.account.name, canceledBy: portal.user.email ?? "" });
+  redirect(`${orderPath}?canceled=1`);
 }
 
 export async function signOut(form: FormData): Promise<void> {
