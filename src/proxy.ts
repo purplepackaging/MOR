@@ -36,6 +36,24 @@ function isPageLoad(request: NextRequest) {
   return (request.headers.get("accept") ?? "").includes("text/html");
 }
 
+/** The sign-in cookie Supabase sets (it may come in numbered pieces). Its presence is a hint, not proof. */
+const SESSION_COOKIE_NAME = /^sb-.+-auth-token(?:\.\d+)?$/;
+
+/**
+ * True when a customer who looks signed in opens the site from outside it: a typed
+ * address, a bookmark, a home-screen icon, a link in an email or a search result.
+ * They came to order, so they land on their account, where their usual order is.
+ * Moving around inside the site (the logo, "How it works") still shows the home page.
+ * If the cookie turns out to be stale, the account page sends them to sign in.
+ */
+function arrivesSignedIn(request: NextRequest): boolean {
+  if (process.env.NEXT_PUBLIC_PORTAL_ENABLED !== "true") return false;
+  if (request.headers.get("sec-fetch-dest") !== "document") return false;
+  const from = request.headers.get("sec-fetch-site");
+  if (from !== "none" && from !== "cross-site") return false;
+  return request.cookies.getAll().some((c) => SESSION_COOKIE_NAME.test(c.name) && c.value);
+}
+
 /** Portal pages that read the customer's session: /account/... and /list, in any language. */
 const SESSION_PATH = /^\/(?:(?:es|tr|ar)\/)?(?:account(?:\/.*)?|list)$/;
 
@@ -99,6 +117,14 @@ export async function proxy(request: NextRequest) {
   if (!isLocale(first) && visitor !== defaultLocale) {
     const url = request.nextUrl.clone();
     url.pathname = `/${visitor}${pathname === "/" ? "" : pathname}`;
+    return NextResponse.redirect(url);
+  }
+
+  // The home page, in the visitor's language by now.
+  const home = pathname === "/" || (isLocale(first) && pathname === `/${first}`);
+  if (home && arrivesSignedIn(request)) {
+    const url = request.nextUrl.clone();
+    url.pathname = isLocale(first) ? `/${first}/account` : "/account";
     return NextResponse.redirect(url);
   }
 

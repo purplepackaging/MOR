@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { IntentLink } from "@/components/IntentLink";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductVisual } from "@/components/ProductVisual";
+import { SessionLink, SessionText } from "@/components/SessionSwap";
 import { Ticket } from "@/components/Ticket";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
@@ -15,6 +16,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const locale = (await params).locale as Locale;
   const dict = getDictionary(locale);
   const h = dict.home;
+  // Signed-in customers get a way back to their account where visitors are asked to create one.
+  const account = { href: localePath(locale, "/account"), label: dict.nav.account };
   const shelf = await getShelf();
   const { categories, products, staples } = shelf;
   const order = sampleOrder(shelf, locale);
@@ -45,9 +48,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               <Link className="btn" href={localePath(locale, "/products")}>
                 {h.browse}
               </Link>
-              <Link className="btn btn-quiet" href={localePath(locale, "/request-account")}>
-                {h.request}
-              </Link>
+              <SessionLink
+                className="btn btn-quiet"
+                portal={site.portalEnabled}
+                signedOut={{ href: localePath(locale, "/request-account"), label: h.request }}
+                signedIn={account}
+              />
             </div>
           </div>
 
@@ -200,13 +206,18 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <div className={styles.cta}>
             <div>
               <h2 id="cta-title" className="h2">
-                {h.ctaTitle}
+                <SessionText portal={site.portalEnabled} signedOut={h.ctaTitle} signedIn={h.ctaTitleSignedIn} />
               </h2>
-              <p>{h.ctaBody}</p>
+              <p>
+                <SessionText portal={site.portalEnabled} signedOut={h.ctaBody} signedIn={h.ctaBodySignedIn} />
+              </p>
             </div>
-            <Link className="btn btn-light" href={localePath(locale, "/request-account")}>
-              {h.ctaButton}
-            </Link>
+            <SessionLink
+              className="btn btn-light"
+              portal={site.portalEnabled}
+              signedOut={{ href: localePath(locale, "/request-account"), label: h.ctaButton }}
+              signedIn={{ href: account.href, label: h.ctaButtonSignedIn }}
+            />
           </div>
         </div>
       </section>

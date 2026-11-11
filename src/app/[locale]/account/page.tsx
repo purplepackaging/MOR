@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
-import { fill, formatDate, localePath, plural, type Locale } from "@/lib/i18n";
-import { getOrders, getPortal, getPrices, getUsualOrder, portalReady, setupPath } from "@/lib/portal";
+import { fill, formatDate, formatMoney, localePath, plural, type Locale } from "@/lib/i18n";
+import { getFees, getOrders, getPortal, getPrices, getUsualOrder, portalReady, setupPath } from "@/lib/portal";
 import { getShelfOrAll } from "@/lib/shelf";
 import { signOut, switchAccount } from "./actions";
 import { OrdersTable, describe } from "./parts";
@@ -16,7 +16,10 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account"
   return { title: getDictionary(locale as Locale).portal.backToAccount, robots: { index: false, follow: false } };
 }
 
-/** Portal home: the business, its delivery day, usual order and recent orders. */
+/**
+ * Portal home, and where a signed-in customer lands: the usual order first, with
+ * what it comes to and one button to order it, then recent orders to order again.
+ */
 export default async function AccountPage({ params, searchParams }: PageProps<"/[locale]/account">) {
   await connection(); // Always per request: it shows one customer's account.
   const { locale: raw } = await params;
@@ -60,15 +63,25 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     );
   }
 
-  const [prices, usual, orders, shelf] = await Promise.all([
+  const [prices, usual, orders, shelf, fees] = await Promise.all([
     getPrices(account.id),
     getUsualOrder(account.id),
     getOrders(account.id, 5),
     getShelfOrAll(),
+    getFees(),
   ]);
   const listHref = localePath(locale, "/list");
   // Only what is for sale goes on the list. The rest stays in the usual order, marked.
   const usualForSale = usual?.lines.filter((l) => shelf.has(l.sku)) ?? [];
+  // What the usual order comes to at today's prices, for reading only: the database
+  // prices the order again when it is placed.
+  const cents = (n: number) => Math.round(n * 100);
+  const amountOf = (l: { sku: string; cases: number }) =>
+    prices?.[l.sku] != null && shelf.has(l.sku) ? (cents(prices[l.sku]) * l.cases) / 100 : null;
+  const usualTotal =
+    fees && usualForSale.length && usualForSale.every((l) => amountOf(l) != null)
+      ? (usualForSale.reduce((sum, l) => sum + cents(amountOf(l) ?? 0), 0) + cents(fees.delivery)) / 100
+      : null;
 
   return (
     <section className={`container ${styles.page}`}>
@@ -83,12 +96,14 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
             {p.passwordUnsaved} {passwordLink}
           </p>
         ) : null}
-        <div className={styles.meta}>
-          {account.deliveryDay ? (
-            <span className={styles.day}>{fill(p.deliveryDay, { day: p.days[account.deliveryDay] })}</span>
-          ) : null}
-          <p className="muted">{prices ? p.pricesOn : p.pricesSoon}</p>
-        </div>
+        {account.deliveryDay || !prices ? (
+          <div className={styles.meta}>
+            {account.deliveryDay ? (
+              <span className={styles.day}>{fill(p.deliveryDay, { day: p.days[account.deliveryDay] })}</span>
+            ) : null}
+            {prices ? null : <p className="muted">{p.pricesSoon}</p>}
+          </div>
+        ) : null}
         {portal.accounts.length > 1 ? (
           <form action={switchAccount} className={styles.switcher}>
             <input type="hidden" name="locale" value={locale} />
@@ -112,13 +127,14 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
       </header>
 
       <div className={styles.grid}>
-        <section className={styles.card} aria-labelledby="usual-title">
+        <section className={`${styles.card} ${styles.usual}`} aria-labelledby="usual-title">
           <h2 id="usual-title">{p.usualTitle}</h2>
           {usual ? (
             <>
               <ul className={styles.lines} role="list">
                 {usual.lines.slice(0, 8).map((l) => {
                   const d = describe(l.sku, locale, dict, shelf);
+                  const amount = amountOf(l);
                   return (
                     <li key={l.sku}>
                       <span>
@@ -126,7 +142,15 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
                         <span className={styles.lineMeta}>{d.summary}</span>
                         {d.note ? <span className={styles.lineMeta}>{d.note}</span> : null}
                       </span>
-                      <span className={styles.qty}>{plural(locale, l.cases, dict.list.cases)}</span>
+                      <span className={styles.lineEnd}>
+                        <span className={styles.qty}>{plural(locale, l.cases, dict.list.cases)}</span>
+                        {amount != null ? (
+                          <span className={styles.lineMeta}>
+                            <span className="visually-hidden">{p.lineTotal}: </span>
+                            <bdi>{formatMoney(locale, amount)}</bdi>
+                          </span>
+                        ) : null}
+                      </span>
                     </li>
                   );
                 })}
@@ -134,12 +158,20 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
               {usual.lines.length > 8 ? (
                 <p className={styles.more}>{plural(locale, usual.lines.length - 8, dict.list.items)} +</p>
               ) : null}
-              <p className={styles.more}>{fill(p.usualSaved, { date: formatDate(locale, usual.updatedAt) })}</p>
+              {usualTotal != null ? (
+                <p className={styles.usualTotal}>
+                  <span>{dict.list.totalWithDelivery}</span>
+                  <bdi>{formatMoney(locale, usualTotal)}</bdi>
+                </p>
+              ) : null}
               {usualForSale.length ? (
-                <div>
+                <div className={styles.usualAction}>
                   <ToListButton lines={usualForSale} label={p.usualToList} done={p.usualAdded} href={listHref} />
                 </div>
               ) : null}
+              <p className={styles.more}>
+                {fill(p.usualSaved, { date: formatDate(locale, usual.updatedAt) })}. {p.usualChange}
+              </p>
             </>
           ) : (
             <>
@@ -157,7 +189,7 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
           <h2 id="recent-title">{p.recentTitle}</h2>
           {orders.length ? (
             <>
-              <OrdersTable orders={orders} locale={locale} dict={dict} />
+              <OrdersTable orders={orders} locale={locale} dict={dict} shelf={shelf} />
               <p>
                 <Link href={localePath(locale, "/account/orders")}>{p.allOrders}</Link>
               </p>
@@ -167,6 +199,8 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
           )}
         </section>
       </div>
+
+      {prices ? <p className={`small muted ${styles.aside}`}>{p.pricesOn}</p> : null}
 
       <div className={`${styles.row} ${styles.footer}`}>
         {signOutForm}

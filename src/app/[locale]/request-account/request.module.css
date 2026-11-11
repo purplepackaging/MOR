@@ -46,7 +46,6 @@
 .notice {
   margin-top: var(--s-2);
   padding: var(--s-3) var(--s-4);
-  border-inline-start: 3px solid var(--mor);
   border-radius: var(--r-s);
   background: var(--mor-tint);
   font-size: var(--fs-small);

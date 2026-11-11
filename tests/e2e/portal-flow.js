@@ -59,6 +59,12 @@ async function signOut(p) {
 const LIST = [{ sku: "CUP-PET-16", cases: 4 }, { sku: "HBG-96N", cases: 2 }, { sku: "KFT-1K", cases: 1 }];
 // Four priced lines: 2 x 53.33 + 40.00 + 44.44 + 3 x 33.33 = 291.09, plus 50 delivery = 341.09.
 const PRICED = [{ sku: "CUP-PET-16", cases: 2 }, { sku: "LID-DOME-98H", cases: 1 }, { sku: "HBG-96N", cases: 1 }, { sku: "POR-020C", cases: 3 }];
+/** The home page by way of the logo: a signed-in customer who types the address lands on their account instead. */
+async function openHome(p) {
+  if (new URL(p.url()).pathname === "/") return;
+  await Promise.all([p.waitForURL((u) => u.pathname === "/"), p.evaluate(() => document.querySelector("header a[href='/']").click())]);
+  await p.waitForLoadState("networkidle");
+}
 const setList = (p, lines) => p.evaluate((l) => localStorage.setItem("mor.list.v1", JSON.stringify(l)), lines);
 // A static product page: CUP-PET-16 (16 oz) has a cost in the mock, the other sizes do not.
 const PRODUCT = "/products/cups-lids/clear-cold-cups";
@@ -222,8 +228,17 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
       check(got.includes(want) && got.includes("$48.00"), `${tag} ${lang} card price: ${got}`);
       if (lang === "ar") { await axe(p, `${tag} Arabic products page signed in`); if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "cards-prices-ar-390.png") }); }
     }
+    // A signed-in customer who opens the site lands on their account, where the usual order is.
+    // The pages before this one were Arabic, so the site still speaks Arabic to this visitor.
+    await p.goto(BASE + "/", { waitUntil: "networkidle" });
+    check(new URL(p.url()).pathname === "/ar/account", `${tag} a signed-in customer who opens the site lands on their account, in their language (${p.url()})`);
     await p.goto(BASE + "/en", { waitUntil: "networkidle" });
+    check(new URL(p.url()).pathname === "/account" && (await p.textContent("h1")) === "Kebab House", `${tag} and in English (${p.url()})`);
+    // The logo still opens the home page, and it speaks to a customer, not to a visitor.
+    await openHome(p);
     await p.waitForFunction(() => document.querySelectorAll("main a[href*='/products/'] span[class*='price']").length > 0);
+    const homeText = await p.textContent("main");
+    check(!homeText.includes("Create an account") && homeText.includes("Go to your account") && homeText.includes("Ready to order?") && (await p.$("main a.btn[href='/account']")) !== null, `${tag} the home page offers a signed-in customer their account, not a new one`);
     check((await cardPrice("cold-cup-dome-lids")) === (HIDE ? "$40.00" : "From $40.00"), `${tag} home page staples show prices too (${await cardPrice("cold-cup-dome-lids")})`);
 
     // List: prices at a 25% margin, delivery fee, next-day option, card fee note
@@ -265,6 +280,12 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     const placed = await p.textContent("h2");
     check(/Order 10\d\d is in/.test(placed), `${tag} order placed: ${placed}`);
     check(await p.evaluate(() => JSON.parse(localStorage.getItem("mor.list.v1")).length === 0), `${tag} list cleared after ordering`);
+    // The confirmation says what the order comes to, from the database. This order is already the usual one, so it does not offer to save it.
+    const placedText = await p.textContent("main");
+    if (HIDE) check(placedText.includes("Total with delivery: $402.20"), `${tag} the confirmation shows the total the database saved`);
+    else check(placedText.includes("We confirm the total before delivery.") && !placedText.includes("Total with delivery"), `${tag} the confirmation says the total comes later while an item has no price`);
+    check(!placedText.includes("Make this my usual order") && placedText.includes("View order") && placedText.includes("Keep browsing"), `${tag} an order that is already the usual one does not offer to save it again`);
+    check(!(await p.textContent("[role=status][aria-live]")).includes("Saved as your usual order"), `${tag} the toast from the list is gone on the confirmation`);
     // The team's alert email for that order: every line with its price and amount, the fees, the note.
     const firstNumber = placed.match(/\d+/)[0];
     let alert = (await teamEmails()).find((e) => e.subject === `New order ${firstNumber} (next day): Kebab House`);
@@ -327,8 +348,15 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/list");
     await p.waitForSelector("text=Ordering for Kebab House");
     check((await p.textContent("aside")).includes("$156.66"), `${tag} total on the list (2 x 53.33 + 50 = 156.66)`);
+    check((await p.textContent("main header")).includes("Check your list, then place your order."), `${tag} the list tells a signed-in customer what to do next`);
     await p.click("button:has-text('Place order')");
     await p.waitForSelector("text=/Order \\d+ is in/");
+    // A different order from the usual one: one tap makes it the usual order.
+    check((await p.textContent("main")).includes("Total with delivery: $156.66"), `${tag} the confirmation shows this order's total`);
+    await p.click("button:has-text('Make this my usual order')");
+    await p.waitForSelector("text=Saved as your usual order");
+    check((await p.$("button:has-text('Make this my usual order')")) === null, `${tag} the order becomes the usual order, and the offer goes away`);
+    await axe(p, `${tag} order placed and saved as usual`);
     await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
     orderText = await p.textContent("main");
     check(orderText.includes("$156.66") && !orderText.includes("Next-day delivery"), `${tag} order total saved, standard delivery`);
@@ -340,6 +368,35 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     const home = await p.textContent("main");
     check(home.includes("Recent orders") && /10\d\d/.test(home) && home.includes("Saved") && home.includes("$156.66"), `${tag} account home lists usual order and orders with totals`);
     await axe(p, `${tag} account home (filled)`);
+    // The usual order leads the page: what each line comes to, the total with delivery, and one button.
+    const usualCard = await p.textContent("section[aria-labelledby=usual-title]");
+    check(usualCard.includes("Clear cold cups") && usualCard.includes("2 cases") && usualCard.includes("$106.66") && usualCard.includes("Total with delivery") && usualCard.includes("$156.66"), `${tag} the usual order shows its lines, amounts and total with delivery`);
+    const usualFirst = await p.evaluate(() => {
+      const usual = document.querySelector("section[aria-labelledby=usual-title]").getBoundingClientRect();
+      const recent = document.querySelector("section[aria-labelledby=recent-title]").getBoundingClientRect();
+      const button = [...document.querySelectorAll("section[aria-labelledby=usual-title] button")].find((b) => b.textContent.trim() === "Order my usual").getBoundingClientRect();
+      return { before: usual.top < recent.top || usual.left < recent.left, inView: button.bottom <= innerHeight, height: Math.round(button.height) };
+    });
+    check(usualFirst.before && usualFirst.inView && usualFirst.height >= 44, `${tag} "Order my usual" comes first and is on the first screen (${JSON.stringify(usualFirst)})`);
+    await setList(p, []);
+    await Promise.all([p.waitForURL(/\/list$/), p.click("button:has-text('Order my usual')")]);
+    await p.waitForSelector("text=Ordering for Kebab House");
+    check(await p.evaluate(() => localStorage.getItem("mor.list.v1") === JSON.stringify([{ sku: "CUP-PET-16", cases: 2 }])), `${tag} one tap puts the usual order on the list`);
+    check((await p.textContent("[role=status][aria-live]")).includes("Your usual order is on your list"), `${tag} the list says the usual order is on it`);
+    // Every past order can go back on the list from the account page.
+    await p.goto(BASE + "/account");
+    const againLabels = await p.$$eval("section[aria-labelledby=recent-title] button:visible", (els) => els.map((e) => `${e.textContent.trim()}|${e.getAttribute("aria-label")}`));
+    check(againLabels.length >= 3 && againLabels.every((l) => /^Order again\|Order 10\d\d again$/.test(l)), `${tag} each recent order has Order again, named by its number (${againLabels.slice(0, 2).join(", ")})`);
+    const againSize = await p.$eval("section[aria-labelledby=recent-title] button:visible", (e) => Math.round(e.getBoundingClientRect().height));
+    check(againSize >= 44, `${tag} Order again is ${againSize} px tall`);
+    check(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${tag} the account page does not run off the side`);
+    await setList(p, []);
+    await Promise.all([p.waitForURL(/\/list$/), p.click(`section[aria-labelledby=recent-title] button[aria-label="Order ${firstNumber} again"]:visible`)]);
+    await p.waitForSelector("text=Ordering for Kebab House");
+    const againLines = await p.evaluate(() => JSON.parse(localStorage.getItem("mor.list.v1")).map((l) => `${l.sku}x${l.cases}`).join(","));
+    check(againLines === "CUP-PET-16x4,HBG-96Nx2" + (HIDE ? "" : ",KFT-1Kx1"), `${tag} Order again puts that order's lines on the list (${againLines})`);
+    await setList(p, []);
+    await p.goto(BASE + "/account");
     await p.goto(BASE + "/account/orders");
     await axe(p, `${tag} order history`);
     await p.goto(BASE + "/ar/account");
@@ -351,6 +408,10 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
       await axe(p, `${tag} ${lang} account`);
     }
     await p.goto(BASE + "/en/account"); // back to English (the switcher path resets the language cookie)
+    await p.goto(BASE + "/no-such-page");
+    // The title of a page that is rendered on request can arrive a moment after the page.
+    await p.waitForFunction(() => document.title.startsWith("We couldn’t find that page"), null, { timeout: 5000 }).catch(() => {});
+    check((await p.title()).startsWith("We couldn’t find that page"), `${tag} the not-found page has its own title (${await p.title()})`);
     await p.goto(BASE + "/account/orders/999999");
     check((await p.textContent("h1")).length > 0 && (await p.textContent("main")).toLowerCase().includes("couldn"), `${tag} unknown order number is a 404`);
     if (tag === 1280) {
