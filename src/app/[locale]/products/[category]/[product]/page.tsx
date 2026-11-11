@@ -62,7 +62,16 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
   const dict = getDictionary(locale);
   const d = dict.product;
   const cat = getCategory(p.category)!;
-  const columns = COLUMNS.filter((c) => p.variants.some((v) => v[c]));
+  const present = COLUMNS.filter((c) => p.variants.some((v) => v[c]));
+  // A column that reads the same on every row is a fact about the product, not a choice between sizes:
+  // it moves up beside the material, as long as a column is left to tell the rows apart.
+  const first = p.variants[0];
+  const shared =
+    p.variants.length > 1
+      ? present.filter((c) => txt(first[c], locale) && p.variants.every((v) => txt(v[c], locale) === txt(first[c], locale)))
+      : [];
+  const columns = shared.length < present.length ? present.filter((c) => !shared.includes(c)) : present;
+  const sharedFacts = columns === present ? [] : shared;
   const listHref = localePath(locale, "/list");
   const labels: StepperLabels = {
     add: d.add,
@@ -94,7 +103,14 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
 
       <div className={styles.layout}>
         <div className={styles.media}>
-          <ProductVisual image={p.image} icon={p.icon} alt={p.name[locale]} className={styles.tile} priority sizes={720} />
+          <ProductVisual
+            image={p.image}
+            icon={p.icon}
+            alt={p.name[locale]}
+            className={styles.tile}
+            priority
+            sizes="(max-width: 959px) 78vw, 440px"
+          />
         </div>
 
         <div className={styles.info}>
@@ -107,6 +123,12 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
                 {p.material[locale]}
               </li>
             ) : null}
+            {sharedFacts.map((c) => (
+              <li key={c}>
+                {c === "fits" ? `${d.fits}: ` : <span className="visually-hidden">{d[c]}: </span>}
+                <bdi>{txt(first[c], locale)}</bdi>
+              </li>
+            ))}
             <li>{d.soldByCase}</li>
             {(p.tags ?? []).map((tag) => (
               <li key={tag} className={styles.tag}>

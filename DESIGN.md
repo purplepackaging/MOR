@@ -13,6 +13,7 @@ like a kitchen printer ticket. Everything else stays quiet so products and the t
 | `--mor` | `#5b2a86` | Brand violet: buttons, selected chips, steppers, links, quantities, heavy rules, focus |
 | `--mor-deep` | `#2a1543` | Footer and toasts |
 | `--lilac` | `#f2ecfa` | Product tiles, bands, panels |
+| `--lilac-2` | `#e6dcf6` | A tile under the pointer |
 | `--glow` | `#e2d1fa` | Soft violet light in the hero panel |
 | `--lemon` | `#f3e36a` | Only for "on repeat" moments: delivery day pill, list count, rep badge |
 | `--paper` | `#ffffff` | Page and ticket |
@@ -30,9 +31,13 @@ line height. Numbers in tables and steppers are tabular.
 ## Layout
 
 - Container 1240px with fluid gutters (16px on phones). Sections breathe: `--section` padding.
-- Product photos are transparent cutouts on lilac square tiles, never on white boxes.
-- Cards are plain: a tile, a name, one line of detail. No shadows, no borders, no hover lift.
-- Shadows only on things that float: the ticket, the toast, menus.
+- Product photos are transparent cutouts on lilac square tiles, never on white boxes. A tile that holds
+  a photo deepens toward its foot (8% of `--mor` laid over the tile), and the photo casts a soft shadow
+  on it, sized to the tile, so white and clear products stand off it. A tile that holds a drawing stays flat.
+- Every photo comes in two files: `name.webp` (1000 px on its long side, 600 at least) for the product
+  page and `name-480.webp` for cards and lists. The build fails if either is missing.
+- Cards are plain: a tile, a name, one line of detail. No borders, no hover lift, no shadow on the card.
+- Shadows only on things that float (the ticket, the toast, menus) and under a product photo.
 
 ## Rules
 

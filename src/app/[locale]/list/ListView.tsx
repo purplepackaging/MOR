@@ -381,7 +381,7 @@ export function ListView({
             return (
               <li key={line.sku} className={styles.line}>
                 <IntentLink href={info.href} className={styles.thumb} tabIndex={-1} aria-hidden="true">
-                  <ProductVisual image={info.image} icon={info.icon} sizes={128} />
+                  <ProductVisual image={info.image} icon={info.icon} sizes="64px" />
                 </IntentLink>
                 <div className={styles.text}>
                   <IntentLink href={info.href} className={styles.name}>

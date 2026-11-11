@@ -143,6 +143,26 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
   await outage(false);
   await wait(2500);
 
+  // A detail that every size for sale shares is said once, beside the material, and not in a column.
+  {
+    const head = (text) => [...(text.match(/<thead>[\s\S]*?<\/thead>/)?.[0] ?? "").matchAll(/<th scope="col">([^<]+)<\/th>/g)].map((m) => m[1]).join(",");
+    const facts = (text) => (text.match(/<ul role="list" class="[^"]*facts[^"]*">[\s\S]*?<\/ul>/)?.[0] ?? "").replace(/<[^>]+>/g, "|");
+    const hot = await html("/products/cups-lids/hot-cups"); // 8 oz and 12 oz for sale, both white
+    check(head(hot) === "Size,Case" && /\|White\|/.test(facts(hot)), `two sizes that share a color: the color is a pill and the table keeps Size and Case (${head(hot)})`);
+    const boxes = await html("/products/containers/kraft-takeout-boxes"); // No. 1 and No. 8, both kraft
+    check(head(boxes) === "Item,Size,Case" && /\|Kraft\|/.test(facts(boxes)), `the same on a product with two columns left (${head(boxes)})`);
+    const cup = await html("/products/cups-lids/clear-cold-cups"); // one size for sale
+    check(head(cup) === "Size,Fits,Case" && !/98 mm/.test(facts(cup)), `one size for sale keeps its columns (${head(cup)})`);
+    const ar = await html("/ar/products/cups-lids/hot-cups");
+    check(/<bdi>أبيض<\/bdi>/.test(ar) && !/<th scope="col">اللون<\/th>/.test(ar), "in Arabic too: the shared color is a pill and there is no color column");
+    // A size in another color comes on sale: the color is a choice again, so the column is back.
+    await setCosts({ "HOT-08J": 30 });
+    const back = await until("color column", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Color,Case");
+    check(back, "when a size in another color goes on sale, the color column comes back");
+    await setCosts({ "HOT-08J": null });
+    await until("pill again", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Case");
+  }
+
   // The language menu and the current-page mark. English is served at the root, but a page built ahead
   // of time knows itself as /en/...: that must not end up inside a link to another language.
   const header = (text) => text.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";

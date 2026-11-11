@@ -1,4 +1,6 @@
 import "server-only";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type { CardPriceLabels } from "@/components/CardPrice";
 import type { CardData } from "@/components/ProductCard";
 import { site } from "@/config/site";
@@ -8,10 +10,18 @@ import type { Dict } from "@/i18n";
 import { formatNumber, isolate, localePath, plural, type Locale } from "./i18n";
 import { normalize } from "./text";
 
-/* Guard against duplicate SKUs and broken cross-links while building. */
+/* Guard against duplicate SKUs, broken cross-links and missing photo files while building. */
 (function validate() {
   const skus = new Set<string>();
   const slugs = new Set(products.map((p) => p.slug));
+  // The photo folder is only there while the site is being built, so that is when it is checked.
+  const photos = process.env.NEXT_PHASE === "phase-production-build" ? join(process.cwd(), "public/img/products") : null;
+  for (const p of [...products, ...categories]) {
+    if (!photos || !p.image) continue;
+    for (const file of [`${p.image}.webp`, `${p.image}-480.webp`]) {
+      if (!existsSync(join(photos, file))) throw new Error(`Photo file missing: public/img/products/${file}`);
+    }
+  }
   for (const p of products) {
     for (const v of p.variants) {
       if (skus.has(v.sku)) throw new Error(`Duplicate SKU ${v.sku}`);

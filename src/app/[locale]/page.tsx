@@ -128,7 +128,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               return (
                 <li key={c.id}>
                   <IntentLink href={categoryHref(locale, c.id)} className={styles.cat}>
-                    <ProductVisual image={c.image} icon={c.icon} className={styles.catTile} sizes={420} />
+                    <ProductVisual image={c.image} icon={c.icon} className={styles.catTile} />
                     <span className={styles.catText}>
                       <h3 className={styles.catName}>{c.name[locale]}</h3>
                       <span className={styles.catCount}>{plural(locale, count, h.categoryCount)}</span>

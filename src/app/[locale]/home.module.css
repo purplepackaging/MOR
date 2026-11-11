@@ -166,7 +166,7 @@
 }
 
 .cat:hover .catTile {
-  background: var(--lilac-2);
+  background-color: var(--lilac-2);
 }
 
 .cat:hover .catTile img {

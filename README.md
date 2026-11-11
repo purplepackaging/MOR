@@ -33,7 +33,9 @@ A first visit picks the browser language; the language menu choice is remembered
 ## Where to change things
 
 - **Products:** `src/data/catalog.ts`. SKUs are MOR's own and must never change once used.
-  Product photos go in `public/img/products/` as transparent WebP.
+  Product photos go in `public/img/products/` as transparent WebP, two files each: `name.webp`
+  (1000 px on its long side, 600 at least) and `name-480.webp` for cards and lists, for example
+  `magick name.webp -resize '480x480>' -quality 80 name-480.webp`. The build fails if one is missing.
 - **Words on the site:** `src/i18n/en.ts`, then the same key in `es.ts`, `tr.ts`, `ar.ts`.
 - **Phone, email, card surcharge, fees shown in the FAQ:** `src/config/site.ts`.
 - **Sales reps:** `src/config/reps.ts` (display names) and the `reps` table in Supabase.
