@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { IntentLink } from "@/components/IntentLink";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductVisual } from "@/components/ProductVisual";
 import { Ticket } from "@/components/Ticket";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
-import { categoryHref, optionsLabel, productHref } from "@/lib/catalog";
+import { cardPriceLabels, categoryHref, productCard } from "@/lib/catalog";
 import { fill, formatMoney, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
 import { getShelf, sampleOrder } from "@/lib/shelf";
 import styles from "./home.module.css";
@@ -19,6 +20,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const order = sampleOrder(shelf, locale);
   // Three tiles across on wide screens, or four when that fills the last row better
   // (eight categories make two rows of four, not three, three and two).
+  const cardPrices = cardPriceLabels(locale, dict);
   const n = categories.length;
   const catColumns = n % 3 === 0 ? 3 : n % 4 === 0 || n % 3 === 1 ? 4 : 3;
   const surcharge = formatNumber(locale, site.cardSurchargePercent);
@@ -119,13 +121,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               const count = products.filter((p) => p.category === c.id).length;
               return (
                 <li key={c.id}>
-                  <Link href={categoryHref(locale, c.id)} className={styles.cat}>
+                  <IntentLink href={categoryHref(locale, c.id)} className={styles.cat}>
                     <ProductVisual image={c.image} icon={c.icon} className={styles.catTile} sizes={420} />
                     <span className={styles.catText}>
                       <h3 className={styles.catName}>{c.name[locale]}</h3>
                       <span className={styles.catCount}>{plural(locale, count, h.categoryCount)}</span>
                     </span>
-                  </Link>
+                  </IntentLink>
                 </li>
               );
             })}
@@ -166,16 +168,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             <ul role="list" className={styles.staples}>
               {staples.map((p) => (
                 <li key={p.slug}>
-                  <ProductCard
-                    card={{
-                      slug: p.slug,
-                      href: productHref(locale, p),
-                      name: p.name[locale],
-                      meta: optionsLabel(p, locale, dict),
-                      image: p.image,
-                      icon: p.icon,
-                    }}
-                  />
+                  <ProductCard card={productCard(p, locale, dict)} prices={cardPrices} />
                 </li>
               ))}
             </ul>

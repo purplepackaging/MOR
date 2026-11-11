@@ -325,17 +325,20 @@ export async function placeOrder(input: {
   const number = Number(row.order_number);
   const total = row.order_total == null ? null : Number(row.order_total);
 
+  // What the database saved: the fees and the price on each line, for the team's email.
   const { data: saved } = await supabase
     .from("orders")
-    .select("delivery_fee, next_day_fee")
+    .select("delivery_fee, next_day_fee, order_lines(sku, cases, price_per_case)")
     .eq("id", row.order_id)
     .maybeSingle();
+  const savedLines = (saved?.order_lines ?? []) as { sku: string; price_per_case: number | string | null }[];
+  const priceOf = new Map(savedLines.map((l) => [l.sku, l.price_per_case == null ? null : Number(l.price_per_case)]));
   await sendOrderEmail({
     number,
     accountName: portal.account.name,
     placedBy: portal.user.email ?? "",
     note,
-    lines,
+    lines: lines.map((l) => ({ ...l, price: priceOf.get(l.sku) ?? null })),
     subtotal: row.order_subtotal == null ? null : Number(row.order_subtotal),
     nextDay,
     deliveryFee: saved?.delivery_fee == null ? null : Number(saved.delivery_fee),

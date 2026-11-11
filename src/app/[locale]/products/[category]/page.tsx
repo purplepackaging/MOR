@@ -33,7 +33,7 @@ export default async function CategoryPage({ params }: PageProps<"/[locale]/prod
   const c = shelf.categories.find((x) => x.id === category);
   if (!c) notFound();
   const dict = getDictionary(locale);
-  const { items, categories, labels } = browserData(locale, dict, shelf);
+  const { items, categories, labels, prices } = browserData(locale, dict, shelf);
   // The category's own line names its products. While some of them are hidden, say the general line instead.
   const inCategory = (list: { category: string }[]) => list.filter((p) => p.category === c.id).length;
   const complete = inCategory(shelf.products) === inCategory(allProducts());
@@ -51,6 +51,7 @@ export default async function CategoryPage({ params }: PageProps<"/[locale]/prod
         current={c.id as CategoryId}
         allHref={localePath(locale, "/products")}
         labels={labels}
+        prices={prices}
       />
     </div>
   );

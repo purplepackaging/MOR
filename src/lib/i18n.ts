@@ -69,19 +69,19 @@ export function isolate(value: string, locale: Locale): string {
   return textDir(locale) === "rtl" && /[0-9A-Za-z]/.test(value) ? `\u2068${value}\u2069` : value;
 }
 
+const usDollars = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", numberingSystem: "latn" });
+
 /**
- * "$1,234.50" with Latin digits in every language. Arabic uses the English layout:
- * its own ("1,234.50 US$") puts the dollar sign on the wrong side of "US" once it
- * sits in right-to-left text. It is also kept together as one left-to-right unit
- * (invisible LRI…PDI marks); without them the "$" moves to the other side of the
- * digits whenever Arabic words come before it in the sentence.
+ * "$1,234.50" in every language: the way the invoice, the card statement and the
+ * bank show it. Turkish and Arabic write money their own way ("$1.234,50",
+ * "1,234.50 US$"), which reads as a different amount beside a US invoice.
+ *
+ * In Arabic the amount is also kept together as one left-to-right unit (invisible
+ * LRI…PDI marks); without them the "$" moves to the other side of the digits
+ * whenever Arabic words come before it in the sentence.
  */
 export function formatMoney(locale: Locale, amount: number): string {
-  const money = new Intl.NumberFormat(htmlLang[locale === "ar" ? "en" : locale], {
-    style: "currency",
-    currency: "USD",
-    numberingSystem: "latn",
-  }).format(amount);
+  const money = usDollars.format(amount);
   return locale === "ar" ? `\u2066${money}\u2069` : money;
 }
 

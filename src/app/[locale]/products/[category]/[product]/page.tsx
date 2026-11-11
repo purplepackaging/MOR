@@ -3,17 +3,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Leaf } from "lucide-react";
 import { AddToList, type StepperLabels } from "@/components/AddToList";
+import { IntentLink } from "@/components/IntentLink";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductVisual } from "@/components/ProductVisual";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import {
   allProducts,
+  cardPriceLabels,
   categoryHref,
   getCategory,
   optionsLabel,
   packLabel,
-  productHref,
+  productCard,
   productPath,
   txt,
   variantSummary,
@@ -85,7 +87,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
             <Link href={localePath(locale, "/products")}>{dict.products.title}</Link>
           </li>
           <li>
-            <Link href={categoryHref(locale, p.category)}>{cat.name[locale]}</Link>
+            <IntentLink href={categoryHref(locale, p.category)}>{cat.name[locale]}</IntentLink>
           </li>
         </ol>
       </nav>
@@ -188,16 +190,7 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
           <ul role="list" className={styles.relatedGrid}>
             {related.map((r) => (
               <li key={r!.slug}>
-                <ProductCard
-                  card={{
-                    slug: r!.slug,
-                    href: productHref(locale, r!),
-                    name: r!.name[locale],
-                    meta: optionsLabel(r!, locale, dict),
-                    image: r!.image,
-                    icon: r!.icon,
-                  }}
-                />
+                <ProductCard card={productCard(r!, locale, dict)} prices={cardPriceLabels(locale, dict)} />
               </li>
             ))}
           </ul>

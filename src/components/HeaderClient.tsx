@@ -15,6 +15,7 @@ import {
 } from "@/lib/i18n";
 import { useList } from "@/lib/list-store";
 import { checkSession } from "@/lib/session-check";
+import { IntentLink } from "./IntentLink";
 import styles from "./Header.module.css";
 
 /** Current path without the language prefix, e.g. "/products". */
@@ -24,14 +25,26 @@ function useBarePath(): string {
   return m ? pathname.slice(m[0].length) || "/" : pathname;
 }
 
-export function NavLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+export function NavLink({
+  href,
+  children,
+  className,
+  onIntent = false,
+}: {
+  href: string;
+  children: React.ReactNode;
+  className?: string;
+  /** Fetch the page only when someone reaches for the link. For the links to the home page. */
+  onIntent?: boolean;
+}) {
   const pathname = usePathname();
   const base = href.split("#")[0];
   const current = !href.includes("#") && (pathname === base || pathname.startsWith(`${base}/`));
+  const A = onIntent ? IntentLink : Link;
   return (
-    <Link href={href} className={className} aria-current={current ? "page" : undefined}>
+    <A href={href} className={className} aria-current={current ? "page" : undefined}>
       {children}
-    </Link>
+    </A>
   );
 }
 
@@ -226,9 +239,10 @@ export function MobileMenu({
           <ul role="list" className={styles.sheetLinks}>
             {links.map((l) => (
               <li key={l.href}>
-                <Link href={l.href} onClick={() => setOpen(false)}>
+                {/* One of these goes to the home page. Opening the menu should not fetch it. */}
+                <IntentLink href={l.href} onClick={() => setOpen(false)}>
                   {l.label}
-                </Link>
+                </IntentLink>
               </li>
             ))}
             <li>

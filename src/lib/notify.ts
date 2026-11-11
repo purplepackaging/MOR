@@ -6,7 +6,18 @@ import { findVariant, variantSummary } from "@/lib/catalog";
  * Resend's HTTP API when RESEND_API_KEY, ORDER_EMAIL_FROM and ORDER_EMAIL_TO are
  * set in Vercel; otherwise it only logs. A failed email never fails the customer's action.
  */
-async function sendTeamEmail(subject: string, lines: string[], logLine: string): Promise<void> {
+/** One line of an email. "" is a blank line; null is a line that does not apply and leaves no gap. */
+type Line = string | null;
+
+/** Drops the lines that do not apply, then never leaves two blank lines in a row. */
+function body(lines: Line[]): string {
+  return lines
+    .filter((line): line is string => line !== null)
+    .filter((line, i, all) => line !== "" || all[i - 1] !== "")
+    .join("\n");
+}
+
+async function sendTeamEmail(subject: string, lines: Line[], logLine: string): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.ORDER_EMAIL_FROM;
   const to = process.env.ORDER_EMAIL_TO;
@@ -14,9 +25,11 @@ async function sendTeamEmail(subject: string, lines: string[], logLine: string):
     console.info(`[notify] ${logLine}; email not configured`);
     return;
   }
-  const text = lines.filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+  const text = body(lines);
+  // The tests point this at a stand-in. Everywhere else it is Resend.
+  const api = process.env.RESEND_API_URL ?? "https://api.resend.com";
   try {
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch(`${api}/emails`, {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from, to: to.split(",").map((s) => s.trim()).filter(Boolean), subject, text }),
@@ -35,7 +48,8 @@ export async function sendOrderEmail(order: {
   accountName: string;
   placedBy: string;
   note: string;
-  lines: { sku: string; cases: number }[];
+  /** What the order holds, with the price per case the database saved on each line. */
+  lines: { sku: string; cases: number; price: number | null }[];
   subtotal: number | null;
   nextDay: boolean;
   deliveryFee: number | null;
@@ -45,22 +59,27 @@ export async function sendOrderEmail(order: {
   const rows = order.lines.map((l) => {
     const found = findVariant(l.sku);
     const name = found ? `${found.product.name.en}, ${variantSummary(found.variant, "en")}` : l.sku;
-    return `${String(l.cases).padStart(3)} cs  ${l.sku}  ${name}`;
+    // The saved price times the cases, in cents so the line agrees with the order page.
+    const amount =
+      l.price == null
+        ? "price to be confirmed"
+        : `${money(l.price)} a case, ${money((Math.round(l.price * 100) * l.cases) / 100)}`;
+    return `${String(l.cases).padStart(3)} cs  ${l.sku}  ${name}  |  ${amount}`;
   });
   await sendTeamEmail(
     `New order ${order.number}${order.nextDay ? " (next day)" : ""}: ${order.accountName}`,
     [
       `Order ${order.number} from ${order.accountName}`,
       `Placed by ${order.placedBy}`,
-      order.nextDay ? "NEXT-DAY DELIVERY requested" : "",
+      order.nextDay ? "NEXT-DAY DELIVERY requested" : null,
       "",
       ...rows,
       "",
       order.subtotal == null ? "Subtotal: to be confirmed" : `Subtotal: ${money(order.subtotal)}`,
-      order.deliveryFee == null ? "" : `Delivery: ${money(order.deliveryFee)}`,
-      order.nextDay && order.nextDayFee != null ? `Next-day delivery: ${money(order.nextDayFee)}` : "",
+      order.deliveryFee == null ? null : `Delivery: ${money(order.deliveryFee)}`,
+      order.nextDay && order.nextDayFee != null ? `Next-day delivery: ${money(order.nextDayFee)}` : null,
       order.total == null ? "Total: to be confirmed" : `Total: ${money(order.total)}`,
-      order.note ? `Note: ${order.note}` : "",
+      order.note ? `Note: ${order.note}` : null,
       "",
       "Confirm it in Supabase: Table Editor > orders > status.",
     ],
@@ -89,9 +108,9 @@ export async function sendNewAccountEmail(account: {
       `Phone: ${account.phone}`,
       `Email: ${account.email}`,
       `Address: ${account.street}, ${account.city} ${account.zip}`,
-      account.businessType ? `Type: ${account.businessType}` : "",
+      account.businessType ? `Type: ${account.businessType}` : null,
       `Language: ${account.language}`,
-      account.repCode ? `Rep code: ${account.repCode}` : "",
+      account.repCode ? `Rep code: ${account.repCode}` : null,
       "",
       "They can see prices and order now. Switch the account off in Supabase (Table Editor > accounts > active) if it isn't a real business.",
     ],

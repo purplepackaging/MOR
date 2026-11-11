@@ -4,6 +4,7 @@ import type { Dict } from "@/i18n";
 import { categoryHref } from "@/lib/catalog";
 import { htmlLang, languageNames, localePath, locales, switchPath, type Locale } from "@/lib/i18n";
 import { getShelfOrAll } from "@/lib/shelf";
+import { IntentLink } from "./IntentLink";
 import { Wordmark } from "./Wordmark";
 import styles from "./Footer.module.css";
 
@@ -28,7 +29,7 @@ export async function Footer({ locale, dict }: { locale: Locale; dict: Dict }) {
             <ul role="list" className={styles.links}>
               {categories.map((c) => (
                 <li key={c.id}>
-                  <Link href={categoryHref(locale, c.id)}>{c.name[locale]}</Link>
+                  <IntentLink href={categoryHref(locale, c.id)}>{c.name[locale]}</IntentLink>
                 </li>
               ))}
             </ul>
@@ -40,7 +41,7 @@ export async function Footer({ locale, dict }: { locale: Locale; dict: Dict }) {
             </h2>
             <ul role="list" className={styles.links}>
               <li>
-                <Link href={`${localePath(locale, "/")}#how`}>{dict.nav.how}</Link>
+                <IntentLink href={`${localePath(locale, "/")}#how`}>{dict.nav.how}</IntentLink>
               </li>
               <li>
                 <Link href={localePath(locale, "/request-account")}>{dict.nav.request}</Link>

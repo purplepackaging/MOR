@@ -11,7 +11,9 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
   `SUPABASE_PUBLISHABLE_KEY` (in `src/lib/portal.ts` and `src/proxy.ts`). Nothing secret gets a `NEXT_PUBLIC_` prefix.
 - **Four languages:** every visible string lives in `src/i18n/en.ts` and the same key in `es.ts`, `tr.ts`
   and `ar.ts`. `Dict` is typed from English, so a missing key fails the typecheck. Use `plural()` for
-  counts (Arabic has six forms) and `formatNumber()` for numbers (Latin digits everywhere).
+  counts (Arabic has six forms; case units such as rolls and boxes are counted the same way) and
+  `formatNumber()` for numbers (Latin digits everywhere). `formatMoney()` writes "$1,234.50" in every
+  language, the way the invoice shows it.
 - **Right to left:** Arabic pages set `dir="rtl"`. Use logical CSS (`inset-inline-start`, `padding-inline`,
   `text-align: start`). Mirror only directional icons.
 - **Routing:** `src/proxy.ts` serves English at the root and rewrites to `/en`. Build links with
@@ -23,6 +25,13 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
   Spices and dry goods are planned but not mentioned on the site yet.
 - **Accessibility:** real buttons and links, visible `:focus-visible`, labels on every input,
   `aria-live` for toasts, 44px touch targets, `prefers-reduced-motion` respected.
+- **Links:** use `IntentLink` (not `Link`) for links to the home page, product pages and category pages.
+  A plain `Link` fetches its page as soon as it is on screen, and that also downloads the photos the
+  page asks for first: every page used to pull in the three home page photos (325 KB). `IntentLink`
+  fetches when someone hovers, touches or focuses the link.
+- **Content security policy:** set in `next.config.ts` for production builds. Everything loads from this
+  site only. If you add a script, font, image host or API on another origin, add it there, and keep the
+  tests' "the content security policy blocked nothing" checks green.
 - **Design:** read `DESIGN.md` before adding UI. Reuse tokens from `src/styles/tokens.css`.
 
 ## Portal (phase 1: ordering)
@@ -69,7 +78,9 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   customer's prices load after the page from `/api/prices` (the same `my_prices` call as the list), once
   `/api/session` says someone is signed in.
   `src/lib/price-store.ts` keeps them in memory between product pages and drops them at sign-out. On phones
-  the price sits at the end of the case line, so rows do not grow when it arrives.
+  the price sits at the end of the case line, so rows do not grow when it arrives. Product cards show
+  the lowest price per case among the product's sizes ("From $36.00") on the photo tile (`CardPrice`),
+  so cards keep their height too. That picks one of the database's prices; it never works one out.
 - **Your list:** each priced line shows what it comes to. Below 960px an order bar (total and Place order)
   shows while the summary's own button is below the screen; `--bottom-bar` lifts toasts and focus above it.
   One item takes 1 to 999 cases (`src/lib/limits.ts`; the order actions check the same limit).
@@ -84,6 +95,8 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   tables. Every migration that adds a table must grant exactly what the app uses, with RLS on.
 - **Team emails:** `src/lib/notify.ts` sends new orders and new accounts via Resend when `RESEND_API_KEY`,
   `ORDER_EMAIL_FROM` and `ORDER_EMAIL_TO` are set; otherwise it logs. It never fails the customer's action.
+  An order email lists each line with the price per case the database saved and what the line comes to.
+  `RESEND_API_URL` is for the tests only: it points the sender at the mock.
   All three are set in Vercel for production only. The sender is on `mail.morsupply.com`, the domain
   verified in Resend.
 - **Language cookie:** set only on real page loads (`Sec-Fetch-Dest: document`). Next strips its router
