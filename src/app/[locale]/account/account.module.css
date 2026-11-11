@@ -65,6 +65,40 @@
   font-size: var(--fs-small);
 }
 
+/* An email they cannot change on this step: shown, and still part of the form. */
+.signIn .locked {
+  background: var(--lilac);
+  color: var(--ink-2);
+}
+
+/* A line that confirms something just done, or says it did not work. */
+.notice {
+  justify-self: start;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-s);
+  background: var(--ok-tint);
+  color: var(--ok);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+.noticeProblem {
+  background: var(--err-tint);
+  color: var(--err);
+}
+
+.noticeProblem a {
+  color: inherit;
+}
+
+.footerLink a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--mor);
+  font-weight: var(--w-medium);
+}
+
 .help {
   padding-top: var(--s-4);
   border-top: 1px solid var(--line);
@@ -118,11 +152,20 @@
 
 .card {
   display: grid;
+  /* One column no wider than the card, so a long button label wraps instead of pushing the card open. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--s-4);
   padding: var(--s-5);
   border-radius: var(--r-l);
   background: var(--lilac);
   min-width: 0;
+}
+
+.card :global(.btn) {
+  max-width: 100%;
+  padding-block: 10px;
+  white-space: normal;
+  text-align: center;
 }
 
 .card h2 {

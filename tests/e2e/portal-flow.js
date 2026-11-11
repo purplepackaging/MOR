@@ -16,13 +16,34 @@ async function axe(p, label) {
   const v = r.violations.map((x) => `${x.impact} ${x.id}: ${x.nodes.slice(0, 2).map((n) => n.target.join(" ")).join(" ; ")}`);
   check(v.length === 0 && !hs, `axe ${label}${v.length ? " -> " + v.join(" | ") : ""}${hs ? " HSCROLL" : ""}`);
 }
+// Sign in with an emailed code. The sign-in page opens on the password form, so ask for the code form first.
 async function signIn(p, email, landing = /\/account$/) {
   await p.goto(BASE + "/account");
+  await p.click("text=Email me a code instead");
   await p.fill("#si-email", email);
-  await p.click("button[type=submit]");
+  await p.click("main form button[type=submit]");
   await p.waitForSelector("#si-code");
   await p.fill("#si-code", "123456");
-  await Promise.all([p.waitForURL(landing), p.click("form button[type=submit]")]);
+  await Promise.all([p.waitForURL(landing), p.click("main form button[type=submit]")]);
+}
+// Fill the password form and send it. Resolves once the server has answered.
+async function tryPassword(p, email, password) {
+  await p.fill("#si-email", email);
+  await p.fill("#si-password", password);
+  await Promise.all([p.waitForResponse((r) => r.request().method() === "POST" && r.url().includes("/account/sign-in")), p.click("main form button[type=submit]")]);
+}
+async function signInWithPassword(p, email, password, path = "/account/sign-in", landing = /\/account$/) {
+  await p.goto(BASE + path);
+  await p.fill("#si-email", email);
+  await p.fill("#si-password", password);
+  await Promise.all([p.waitForURL(landing), p.click("main form button[type=submit]")]);
+}
+// On the code step: enter the code and, if given, a password, then send.
+async function sendCodeStep(p, password, landing) {
+  await p.fill("#si-code", "123456");
+  if (password != null) await p.fill("#si-new-password", password);
+  if (landing) await Promise.all([p.waitForURL(landing), p.click("main form button[type=submit]")]);
+  else await Promise.all([p.waitForResponse((r) => r.request().method() === "POST"), p.click("main form button[type=submit]")]);
 }
 async function signOut(p) {
   await p.goto(BASE + "/account");
@@ -57,31 +78,51 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(productText.includes("Prices show after you sign in") && !productText.includes("$"), `${tag} signed-out product page shows no prices`);
     const addsBefore = await addButtons(p);
 
-    // Sign-in page and redirect
+    // Sign-in page and redirect: email and password first
     await p.goto(BASE + "/account");
     check(p.url().includes("/account/sign-in?next=%2Faccount"), `${tag} /account sends signed-out visitors to sign-in`);
-    check((await p.textContent("main")).includes("The same code creates your account"), `${tag} sign-in says new emails get an account`);
+    check((await p.textContent("main")).includes("Sign in with your email and password"), `${tag} sign-in asks for an email and password`);
+    const attr = (sel) => p.getAttribute(sel, "autocomplete");
+    check((await attr("#si-email")) === "username" && (await attr("#si-password")) === "current-password", `${tag} sign-in fields are marked for password managers`);
     await axe(p, `${tag} sign-in`);
+    // A wrong password and an email nobody has get the same answer
+    await tryPassword(p, "owner@kebab.test", "not-the-password");
+    const wrongPassword = await p.textContent("#si-password-error");
+    await tryPassword(p, `nobody${tag}@nowhere.test`, "not-the-password");
+    check(wrongPassword.includes("didn’t work") && (await p.textContent("#si-password-error")) === wrongPassword, `${tag} a wrong password and an unknown email get the same answer`);
+    await axe(p, `${tag} sign-in, wrong password`);
+    // The other way in: a code by email. What they typed carries over.
+    await p.click("text=Email me a code instead");
+    await p.waitForSelector("text=The same code creates your account");
+    check((await p.inputValue("#si-email")) === `nobody${tag}@nowhere.test`, `${tag} the email carries over to the code form`);
+    await axe(p, `${tag} code form`);
     // Bad email
-    await p.fill("#si-email", "not-an-email"); await p.click("button[type=submit]");
+    await p.fill("#si-email", "not-an-email"); await p.click("main form button[type=submit]");
     await p.waitForSelector("#si-email-error");
     check((await p.textContent("#si-email-error")).includes("name@example.com"), `${tag} bad email message`);
     // A new email gets a code too (open sign-up)
-    await p.fill("#si-email", `stranger${tag}@nowhere.test`); await p.click("button[type=submit]");
+    await p.fill("#si-email", `stranger${tag}@nowhere.test`); await p.click("main form button[type=submit]");
     await p.waitForSelector("#si-code");
     check((await p.textContent("main")).includes(`We sent a code to stranger${tag}@nowhere.test`), `${tag} new email gets a code`);
+    check((await attr("#si-code-email")) === "username" && (await attr("#si-code")) === "one-time-code" && (await attr("#si-new-password")) === "new-password", `${tag} code step fields are marked for password managers`);
     await axe(p, `${tag} code step`);
-    await p.fill("#si-code", "000000"); await p.click("form button[type=submit]");
+    await p.fill("#si-code", "000000"); await p.click("main form button[type=submit]");
     await p.waitForSelector("#si-code-error");
     check((await p.textContent("#si-code-error")).includes("didn’t work"), `${tag} wrong code message`);
+    // A password that is too short is turned away before the code is used
+    await sendCodeStep(p, "short");
+    await p.waitForSelector("#si-new-password-error");
+    check((await p.textContent("#si-new-password-error")).includes("8 to 72"), `${tag} a short password gets a message`);
+    check(await p.evaluate(() => document.activeElement?.id === "si-new-password"), `${tag} focus moves to the password`);
+    await axe(p, `${tag} code step, short password`);
     await p.click("text=Use a different email");
     await p.waitForSelector("#si-email");
 
-    // Existing customer
-    await p.fill("#si-email", "owner@kebab.test"); await p.click("button[type=submit]");
+    // Existing customer: signs in with a code and sets a password in the same step
+    const ownerPassword = `kebab-house-${tag}`;
+    await p.fill("#si-email", "owner@kebab.test"); await p.click("main form button[type=submit]");
     await p.waitForSelector("#si-code");
-    await p.fill("#si-code", "123456");
-    await Promise.all([p.waitForURL(/\/account$/), p.click("form button[type=submit]")]);
+    await sendCodeStep(p, ownerPassword, /\/account$/);
     check((await p.textContent("h1")) === "Kebab House", `${tag} account page shows the business`);
     check((await p.textContent("main")).includes("Delivery day: Thursday"), `${tag} delivery day pill`);
     check((await p.textContent("main")).includes("Your prices show on product pages"), `${tag} priced account message`);
@@ -213,6 +254,11 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/ar/account");
     check((await p.getAttribute("html", "dir")) === "rtl" && (await p.textContent("main")).includes("يوم التوصيل"), `${tag} Arabic account page`);
     await axe(p, `${tag} Arabic account`);
+    // Spanish and Turkish have the longest button labels: the usual order card must not push the page sideways.
+    for (const lang of ["es", "tr"]) {
+      await p.goto(`${BASE}/${lang}/account`);
+      await axe(p, `${tag} ${lang} account`);
+    }
     await p.goto(BASE + "/en/account"); // back to English (the switcher path resets the language cookie)
     await p.goto(BASE + "/account/orders/999999");
     check((await p.textContent("h1")).length > 0 && (await p.textContent("main")).toLowerCase().includes("couldn"), `${tag} unknown order number is a 404`);
@@ -243,6 +289,10 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     }
     await p.goto(BASE + "/account");
     check(p.url().includes("/account/sign-in"), `${tag} signed out`);
+    // The password set with that first code now signs them in, with no email
+    await signInWithPassword(p, "owner@kebab.test", ownerPassword);
+    check((await p.textContent("h1")) === "Kebab House" && (await p.textContent("main")).includes("Change password"), `${tag} password sign-in lands on the account, which offers Change password`);
+    await signOut(p);
 
     // Signed out, the list asks people to sign in to order
     await setList(p, [{ sku: "CUP-PET-16", cases: 1 }]);
@@ -266,7 +316,14 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
 
     // Open sign-up: new email, then the business form, then ordering
     const chef = `chef${tag}@new.test`;
-    await signIn(p, chef, /\/account\/setup/);
+    await p.goto(BASE + "/account/sign-in?new=1&next=%2Faccount");
+    check((await p.textContent("main")).includes("Then choose a password"), `${tag} account creation says a password comes next`);
+    await p.fill("#si-email", chef); await p.click("main form button[type=submit]");
+    await p.waitForSelector("#si-code");
+    await sendCodeStep(p, null);
+    await p.waitForSelector("#si-new-password-error");
+    check((await p.textContent("label[for=si-new-password]")).trim() === "Choose a password" && (await p.textContent("main form button[type=submit]")).trim() === "Create account", `${tag} a new account has to choose a password`);
+    await sendCodeStep(p, `pho-place-${tag}`, /\/account\/setup/);
     check(p.url().includes("/account/setup?next=%2Faccount"), `${tag} first sign-in goes to the business form`);
     check((await p.textContent("main")).includes(`Signed in as ${chef}`), `${tag} business form shows the email`);
     await axe(p, `${tag} business form`);
@@ -290,6 +347,9 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.waitForSelector("text=Ordering for Pho Place");
     check((await p.textContent("main")).includes("$44.44 a case") && (await p.textContent("aside")).includes("$94.44"), `${tag} new account can order at the same prices`);
     await signOut(p);
+    await signInWithPassword(p, chef, `pho-place-${tag}`);
+    check((await p.textContent("h1")) === "Pho Place", `${tag} the new account signs in with its password`);
+    await signOut(p);
 
     // /request-account now starts sign-up
     await p.goto(BASE + "/request-account");
@@ -300,27 +360,63 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     // Browsers drop tabs and line breaks from URLs and read "\" as "/", so each of these would become "//example.com".
     const site = new URL(BASE).origin;
     for (const [name, bad] of [["a tab", "/%09/example.com/x"], ["a line feed", "/%0A/example.com/x"], ["a carriage return", "/%0D/example.com/x"], ["a backslash", "/%5Cexample.com/x"], ["two slashes", "//example.com/x"]]) {
-      await p.goto(`${BASE}/account/sign-in?next=${bad}`);
-      await p.fill("#si-email", "owner@kebab.test");
-      await p.click("main form button[type=submit]");
-      await p.waitForSelector("#si-code");
-      await p.fill("#si-code", "123456");
-      await Promise.all([p.waitForURL((u) => !u.pathname.includes("/sign-in")), p.click("main form button[type=submit]")]);
+      await signInWithPassword(p, "owner@kebab.test", ownerPassword, `/account/sign-in?next=${bad}`, (u) => !u.pathname.includes("/sign-in"));
       check(p.url() === `${site}/account`, `${tag} sign-in ignores a next with ${name} (landed on ${p.url()})`);
       // Signed in with a business already: the business form forwards, and must stay on the site too.
       const hop = await p.request.get(`${BASE}/account/setup?next=${bad}`, { maxRedirects: 0 });
       check(hop.status() === 307 && hop.headers()["location"] === "/account", `${tag} business form ignores a next with ${name} (${hop.status()} ${JSON.stringify(hop.headers()["location"])})`);
       await signOut(p);
     }
-    // A normal next still works.
-    await p.goto(`${BASE}/account/sign-in?next=%2Faccount%2Forders`);
+    // The code form drops a crafted next too, and both forms keep a normal one.
+    await p.goto(`${BASE}/account/sign-in?code=1&next=/%09/example.com/x`);
     await p.fill("#si-email", "owner@kebab.test");
     await p.click("main form button[type=submit]");
     await p.waitForSelector("#si-code");
-    await p.fill("#si-code", "123456");
-    await Promise.all([p.waitForURL(/\/account\/orders$/), p.click("main form button[type=submit]")]);
-    check(p.url() === `${site}/account/orders`, `${tag} sign-in still returns people to the page they came from`);
+    await sendCodeStep(p, null, (u) => !u.pathname.includes("/sign-in"));
+    check(p.url() === `${site}/account`, `${tag} code sign-in ignores a next with a tab (landed on ${p.url()})`);
     await signOut(p);
+    await p.goto(`${BASE}/account/sign-in?code=1&next=%2Faccount%2Forders`);
+    await p.fill("#si-email", "owner@kebab.test");
+    await p.click("main form button[type=submit]");
+    await p.waitForSelector("#si-code");
+    await sendCodeStep(p, null, /\/account\/orders$/);
+    check(p.url() === `${site}/account/orders`, `${tag} code sign-in still returns people to the page they came from`);
+    await signOut(p);
+    await signInWithPassword(p, "owner@kebab.test", ownerPassword, "/account/sign-in?next=%2Faccount%2Forders", /\/account\/orders$/);
+    check(p.url() === `${site}/account/orders`, `${tag} password sign-in returns people to the page they came from`);
+
+    // Changing a password: a fresh code, then the new password. The old one stops working.
+    await p.goto(BASE + "/account");
+    await Promise.all([p.waitForURL(/\/account\/sign-in\?reset=1$/), p.click("text=Change password")]);
+    check((await p.textContent("h1")) === "Change your password" && (await p.inputValue("#si-email")) === "owner@kebab.test" && (await p.getAttribute("#si-email", "readonly")) !== null, `${tag} change password shows the account's email, locked`);
+    await axe(p, `${tag} change password`);
+    await p.click("main form button[type=submit]");
+    await p.waitForSelector("#si-code");
+    check((await p.textContent("main form button[type=submit]")).trim() === "Save password", `${tag} change password asks for the code and a new password`);
+    const newPassword = `kebab-new-${tag}`;
+    await sendCodeStep(p, newPassword, /\/account\?password=saved$/);
+    check((await p.textContent("main [role=status]")).includes("Your new password is saved."), `${tag} the account page confirms the new password`);
+    await axe(p, `${tag} account page, password saved`);
+    await signOut(p);
+    await p.goto(BASE + "/account/sign-in");
+    await tryPassword(p, "owner@kebab.test", ownerPassword);
+    check((await p.textContent("#si-password-error")).includes("didn’t work"), `${tag} the old password no longer works`);
+    await signInWithPassword(p, "owner@kebab.test", newPassword);
+    // A password Supabase refuses: still signed in, and the account page says it was not saved
+    await p.goto(BASE + "/account/sign-in?reset=1");
+    await p.click("main form button[type=submit]");
+    await p.waitForSelector("#si-code");
+    await sendCodeStep(p, "pwned-password", /\/account\?password=unsaved$/);
+    const unsaved = await p.textContent("main [role=status]");
+    check(unsaved.includes("couldn’t save your password") && unsaved.includes("Change password"), `${tag} a refused password leaves them signed in and says so (${unsaved.trim()})`);
+    await axe(p, `${tag} account page, password not saved`);
+    await signOut(p);
+    await signInWithPassword(p, "owner@kebab.test", newPassword);
+    check((await p.textContent("h1")) === "Kebab House", `${tag} the password before the refused one still works`);
+    await signOut(p);
+    // Signed out, ?reset=1 is the forgotten-password door: the code form
+    await p.goto(BASE + "/account/sign-in?reset=1");
+    check((await p.textContent("h1")) === "Sign in" && (await p.textContent("main")).includes("we’ll send you a code") && (await p.$("#si-password")) === null, `${tag} signed out, the reset link opens the code form`);
 
     // A switched-off account
     await signIn(p, "paused@spot.test");
