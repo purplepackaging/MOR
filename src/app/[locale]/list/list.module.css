@@ -359,6 +359,37 @@
   margin-top: var(--s-2);
 }
 
+.placedActions :global(.btn) {
+  margin-top: 0;
+}
+
+/* Once the order is in, the line that says to check the list has done its job. */
+.page:has([data-placed]) .head :global(.lede) {
+  display: none;
+}
+
+/* What the order comes to, straight from the database. */
+.placedTotal {
+  font-size: var(--fs-h3);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Says whether the order was saved as the usual one. Keeps its line, so nothing jumps. */
+.placedStatus {
+  min-height: 1.5em;
+  color: var(--ok);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+@media (max-width: 559px) {
+  .placedActions {
+    display: grid;
+    width: 100%;
+  }
+}
+
 /*
  * Phones: the total and the order button stay in reach while the summary is still
  * below the screen. It floats, so it carries a shadow like the toast and the menus.

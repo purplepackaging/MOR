@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ToListButton } from "@/components/ToListButton";
 import type { Dict } from "@/i18n";
 import { findVariant, variantSummary } from "@/lib/catalog";
 import { fill, formatDate, formatMoney, formatNumber, isolate, localePath, type Locale } from "@/lib/i18n";
@@ -28,8 +29,37 @@ export function StatusPill({ status, dict }: { status: OrderSummary["status"]; d
   );
 }
 
-export function OrdersTable({ orders, locale, dict }: { orders: OrderSummary[]; locale: Locale; dict: Dict }) {
+/**
+ * A customer's orders. Each one can go back on the list in one tap: only the
+ * lines that are for sale today, and the toast says so when some were left out.
+ */
+export function OrdersTable({
+  orders,
+  locale,
+  dict,
+  shelf,
+}: {
+  orders: OrderSummary[];
+  locale: Locale;
+  dict: Dict;
+  shelf: Shelf;
+}) {
   const p = dict.portal;
+  const listHref = localePath(locale, "/list");
+  const again = (o: OrderSummary) => {
+    const lines = o.lines.filter((l) => shelf.has(l.sku)).map(({ sku, cases }) => ({ sku, cases }));
+    if (!lines.length) return null;
+    return (
+      <ToListButton
+        lines={lines}
+        label={p.orderAgain}
+        ariaLabel={fill(p.orderAgainLabel, { n: o.number })}
+        done={lines.length === o.lines.length ? p.reordered : p.reorderedSome}
+        href={listHref}
+        className={styles.textButton}
+      />
+    );
+  };
   return (
     // Can still scroll sideways with large text, so keyboard users need to be able to focus it.
     <div className={styles.tableWrap} role="region" aria-label={p.ordersTitle} tabIndex={0}>
@@ -46,6 +76,9 @@ export function OrdersTable({ orders, locale, dict }: { orders: OrderSummary[]; 
             </th>
             <th scope="col" className={styles.end}>
               {p.total}
+            </th>
+            <th scope="col" className={styles.wideOnly}>
+              <span className="visually-hidden">{p.orderAgain}</span>
             </th>
           </tr>
         </thead>
@@ -66,6 +99,8 @@ export function OrdersTable({ orders, locale, dict }: { orders: OrderSummary[]; 
                   <span className={`${styles.lineMeta} ${styles.narrowOnly} ${styles.nowrap}`}>
                     <bdi>{date}</bdi>
                   </span>
+                  {/* On a phone the button sits under the date, so the total never leaves the screen. */}
+                  <span className={styles.narrowOnly}>{again(o)}</span>
                 </td>
                 <td className={styles.wideOnly}>
                   <bdi>{date}</bdi>
@@ -75,6 +110,7 @@ export function OrdersTable({ orders, locale, dict }: { orders: OrderSummary[]; 
                 </td>
                 <td className={`${styles.end} ${styles.wideOnly}`}>{formatNumber(locale, cases)}</td>
                 <td className={styles.end}>{amount == null ? p.noPrice : <bdi>{formatMoney(locale, amount)}</bdi>}</td>
+                <td className={`${styles.end} ${styles.wideOnly} ${styles.againCell}`}>{again(o)}</td>
               </tr>
             );
           })}

@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { getOrders, getPortal, portalReady } from "@/lib/portal";
+import { getShelfOrAll } from "@/lib/shelf";
 import { OrdersTable } from "../parts";
 import styles from "../account.module.css";
 
@@ -25,7 +26,7 @@ export default async function OrdersPage({ params }: PageProps<"/[locale]/accoun
   if (!portal) redirect(`${signInPath}?next=${encodeURIComponent(localePath(locale, "/account/orders"))}`);
   if (!portal.account) redirect(localePath(locale, "/account"));
 
-  const orders = await getOrders(portal.account.id, 200);
+  const [orders, shelf] = await Promise.all([getOrders(portal.account.id, 200), getShelfOrAll()]);
 
   return (
     <section className={`container ${styles.page}`}>
@@ -36,7 +37,7 @@ export default async function OrdersPage({ params }: PageProps<"/[locale]/accoun
         <h1 className="h2">{p.ordersTitle}</h1>
         <p className="muted">{portal.account.name}</p>
       </header>
-      {orders.length ? <OrdersTable orders={orders} locale={locale} dict={dict} /> : <p className="muted">{p.noOrders}</p>}
+      {orders.length ? <OrdersTable orders={orders} locale={locale} dict={dict} shelf={shelf} /> : <p className="muted">{p.noOrders}</p>}
     </section>
   );
 }

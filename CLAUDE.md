@@ -61,6 +61,17 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   form never empties. A select needs a `key` to take a new default after a form reset. The page carries
   `data-one-job`, which folds the footer down to its closing line. A new account lands on
   `/products?welcome=1` (`Welcome` says it is ready, once, to someone signed in).
+- **Reordering:** the account page is where a signed-in customer lands, and the usual order leads it: lines,
+  what each comes to, the total with delivery (today's prices from the database, added up on the server for
+  reading only) and one button, "Order my usual", which puts it on the list. Each recent order has
+  "Order again" (`OrdersTable`, only the lines that are for sale). The list's confirmation shows the total
+  `place_order` returned and offers "Make this my usual order" unless the order already is.
+- **Landing:** `src/proxy.ts` sends a home page load to `/account` when a sign-in cookie is present and the
+  visit starts outside the site (`Sec-Fetch-Site` is `none` or `cross-site`). The logo and other links inside
+  the site still open the home page. The cookie is only a hint; the account page checks the session.
+- **Wording by sign-in:** built pages are the same for everyone. `SessionLink` and `SessionText` swap a link
+  or a sentence once `/api/session` answers (home page buttons). Prefer one sentence that is true for both
+  (the products page) so nothing moves; pages rendered per request (the list) choose on the server.
 - **Toasts** belong to the page they were shown on and go when the visitor moves on. Pass `travels: true`
   for one shown just before a move and meant for the next page (`ToListButton`).
 - **Data:** `supabase/migrations/20261110000000_portal.sql`, `20261110190000_open_signup_pricing.sql` and

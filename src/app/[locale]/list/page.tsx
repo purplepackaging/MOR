@@ -7,7 +7,7 @@ import { skuIndex } from "@/lib/catalog";
 import { fill, formatNumber, localePath, type Locale } from "@/lib/i18n";
 import { MAX_CASES } from "@/lib/limits";
 import { pageMetadata } from "@/lib/metadata";
-import { getFees, getPortal, getPrices, portalReady, setupPath } from "@/lib/portal";
+import { getFees, getPortal, getPrices, getUsualOrder, portalReady, setupPath } from "@/lib/portal";
 import { getShelfOrAll } from "@/lib/shelf";
 import { ListView, type ListPortal, type ListSignIn } from "./ListView";
 import styles from "./list.module.css";
@@ -38,7 +38,11 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
     const signInHref = `${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(listPath)}`;
     const session = await getPortal();
     if (session?.account) {
-      const [prices, fees] = await Promise.all([getPrices(session.account.id), getFees()]);
+      const [prices, fees, usual] = await Promise.all([
+        getPrices(session.account.id),
+        getFees(),
+        getUsualOrder(session.account.id),
+      ]);
       portal = {
         accountName: session.account.name,
         prices,
@@ -49,6 +53,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
         signInLabel: dict.nav.signIn,
         noPrice: dict.portal.noPrice,
         lineTotal: dict.portal.lineTotal,
+        usual: usual?.lines ?? null,
       };
     } else if (session && !session.paused) {
       // Signed in for the first time: set up the business, then come back to this list.
@@ -66,7 +71,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
       <div className={`container ${styles.page}`}>
         <header className={styles.head}>
           <h1 className="h2">{dict.list.title}</h1>
-          <p className="lede">{dict.list.lede}</p>
+          <p className="lede">{portal ? dict.list.ledeOrder : dict.list.lede}</p>
         </header>
         <ListView
           locale={locale}

@@ -11,18 +11,22 @@ export function ToListButton({
   done,
   href,
   className = "btn",
+  ariaLabel,
 }: {
   lines: { sku: string; cases: number }[];
   label: string;
   done: string;
   href: string;
   className?: string;
+  /** A fuller name for screen readers, when several buttons on a page share one label. */
+  ariaLabel?: string;
 }) {
   const router = useRouter();
   return (
     <button
       type="button"
       className={className}
+      aria-label={ariaLabel}
       onClick={() => {
         for (const l of lines) listStore.setCases(l.sku, l.cases);
         showToast({ message: done, travels: true });

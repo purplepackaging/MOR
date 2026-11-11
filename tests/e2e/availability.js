@@ -219,10 +219,10 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await axe(p, `${tag} account page with an item marked`);
     if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "hide-account-390.png"), fullPage: true });
     await setList(p, []);
-    await p.click("text=Put my usual order on my list");
+    await p.click("text=Order my usual");
     await p.waitForURL(/\/list$/);
     await p.waitForSelector("text=Ordering for Kebab House");
-    check((await savedSkus(p)) === "CUP-PET-16", `${tag} “Put my usual order on my list” adds only what is for sale (${await savedSkus(p)})`);
+    check((await savedSkus(p)) === "CUP-PET-16", `${tag} “Order my usual” adds only what is for sale (${await savedSkus(p)})`);
     await p.goto(`${BASE}/account/orders/${first}`);
     text = await p.textContent("main");
     check(text.includes("Guest check books") && text.includes("Not available right now"), `${tag} the past order keeps the line and marks it`);

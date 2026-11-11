@@ -6,7 +6,7 @@ import { X } from "lucide-react";
 import { AddToList, type StepperLabels } from "@/components/AddToList";
 import { IntentLink } from "@/components/IntentLink";
 import { ProductVisual } from "@/components/ProductVisual";
-import { showToast } from "@/components/Toaster";
+import { dismissToast, showToast } from "@/components/Toaster";
 import type { Dict } from "@/i18n";
 import type { SkuInfo } from "@/lib/catalog";
 import { fill, formatMoney, plural, type Locale } from "@/lib/i18n";
@@ -28,6 +28,8 @@ export interface ListPortal {
   noPrice: string;
   /** Screen-reader label for what a line comes to. */
   lineTotal: string;
+  /** The saved usual order, to know whether an order just placed is already it. */
+  usual: { sku: string; cases: number }[] | null;
 }
 
 /** With the portal on and nobody signed in: the list asks them to sign in to order. */
@@ -35,7 +37,11 @@ export interface ListSignIn {
   href: string;
 }
 
-type Placed = { number: number; href: string };
+/** An order that just went in: what the database says it comes to, and what was on it. */
+type Placed = { number: number; href: string; total: number | null; lines: { sku: string; cases: number }[] };
+
+const sameLines = (a: { sku: string; cases: number }[], b: { sku: string; cases: number }[]) =>
+  a.length === b.length && a.every((l) => b.some((m) => m.sku === l.sku && m.cases === l.cases));
 
 /** Below this width the summary sits under the lines instead of beside them. */
 const STACKED = "(max-width: 959px)";
@@ -78,6 +84,10 @@ export function ListView({
   const [note, setNote] = useState("");
   const [nextDay, setNextDay] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
+  /** After an order: whether it has been saved as the usual order, or why not. */
+  const [usualSaved, setUsualSaved] = useState<"no" | "yes" | "failed">("no");
+  /** The usual order as this page last knew it: what the server sent, or what was saved here since. */
+  const [usualNow, setUsualNow] = useState(portal?.usual ?? null);
   const [problem, setProblem] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
   const [saving, startSaving] = useTransition();
@@ -211,20 +221,46 @@ export function ListView({
     ) : null;
 
   if (placed) {
+    // Offer to keep this order as the usual one, unless it already is.
+    const offerUsual = !(usualNow && sameLines(usualNow, placed.lines));
+    const makeUsual = () => {
+      startSaving(async () => {
+        const result = await saveUsualOrder({ lines: placed.lines });
+        setUsualSaved(result.ok ? "yes" : "failed");
+        if (result.ok) setUsualNow(placed.lines);
+      });
+    };
     return (
-      <div className={styles.empty}>
+      <div className={styles.empty} data-placed>
         <h2 className="h3" ref={placedHeading} tabIndex={-1}>
           {fill(labels.placedTitle, { n: placed.number })}
         </h2>
+        <p className={styles.placedTotal}>
+          {placed.total == null ? (
+            labels.placedNoTotal
+          ) : (
+            <>
+              {labels.totalWithDelivery}: <bdi>{formatMoney(locale, placed.total)}</bdi>
+            </>
+          )}
+        </p>
         <p className="muted">{labels.placedBody}</p>
         <div className={styles.placedActions}>
           <Link className="btn" href={placed.href}>
             {labels.viewOrder}
           </Link>
+          {offerUsual ? (
+            <button type="button" className="btn btn-quiet" onClick={makeUsual} disabled={saving}>
+              {saving ? labels.savingUsual : labels.makeUsual}
+            </button>
+          ) : null}
           <Link className="btn btn-quiet" href={browseHref}>
             {labels.keepShopping}
           </Link>
         </div>
+        <p className={styles.placedStatus} role="status">
+          {usualSaved === "yes" ? labels.savedUsual : usualSaved === "failed" ? labels.usualError : ""}
+        </p>
       </div>
     );
   }
@@ -264,10 +300,18 @@ export function ListView({
         else setProblem(failure(result.reason));
         return;
       }
+      // Whatever a toast was saying belongs to the list that is now an order.
+      dismissToast();
       listStore.clear();
       setNote("");
       setNextDay(false);
-      setPlaced({ number: result.number, href: `${portal?.ordersHref ?? ""}/${result.number}` });
+      setUsualSaved("no");
+      setPlaced({
+        number: result.number,
+        href: `${portal?.ordersHref ?? ""}/${result.number}`,
+        total: result.total,
+        lines: orderLines,
+      });
     });
   };
 
@@ -275,7 +319,10 @@ export function ListView({
     setProblem(null);
     startSaving(async () => {
       const result = await saveUsualOrder({ lines: orderLines });
-      if (result.ok) showToast({ message: labels.savedUsual });
+      if (result.ok) {
+        setUsualNow(orderLines);
+        showToast({ message: labels.savedUsual });
+      }
       else if (result.reason === "unavailable") takeOff(result.skus);
       else setProblem(result.reason === "signin" ? labels.signedOut : labels.usualError);
     });
