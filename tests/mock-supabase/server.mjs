@@ -15,7 +15,7 @@ const COSTS = { "CUP-PET-16": 40, "LID-DOME-98H": 30, "HBG-96N": 33.33, "POR-020
 const price = (cost) => Math.round((cost / (1 - PRICING.margin)) * 100) / 100;
 const orders = []; const usual = {}; let next = 1001;
 const tokens = new Map(); // access token -> email
-const user = (email) => ({ id: USERS[email].id, aud: "authenticated", role: "authenticated", email, email_confirmed_at: "2026-11-01T00:00:00Z", app_metadata: { provider: "email" }, user_metadata: {}, created_at: "2026-11-01T00:00:00Z" });
+const user = (email) => ({ id: USERS[email].id, aud: "authenticated", role: "authenticated", email, email_confirmed_at: "2026-11-01T00:00:00Z", app_metadata: { provider: "email" }, user_metadata: USERS[email].meta ?? {}, created_at: "2026-11-01T00:00:00Z" });
 function session(email) {
   const exp = Math.floor(Date.now() / 1000) + 3600;
   const access = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: USERS[email].id, email, exp, aud: "authenticated", role: "authenticated" })}.sig${Math.random().toString(36).slice(2)}`;
@@ -52,9 +52,26 @@ http.createServer(async (req, res) => {
     if (body.token !== "123456" || !USERS[body.email]) return send(res, 403, { code: 403, error_code: "otp_expired", msg: "Token has expired or is invalid" });
     return send(res, 200, session(body.email));
   }
+  // Password sign-in. Nobody has a password until they set one; a wrong password and an unknown email look the same.
+  if (p === "/auth/v1/token" && url.searchParams.get("grant_type") === "password") {
+    const u = USERS[body.email];
+    if (!u?.password || u.password !== body.password) return send(res, 400, { code: 400, error_code: "invalid_credentials", msg: "Invalid login credentials" });
+    return send(res, 200, session(body.email));
+  }
   if (p === "/auth/v1/token") {
     const em = String(body.refresh_token || "").replace(/^refresh-/, "");
     return USERS[em] ? send(res, 200, session(em)) : send(res, 400, { error_code: "refresh_token_not_found", msg: "Invalid Refresh Token" });
+  }
+  // Setting a password (and the has_password note). "pwned-password" stands in for one Supabase refuses.
+  if (p === "/auth/v1/user" && req.method === "PUT") {
+    if (!email) return send(res, 401, { code: 401, error_code: "bad_jwt", msg: "invalid JWT" });
+    if (body.password != null) {
+      if (body.password === "pwned-password" || String(body.password).length < 6) return send(res, 422, { code: 422, error_code: "weak_password", msg: "Password is too weak" });
+      if (USERS[email].password === body.password) return send(res, 422, { code: 422, error_code: "same_password", msg: "New password should be different from the old password." });
+      USERS[email].password = body.password;
+    }
+    if (body.data) USERS[email].meta = { ...(USERS[email].meta ?? {}), ...body.data };
+    return send(res, 200, user(email));
   }
   if (p === "/auth/v1/user") return email ? send(res, 200, user(email)) : send(res, 401, { code: 401, error_code: "bad_jwt", msg: "invalid JWT" });
   if (p === "/auth/v1/logout") { tokens.delete(bearer); return send(res, 204); }

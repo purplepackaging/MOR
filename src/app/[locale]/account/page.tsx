@@ -16,9 +16,10 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account"
 }
 
 /** Portal home: the business, its delivery day, usual order and recent orders. */
-export default async function AccountPage({ params }: PageProps<"/[locale]/account">) {
+export default async function AccountPage({ params, searchParams }: PageProps<"/[locale]/account">) {
   await connection(); // Always per request: it shows one customer's account.
   const { locale: raw } = await params;
+  const { password: passwordNote } = await searchParams;
   const locale = raw as Locale;
   const dict = getDictionary(locale);
   const p = dict.portal;
@@ -34,6 +35,13 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/accou
         {p.signOut}
       </button>
     </form>
+  );
+
+  // Passwords are set behind a fresh emailed code, on the sign-in page.
+  const passwordLink = (
+    <Link href={`${signInPath}?reset=1`}>
+      {portal.user.user_metadata?.has_password === true ? p.changePassword : p.setPassword}
+    </Link>
   );
 
   const account = portal.account;
@@ -62,6 +70,15 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/accou
     <section className={`container ${styles.page}`}>
       <header className={styles.head}>
         <h1 className="h2">{account.name}</h1>
+        {passwordNote === "saved" ? (
+          <p className={styles.notice} role="status">
+            {p.passwordSaved}
+          </p>
+        ) : passwordNote === "unsaved" ? (
+          <p className={`${styles.notice} ${styles.noticeProblem}`} role="status">
+            {p.passwordUnsaved} {passwordLink}
+          </p>
+        ) : null}
         <div className={styles.meta}>
           {account.deliveryDay ? (
             <span className={styles.day}>{fill(p.deliveryDay, { day: p.days[account.deliveryDay] })}</span>
@@ -147,6 +164,7 @@ export default async function AccountPage({ params }: PageProps<"/[locale]/accou
       <div className={`${styles.row} ${styles.footer}`}>
         {signOutForm}
         {portal.user.email ? <span className="small muted">{portal.user.email}</span> : null}
+        <span className={`small ${styles.footerLink}`}>{passwordLink}</span>
       </div>
     </section>
   );

@@ -11,14 +11,15 @@ cd tests && npm install
 | Check | Command | What it covers | Last result |
 | --- | --- | --- | --- |
 | Database | `npm run db` | Applies `supabase/migrations` to PGlite (Postgres 18 in WASM) with stand-ins for Supabase roles and `auth.uid()`. RLS, grants, 25% margin pricing, delivery and next-day fees, open sign-up (`create_my_account`), switched-off accounts, `load_costs`, `link_customer`, tiers removed over existing data, each migration runs twice cleanly | 81/81 pass (Nov 10, 2026) |
-| Portal end to end | see below | Sign-in by code, open sign-up and the business form, prices on product pages (a column at 1280 px, on the case line at 390 px, rows do not move, four languages, gone at sign-out and for switched-off accounts), prices and line totals on the list, delivery and next-day fees, totals, card fee note, the order bar on phones, the 999-case limit message, 44 px steppers, the spoken total, no layout shift on the list page, place order, usual order, reorder, order pages, Arabic, 404s, signed-out list, sign-in links that try to leave the site (`next`), axe on every portal page, at 1280 and 390 px | 166/166 pass (Nov 10, 2026) |
+| Portal end to end | see below | Sign-in by password and by code, password manager field hints, the same answer for a wrong password and an unknown email, open sign-up with a password and the business form, changing a password behind a fresh code, a refused password, the old password dying, prices on product pages (a column at 1280 px, on the case line at 390 px, rows do not move, four languages, gone at sign-out and for switched-off accounts), prices and line totals on the list, delivery and next-day fees, totals, card fee note, the order bar on phones, the 999-case limit message, 44 px steppers, the spoken total, no layout shift on the list page, place order, usual order, reorder, order pages, Arabic, 404s, signed-out list, sign-in links that try to leave the site (`next`), axe on every portal page, at 1280 and 390 px | 220/220 pass (Nov 10, 2026) |
 | Public pages | `npm run axe` | axe-core on 11 public pages at 1366 and 390 px | clean (Nov 10, 2026) |
 
 ## Portal end to end
 
 The portal needs Supabase, so these runs use `mock-supabase/server.mjs`: a small stand-in for Supabase Auth
 and the Data API (`owner@kebab.test` owns Kebab House; `paused@spot.test` belongs to a switched-off account;
-any other email signs up; every code is `123456`; 25% margin, $50 delivery, $50 next-day).
+any other email signs up; every code is `123456`; nobody has a password until a test sets one, and
+`pwned-password` is always refused; 25% margin, $50 delivery, $50 next-day).
 
 ```bash
 # terminal 1, from tests/

@@ -11,16 +11,29 @@ import { sendNewAccountEmail, sendOrderEmail } from "@/lib/notify";
 import { ACCOUNT_COOKIE, getPortal, portalReady, safeNext, setupPath, userClient } from "@/lib/portal";
 import { validateSetup, valuesFromForm, type ErrorCode, type SetupKey } from "@/lib/request-validation";
 
-/* ───────── Sign in, or sign up, with an email code ───────── */
+/* ───────── Sign in with a password, or sign in and sign up with an email code ───────── */
 
 export interface SignInState {
   step: "email" | "code";
   email: string;
-  error?: "email" | "code" | "wait" | "generic";
+  error?: "email" | "code" | "wait" | "generic" | "passwordLength";
   resent?: boolean;
 }
 
+export interface PasswordState {
+  email: string;
+  error?: "email" | "password" | "wait" | "generic";
+}
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** Supabase stores a bcrypt hash, which reads no more than 72 bytes of a password. */
+const PASSWORD_MIN = 8;
+const PASSWORD_MAX_BYTES = 72;
+
+function passwordFits(password: string): boolean {
+  return password.length >= PASSWORD_MIN && new TextEncoder().encode(password).length <= PASSWORD_MAX_BYTES;
+}
 
 function readLocale(form: FormData): Locale {
   const raw = String(form.get("locale") ?? "");
@@ -58,12 +71,71 @@ export async function sendCode(prev: SignInState, form: FormData): Promise<SignI
   return { step: "code", email, resent: prev.step === "code" };
 }
 
+/** Where a person lands once they are signed in: the business form the first time, else where they were going. */
+async function continueSignedIn(
+  supabase: Awaited<ReturnType<typeof userClient>>,
+  locale: Locale,
+  next: string | null,
+  fallback = localePath(locale, "/account"),
+): Promise<never> {
+  // First sign-in: no business yet, so set one up before anything else.
+  const { data: links, error: linkError } = await supabase.from("account_users").select("account_id").limit(1);
+  if (!linkError && !links?.length) {
+    redirect(next?.startsWith(localePath(locale, "/account/setup")) ? next : setupPath(locale, next));
+  }
+  redirect(next ?? fallback);
+}
+
+/**
+ * Signs in with an email and a password. A wrong email and a wrong password get
+ * the same answer, so the form does not tell strangers who has an account.
+ */
+export async function passwordSignIn(_prev: PasswordState, form: FormData): Promise<PasswordState> {
+  const locale = readLocale(form);
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "");
+  // Honeypot: answer as if the password were wrong.
+  if (String(form.get("website") ?? "").trim()) return { email, error: "password" };
+  if (!EMAIL.test(email) || email.length > 160) return { email, error: "email" };
+  if (!password || password.length > 200) return { email, error: "password" };
+  if (!portalReady()) return { email, error: "generic" };
+
+  const supabase = await userClient();
+  let error;
+  try {
+    ({ error } = await supabase.auth.signInWithPassword({ email, password }));
+  } catch (thrown) {
+    console.error("[portal] signInWithPassword threw:", thrown);
+    return { email, error: "generic" };
+  }
+  if (error) {
+    if (error.status === 429) return { email, error: "wait" };
+    // Down or paused: the password may be fine, so don't call it wrong.
+    if (!error.status || error.status >= 500) {
+      console.error("[portal] signInWithPassword failed:", error.status, error.code, error.message);
+      return { email, error: "generic" };
+    }
+    return { email, error: "password" };
+  }
+  return continueSignedIn(supabase, locale, safeNext(String(form.get("next") ?? "")));
+}
+
+/**
+ * Checks the emailed code and signs the person in. A password sent with it is saved
+ * at the same moment: the code has just proved the email is theirs, so this one step
+ * serves a new account, a forgotten password and a password change.
+ */
 export async function verifyCode(prev: SignInState, form: FormData): Promise<SignInState> {
   const locale = readLocale(form);
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const token = String(form.get("code") ?? "").replace(/\D/g, "");
+  const password = String(form.get("password") ?? "");
+  const mode = String(form.get("mode") ?? "");
+  // New accounts and password changes need a password; a plain code sign-in may skip it.
+  const needsPassword = mode === "create" || mode === "reset";
   if (!EMAIL.test(email)) return { step: "email", email, error: "email" };
   if (token.length < 6 || token.length > 10) return { step: "code", email, error: "code" };
+  if (password ? !passwordFits(password) : needsPassword) return { step: "code", email, error: "passwordLength" };
   if (!portalReady()) return { step: "code", email, error: "generic" };
 
   const supabase = await userClient();
@@ -83,13 +155,29 @@ export async function verifyCode(prev: SignInState, form: FormData): Promise<Sig
     }
     return { step: "code", email, error: "code" };
   }
-  const next = safeNext(String(form.get("next") ?? ""));
-  // First sign-in: no business yet, so set one up before anything else.
-  const { data: links, error: linkError } = await supabase.from("account_users").select("account_id").limit(1);
-  if (!linkError && !links?.length) {
-    redirect(next?.startsWith(localePath(locale, "/account/setup")) ? next : setupPath(locale, next));
+
+  // Signed in from here on. A password that cannot be saved must not undo that:
+  // the account page says so and offers another try.
+  let saved: "saved" | "unsaved" | null = null;
+  if (password) {
+    saved = "saved";
+    try {
+      const { error: saveError } = await supabase.auth.updateUser({ password, data: { has_password: true } });
+      // "same_password": they typed the password they already have, which is fine.
+      if (saveError && saveError.code !== "same_password") {
+        console.error("[portal] saving the password failed:", saveError.status, saveError.code, saveError.message);
+        saved = "unsaved";
+      }
+    } catch (thrown) {
+      console.error("[portal] saving the password threw:", thrown);
+      saved = "unsaved";
+    }
   }
-  redirect(next ?? localePath(locale, "/account"));
+  const next = safeNext(String(form.get("next") ?? ""));
+  const account = localePath(locale, "/account");
+  // Say what happened to the password on the account page, unless they are headed somewhere else.
+  const told = saved === "unsaved" || (saved === "saved" && mode === "reset");
+  return continueSignedIn(supabase, locale, next, told ? `${account}?password=${saved}` : account);
 }
 
 /* ───────── First sign-in: set up the business ───────── */

@@ -30,9 +30,16 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
 Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; with it off, `/account` shows the
 "sign-in opens soon" panel and `/list` stays static.
 
-- **Sign-in and sign-up:** email code (Supabase Auth OTP, `shouldCreateUser: true`). Open sign-up: a new
-  email gets a login, and the first sign-in goes to `/account/setup`, which calls `create_my_account` (one
-  business per sign-up, owner role). `/request-account` forwards there when the portal is on. Codes go out
+- **Sign-in and sign-up:** email and password (`passwordSignIn`), or a code by email (Supabase Auth OTP,
+  `shouldCreateUser: true`; `?code=1` opens on that form). Open sign-up: a new email gets a login
+  (`?new=1`), chooses a password on the code step, and the first sign-in goes to `/account/setup`, which
+  calls `create_my_account` (one business per sign-up, owner role). `/request-account` forwards there when
+  the portal is on. A password is only ever saved in `verifyCode`, right after a fresh code has proved the
+  email: that one step serves new accounts, forgotten passwords and password changes (`?reset=1`, linked from
+  the account page). 8 characters or more, 72 bytes at most. A wrong password and an unknown email get the
+  same answer. `user_metadata.has_password` only picks the wording of that link; never use it to decide
+  access. Keep `autocomplete` on the fields (`username`, `current-password`, `new-password`,
+  `one-time-code`): browsers save and fill passwords by it. Codes go out
   through Resend SMTP from `signin@mail.morsupply.com`; the "Magic link or OTP" and "Confirm sign up"
   emails both use `supabase/templates/sign-in-code.html` and must keep `{{ .Token }}`.
   Server actions in `src/app/[locale]/account/actions.ts`. `src/lib/portal.ts` builds a user-scoped client
