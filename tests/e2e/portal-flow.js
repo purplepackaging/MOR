@@ -42,6 +42,11 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
   const b = await chromium.launch();
   for (const vp of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
     const ctx = await b.newContext({ viewport: vp });
+    // Adds up layout shifts on each page load, so a check can ask how far things jumped.
+    await ctx.addInitScript(() => {
+      window.__shift = 0;
+      new PerformanceObserver((list) => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__shift += e.value; }).observe({ type: "layout-shift", buffered: true });
+    });
     const p = await ctx.newPage();
     const errors = []; p.on("pageerror", (e) => errors.push(e.message));
     const tag = vp.width;
@@ -243,6 +248,14 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await setList(p, [{ sku: "CUP-PET-16", cases: 1 }]);
     await p.goto(BASE + "/list");
     check((await p.textContent("aside")).includes("Sign in to order") && !(await p.textContent("main")).includes("$"), `${tag} signed-out list asks to sign in, no prices`);
+    // The list is read from the device after the page loads. The footer must not jump when it shows, empty or not.
+    for (const [name, lines] of [["an empty list", []], ["a list with three lines", LIST]]) {
+      await setList(p, lines);
+      await p.goto(BASE + "/list", { waitUntil: "networkidle" });
+      await p.waitForTimeout(300);
+      const shift = await p.evaluate(() => Math.round(window.__shift * 1000) / 1000);
+      check(shift < 0.01, `${tag} ${name} loads without the page jumping (layout shift ${shift})`);
+    }
     if (tag === 390) {
       await setList(p, PRICED);
       await p.goto(BASE + "/list");

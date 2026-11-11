@@ -72,14 +72,17 @@ export function isolate(value: string, locale: Locale): string {
 /**
  * "$1,234.50" with Latin digits in every language. Arabic uses the English layout:
  * its own ("1,234.50 US$") puts the dollar sign on the wrong side of "US" once it
- * sits in right-to-left text.
+ * sits in right-to-left text. It is also kept together as one left-to-right unit
+ * (invisible LRI…PDI marks); without them the "$" moves to the other side of the
+ * digits whenever Arabic words come before it in the sentence.
  */
 export function formatMoney(locale: Locale, amount: number): string {
-  return new Intl.NumberFormat(htmlLang[locale === "ar" ? "en" : locale], {
+  const money = new Intl.NumberFormat(htmlLang[locale === "ar" ? "en" : locale], {
     style: "currency",
     currency: "USD",
     numberingSystem: "latn",
   }).format(amount);
+  return locale === "ar" ? `\u2066${money}\u2069` : money;
 }
 
 /** "Nov 10, 2026" in the reader's language, on Atlanta time. */

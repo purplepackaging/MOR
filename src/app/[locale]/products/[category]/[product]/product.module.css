@@ -230,6 +230,10 @@
     margin-inline-start: auto;
     white-space: nowrap;
   }
+  /* Smaller, so "To be confirmed" still fits beside the case on a 360px phone. */
+  .table .priceInline .noPrice {
+    font-size: var(--fs-micro);
+  }
   .table .addCell {
     grid-column: 2;
     grid-row: 1 / span 6;
