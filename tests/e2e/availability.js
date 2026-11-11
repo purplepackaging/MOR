@@ -143,6 +143,24 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
   await outage(false);
   await wait(2500);
 
+  // The language menu and the current-page mark. English is served at the root, but a page built ahead
+  // of time knows itself as /en/...: that must not end up inside a link to another language.
+  const header = (text) => text.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";
+  for (const [where, bare] of [["/", ""], ["/products", "/products"], ["/products/cups-lids", "/products/cups-lids"], ["/products/cups-lids/clear-cold-cups", "/products/cups-lids/clear-cold-cups"], ["/es/products", "/products"], ["/ar/products/cups-lids/clear-cold-cups", "/products/cups-lids/clear-cold-cups"], ["/list", "/list"]]) {
+    const links = [...header(await html(where)).matchAll(/<a href="([^"]+)" hrefLang="[^"]+" lang="([a-z]{2})/g)].map((m) => `${m[2]} ${m[1]}`);
+    const wanted = ["en", "es", "tr", "ar"].map((l) => `${l} /${l}${bare}`);
+    const wrong = [...new Set(links)].filter((l) => !wanted.includes(l));
+    check(links.length === 8 && wrong.length === 0, `${where}: the language menu links to this same page in each language${wrong.length ? " -> " + wrong.join(", ") : ` (${links.length} links)`}`);
+  }
+  {
+    const codes = [];
+    for (const l of ["/es/products/cups-lids/clear-cold-cups", "/tr/products", "/ar"]) codes.push(await status(l));
+    const en = await fetch(BASE + "/en/products", { redirect: "manual" });
+    check(codes.join() === "200,200,200" && en.status === 307 && new URL(en.headers.get("location"), BASE).pathname === "/products", `those links open: ${codes.join()}, and /en/products goes to /products (${en.status})`);
+    const navCurrent = (text) => /<a class="[^"]*navLink[^"]*" aria-current="page" href="[^"]*\/products"/.test(header(text));
+    check(navCurrent(await html("/products")) && navCurrent(await html("/products/cups-lids/clear-cold-cups")) && navCurrent(await html("/es/products")) && !navCurrent(await html("/")), "the menu marks Products as the current page in English too, and not on the home page");
+  }
+
   // ───── In the browser ─────
   const b = await chromium.launch();
   for (const vp of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
@@ -172,6 +190,22 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     // The search also reads the category name, so both products for sale in "Napkins & paper" match. The five hidden ones do not.
     check(found.join() === "dinner-napkins,guest-checks", `${tag} search finds only products for sale (${found.join()})`);
     await axe(p, `${tag} products page with items hidden`);
+    // Choosing another language from an English page lands on the same page in that language, and back.
+    {
+      await p.goto(BASE + "/products/cups-lids", { waitUntil: "networkidle" });
+      const pick = async (lang) => {
+        if (tag === 390) await p.click("header button[aria-controls][aria-label='Menu'], header button[aria-label='Menú'], header button[aria-label='Menü']").catch(() => {});
+        else await p.click("header button[aria-label^='Language'], header button[aria-label^='Idioma'], header button[aria-label^='Dil']");
+        const link = p.locator(`header a[lang="${lang}"]:visible`).first();
+        await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/en")), link.click()]);
+        await p.waitForLoadState("networkidle");
+      };
+      await pick("es-US");
+      const es = { url: new URL(p.url()).pathname, lang: await p.evaluate(() => document.documentElement.lang), h1: await p.textContent("h1") };
+      await pick("en-US");
+      const en = { url: new URL(p.url()).pathname, lang: await p.evaluate(() => document.documentElement.lang) };
+      check(es.url === "/es/products/cups-lids" && es.lang.startsWith("es") && en.url === "/products/cups-lids" && en.lang.startsWith("en"), `${tag} choosing Español on an English page opens the same page in Spanish, and English brings it back (${es.url} "${(es.h1 ?? "").trim()}", then ${en.url})`);
+    }
     if (tag === 1280) await p.screenshot({ path: path.join(SHOTS, "hide-products-1280.png"), fullPage: true });
     else await p.screenshot({ path: path.join(SHOTS, "hide-products-390.png"), fullPage: true });
 
