@@ -115,6 +115,16 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
   for (const lang of ["es", "tr", "ar"]) packs[lang] = cells(await html(`/${lang}/products/foil-wrap/food-film`));
   check(packs.es.includes("1 rollo") && packs.es.includes("2 rollos") && packs.tr.includes("1 rulo") && packs.tr.includes("2 rulo") && packs.ar.includes("لفة واحدة") && packs.ar.includes("لفتان"), `unit words follow the count in every language (es: ${packs.es.filter((c) => /roll/.test(c)).join(", ")}; tr: ${packs.tr.filter((c) => /rulo/.test(c)).join(", ")}; ar: ${packs.ar.filter((c) => /لف/.test(c)).join("، ")})`);
   await setCosts({ "FSH-9-500B": null, "FLM-12": null, "FLM-M18-4": null });
+
+  // ───── The site describes what the supplier ships: green guest checks, 300 ft and 750 ft roll towels ─────
+  await setCosts({ "TWL-RT-W": 20, "TWL-HW-B": 20 });
+  ok = await until("towels show", async () => (await status("/products/napkins-paper/paper-towels")) === 200);
+  const towels = cells(await html("/products/napkins-paper/paper-towels"));
+  check(ok && towels.includes("300 ft") && towels.includes("750 ft") && !towels.includes("350 ft") && !towels.includes("800 ft"), `roll towels are 300 ft and 750 ft (${towels.filter((c) => / ft$/.test(c)).join("; ")})`);
+  const checks = cells(await html("/products/napkins-paper/guest-checks"));
+  check(checks.includes("Green") && !checks.includes("Blue"), `guest checks are green, not blue (${checks.filter((c) => /Green|Blue/.test(c)).join("; ")})`);
+  await setCosts({ "TWL-RT-W": null, "TWL-HW-B": null });
+  await until("towels hidden again", async () => (await status("/products/napkins-paper/paper-towels")) === 404);
   await until("fixed items hidden again", async () => (await status("/products/foil-wrap/food-film")) === 404 && (await status("/products/foil-wrap/foil-sheets")) === 404 && !productLinks(await html("/products")).includes("food-film"));
 
   // ───── Supabase out of reach: pages keep their last good version ─────

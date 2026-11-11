@@ -84,6 +84,7 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   off, or an account has no `delivery_day`, the page says "You asked for a weekly order" and promises no
   date. The team gets an email when someone asks or stops. Part 2 (not built): placing the orders at the
   cutoff, the reminder the day before, and emails to customers. Do not turn the switch on before part 2.
+  Customer emails will take replies at `orders@morsupply.com` (Matt, Nov 11); delivery days are not set yet.
   `supabase/migrations/20261111194417_weekly_order.sql`.
 - **Toasts** belong to the page they were shown on and go when the visitor moves on. Pass `travels: true`
   for one shown just before a move and meant for the next page (`ToListButton`).
