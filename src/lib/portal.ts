@@ -243,18 +243,77 @@ export async function getOrder(accountId: string, number: number): Promise<Order
 export interface UsualOrder {
   lines: { sku: string; cases: number }[];
   updatedAt: string;
+  /** The customer asked for this order every week. */
+  weekly: boolean;
+  /** One delivery date ("2026-11-19") they want left out. */
+  skipDate: string | null;
 }
 
 export async function getUsualOrder(accountId: string): Promise<UsualOrder | null> {
   const supabase = await userClient();
   const { data, error } = await supabase
     .from("usual_orders")
-    .select("lines, updated_at")
+    .select("lines, updated_at, weekly, skip_date")
     .eq("account_id", accountId)
     .maybeSingle();
   if (error || !data) return null;
   const lines = Array.isArray(data.lines) ? (data.lines as { sku: string; cases: number }[]) : [];
-  return lines.length ? { lines, updatedAt: data.updated_at as string } : null;
+  return lines.length
+    ? {
+        lines,
+        updatedAt: data.updated_at as string,
+        weekly: data.weekly === true,
+        skipDate: typeof data.skip_date === "string" ? data.skip_date : null,
+      }
+    : null;
+}
+
+/**
+ * Where a customer's weekly order stands.
+ *   off        they have not asked for one
+ *   asked      they asked; it is not running yet (no delivery day, or weekly orders are not switched on)
+ *   on         it runs: `next` is the coming delivery and when its order closes
+ */
+export type WeeklyState =
+  /** `ready`: asking would start it right away (a delivery day is set and weekly orders are switched on). */
+  | { status: "off"; ready: boolean }
+  | { status: "asked" }
+  | {
+      status: "on";
+      next: { date: string; closesAt: string };
+      /** The coming delivery is being skipped; `after` is the one that follows. */
+      skipped: boolean;
+      after: string;
+    };
+
+const plusDays = (date: string, days: number) => {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
+/** The dates come from the database (public.next_delivery), which also places the orders. */
+export async function getWeekly(account: PortalAccount, usual: UsualOrder | null): Promise<WeeklyState> {
+  const asked = usual?.weekly === true;
+  if (!usual || !account.deliveryDay) return asked ? { status: "asked" } : { status: "off", ready: false };
+  const supabase = await userClient();
+  const [live, next] = await Promise.all([
+    supabase.rpc("weekly_orders_live"),
+    supabase.rpc("next_delivery", { p_day: account.deliveryDay }),
+  ]);
+  const row = (Array.isArray(next.data) ? next.data[0] : null) as { delivery_date: string; closes_at: string } | null;
+  if (live.error || next.error) {
+    console.error("[portal] weekly order state failed:", live.error?.message ?? next.error?.message);
+  }
+  const running = !live.error && !next.error && live.data === true && row !== null;
+  if (!asked) return { status: "off", ready: running };
+  if (!running || !row) return { status: "asked" };
+  return {
+    status: "on",
+    next: { date: row.delivery_date, closesAt: row.closes_at },
+    skipped: usual.skipDate === row.delivery_date,
+    after: plusDays(row.delivery_date, 7),
+  };
 }
 
 /**

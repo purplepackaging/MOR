@@ -12,6 +12,7 @@ import {
   sendNewAccountEmail,
   sendOrderCanceledEmail,
   sendOrderEmail,
+  sendWeeklyChangedEmail,
 } from "@/lib/notify";
 import {
   ACCOUNT_COOKIE,
@@ -384,6 +385,53 @@ export async function cancelOrder(_prev: CancelState, form: FormData): Promise<C
   if (data !== "canceled") return { failed: true };
   await sendOrderCanceledEmail({ number, accountName: portal.account.name, canceledBy: portal.user.email ?? "" });
   redirect(`${orderPath}?canceled=1`);
+}
+
+/* ───────── The weekly order ───────── */
+
+const DAY_NAMES = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };
+
+/** The account page with a line that says what happened to the weekly order. */
+function weeklyNote(locale: Locale, note: "asked" | "off" | "skipped" | "unskipped" | "failed"): never {
+  redirect(`${localePath(locale, "/account")}?weekly=${note}`);
+}
+
+/** Asks for the usual order every week, or turns that off. The team hears either way. */
+export async function setWeekly(form: FormData): Promise<void> {
+  const locale = readLocale(form);
+  const on = form.get("on") === "1";
+  const portal = await getPortal();
+  if (!portal) redirect(`${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(localePath(locale, "/account"))}`);
+  if (!portal.account) redirect(localePath(locale, "/account"));
+  const supabase = await userClient();
+  const { error } = await supabase.rpc("set_weekly_order", { p_account: portal.account.id, p_on: on });
+  if (error) {
+    console.error("[portal] set_weekly_order failed:", error.code, error.message);
+    weeklyNote(locale, "failed");
+  }
+  await sendWeeklyChangedEmail({
+    accountName: portal.account.name,
+    changedBy: portal.user.email ?? "",
+    on,
+    deliveryDay: portal.account.deliveryDay ? DAY_NAMES[portal.account.deliveryDay] : null,
+  });
+  weeklyNote(locale, on ? "asked" : "off");
+}
+
+/** Skips the coming delivery of the weekly order, or takes the skip back. */
+export async function skipWeekly(form: FormData): Promise<void> {
+  const locale = readLocale(form);
+  const skip = form.get("skip") === "1";
+  const portal = await getPortal();
+  if (!portal) redirect(`${localePath(locale, "/account/sign-in")}?next=${encodeURIComponent(localePath(locale, "/account"))}`);
+  if (!portal.account) redirect(localePath(locale, "/account"));
+  const supabase = await userClient();
+  const { error } = await supabase.rpc("skip_weekly_order", { p_account: portal.account.id, p_skip: skip });
+  if (error) {
+    console.error("[portal] skip_weekly_order failed:", error.code, error.message);
+    weeklyNote(locale, "failed");
+  }
+  weeklyNote(locale, skip ? "skipped" : "unskipped");
 }
 
 export async function signOut(form: FormData): Promise<void> {

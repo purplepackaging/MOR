@@ -85,6 +85,36 @@ export function formatMoney(locale: Locale, amount: number): string {
   return locale === "ar" ? `\u2066${money}\u2069` : money;
 }
 
+/**
+ * "Thursday, November 19" for a calendar date such as "2026-11-19": the day a delivery comes.
+ * The month is written out: short months end in a period in Spanish, which doubles up at the end of a sentence.
+ */
+export function formatDay(locale: Locale, date: string): string {
+  return new Intl.DateTimeFormat(htmlLang[locale], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    // A date with no time is read as midnight UTC, so it is written in UTC too.
+    timeZone: "UTC",
+    numberingSystem: "latn",
+  }).format(new Date(`${date}T00:00:00Z`));
+}
+
+/** "Tuesday, November 17 at 5:00 PM" on Atlanta time: the moment an order closes. */
+export function formatDayTime(locale: Locale, iso: string): string {
+  return new Intl.DateTimeFormat(htmlLang[locale], {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    // Spanish writes "5:00 p.m.", whose last period doubles up at the end of a sentence: use "17:00".
+    hourCycle: locale === "es" ? "h23" : undefined,
+    timeZone: "America/New_York",
+    numberingSystem: "latn",
+  }).format(new Date(iso));
+}
+
 /** "Nov 10, 2026" in the reader's language, on Atlanta time. */
 export function formatDate(locale: Locale, iso: string): string {
   return new Intl.DateTimeFormat(htmlLang[locale], {

@@ -77,12 +77,21 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   its page while it is still "received" (`cancel_my_order`, two taps; the database decides, and answers
   `too_late` once the team has confirmed it). The team gets an email for each: what changed, old value then
   new, and which order was canceled. `supabase/migrations/20261111191720_self_service.sql`.
+- **Weekly order (part 1, asking):** under the usual order on the account page a customer asks for it every
+  week (`set_weekly_order`), skips the coming delivery (`skip_weekly_order`) or turns it off. The calendar is
+  `public.next_delivery(day)`: an order closes at 5 pm Eastern, two days before the delivery date. Nothing is
+  placed automatically yet. `pricing.weekly_orders_on` (false) is the switch for the whole site; while it is
+  off, or an account has no `delivery_day`, the page says "You asked for a weekly order" and promises no
+  date. The team gets an email when someone asks or stops. Part 2 (not built): placing the orders at the
+  cutoff, the reminder the day before, and emails to customers. Do not turn the switch on before part 2.
+  `supabase/migrations/20261111194417_weekly_order.sql`.
 - **Toasts** belong to the page they were shown on and go when the visitor moves on. Pass `travels: true`
   for one shown just before a move and meant for the next page (`ToListButton`).
 - **Data:** `supabase/migrations/20261110000000_portal.sql`, `20261110190000_open_signup_pricing.sql` and
   `20261111150518_priced_skus.sql`.
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
-  `save_usual_order`, `create_my_account`, `update_my_account` and `cancel_my_order`. Prices: cost per case / (1 - margin), rounded to cents, one
+  `save_usual_order`, `create_my_account`, `update_my_account`, `cancel_my_order`, `set_weekly_order` and
+  `skip_weekly_order`. Prices: cost per case / (1 - margin), rounded to cents, one
   margin for everyone (25%). Each order copies a delivery fee and, if `next_day`, a next-day fee. The margin
   and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
   margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
-import { fill, formatDate, formatMoney, localePath, plural, type Locale } from "@/lib/i18n";
+import { fill, formatDate, formatDay, formatDayTime, formatMoney, localePath, plural, type Locale } from "@/lib/i18n";
 import {
   getAccountDetails,
   getFees,
@@ -12,13 +12,14 @@ import {
   getPortal,
   getPrices,
   getUsualOrder,
+  getWeekly,
   isOwner,
   portalReady,
   setupPath,
 } from "@/lib/portal";
 import { formatUsPhone } from "@/lib/request-validation";
 import { getShelfOrAll } from "@/lib/shelf";
-import { signOut, switchAccount } from "./actions";
+import { setWeekly, signOut, skipWeekly, switchAccount } from "./actions";
 import { OrdersTable, describe } from "./parts";
 import styles from "./account.module.css";
 
@@ -34,7 +35,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account"
 export default async function AccountPage({ params, searchParams }: PageProps<"/[locale]/account">) {
   await connection(); // Always per request: it shows one customer's account.
   const { locale: raw } = await params;
-  const { password: passwordNote, details: detailsNote } = await searchParams;
+  const { password: passwordNote, details: detailsNote, weekly: weeklyNote } = await searchParams;
   const locale = raw as Locale;
   const dict = getDictionary(locale);
   const p = dict.portal;
@@ -83,6 +84,23 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
     getAccountDetails(account.id),
     isOwner(account.id, portal.user.id),
   ]);
+  const weekly = await getWeekly(account, usual);
+  const nextDay = weekly.status === "on" ? formatDay(locale, weekly.next.date) : "";
+  // With a delivery day on file, the only thing left to wait for is the first order.
+  const weeklyAsked = account.deliveryDay ? p.weeklyAskedDay : p.weeklyAsked;
+  // What a change to the weekly order came to, said once at the top of the page.
+  const weeklySaid =
+    weeklyNote === "failed"
+      ? p.weeklyFailed
+      : weeklyNote === "off" && weekly.status === "off"
+        ? p.weeklyOff
+        : weeklyNote === "asked" && weekly.status === "asked"
+          ? weeklyAsked
+          : weeklyNote === "skipped" && weekly.status === "on" && weekly.skipped
+            ? fill(p.weeklySkipped, { date: nextDay, after: formatDay(locale, weekly.after) })
+            : (weeklyNote === "asked" || weeklyNote === "unskipped") && weekly.status === "on" && !weekly.skipped
+              ? p.weeklyOn
+              : null;
   const listHref = localePath(locale, "/list");
   // Only what is for sale goes on the list. The rest stays in the usual order, marked.
   const usualForSale = usual?.lines.filter((l) => shelf.has(l.sku)) ?? [];
@@ -111,6 +129,10 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
         ) : detailsNote === "saved" ? (
           <p className={styles.notice} role="status">
             {p.detailsSaved}
+          </p>
+        ) : weeklySaid ? (
+          <p className={`${styles.notice} ${weeklyNote === "failed" ? styles.noticeProblem : ""}`} role="status">
+            {weeklySaid}
           </p>
         ) : null}
         {account.deliveryDay || !prices ? (
@@ -189,6 +211,59 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
               <p className={styles.more}>
                 {fill(p.usualSaved, { date: formatDate(locale, usual.updatedAt) })}. {p.usualChange}
               </p>
+
+              {/* The same order every week: ask for it, skip one delivery, or stop. */}
+              <div className={styles.weekly}>
+                <h3 className={styles.weeklyTitle}>{p.weeklyTitle}</h3>
+                {weekly.status === "off" ? (
+                  <>
+                    <p className={styles.more}>{p.weeklyOffer}</p>
+                    <form action={setWeekly}>
+                      <input type="hidden" name="locale" value={locale} />
+                      <input type="hidden" name="on" value="1" />
+                      <button type="submit" className="btn btn-quiet">
+                        {weekly.ready ? p.weeklyTurnOn : p.weeklyAsk}
+                      </button>
+                    </form>
+                  </>
+                ) : weekly.status === "asked" ? (
+                  <>
+                    <p className={styles.more}>{weeklyAsked}</p>
+                    <form action={setWeekly}>
+                      <input type="hidden" name="locale" value={locale} />
+                      <input type="hidden" name="on" value="0" />
+                      <button type="submit" className={styles.textButton}>
+                        {p.weeklyCancelAsk}
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <p className={styles.weeklyOn}>{p.weeklyOn}</p>
+                    <p className={styles.more}>
+                      {weekly.skipped
+                        ? fill(p.weeklySkipped, { date: nextDay, after: formatDay(locale, weekly.after) })
+                        : `${fill(p.weeklyNext, { date: nextDay, closes: formatDayTime(locale, weekly.next.closesAt) })} ${p.weeklyChangeHint}`}
+                    </p>
+                    <div className={styles.row}>
+                      <form action={skipWeekly}>
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="skip" value={weekly.skipped ? "0" : "1"} />
+                        <button type="submit" className="btn btn-quiet">
+                          {weekly.skipped ? p.weeklyUnskip : fill(p.weeklySkip, { date: nextDay })}
+                        </button>
+                      </form>
+                      <form action={setWeekly}>
+                        <input type="hidden" name="locale" value={locale} />
+                        <input type="hidden" name="on" value="0" />
+                        <button type="submit" className={styles.textButton}>
+                          {p.weeklyTurnOff}
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                )}
+              </div>
             </>
           ) : (
             <>

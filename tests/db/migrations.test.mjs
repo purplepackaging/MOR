@@ -10,6 +10,7 @@ async function expectError(sql, params, code, label) {
 }
 const run = (f) => db.exec(readFileSync(`${dir}/${f}`, "utf8"));
 const SELF_SERVICE = readdirSync(dir).find((f) => f.endsWith("_self_service.sql"));
+const WEEKLY = readdirSync(dir).find((f) => f.endsWith("_weekly_order.sql"));
 // Supabase stand-ins
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
@@ -48,6 +49,9 @@ ok("priced SKUs migration ran, twice");
 await run(SELF_SERVICE);
 await run(SELF_SERVICE);
 ok("self-service migration ran, twice");
+await run(WEEKLY);
+await run(WEEKLY);
+ok("weekly order migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
@@ -306,5 +310,64 @@ await expectError(`update public.orders set status = 'canceled' where number = $
 await db.exec(`reset role; set role anon; select set_config('request.jwt.claims', '', false);`);
 await expectError(`select public.cancel_my_order($1, $2)`, [A, N2], "42501", "anon cannot cancel orders");
 await expectError(`select public.update_my_account($1, $2, $3, $4, $5, $6, $7)`, [A, "x", "x", "+14045550188", "x", "x", "30309"], "42501", "anon cannot change details");
+await db.exec(`reset role;`);
+
+// Weekly order, part 1. First the calendar: orders close at 5 pm Eastern, two days before the delivery date.
+const nd = async (day, now) => (await db.query(`select delivery_date::text d, to_char(closes_at at time zone 'UTC', 'YYYY-MM-DD HH24:MI') c from public.next_delivery($1, $2::timestamptz)`, [day, now])).rows[0];
+r = await nd("thu", "2026-11-11 12:00:00-05");
+(r?.d === "2026-11-19" && r?.c === "2026-11-17 22:00" ? ok : bad)(`Wednesday noon, Thursday delivery: this week's order has closed, next is Nov 19 and closes Tuesday 5 pm ET (${JSON.stringify(r)})`);
+r = await nd("fri", "2026-11-11 12:00:00-05");
+(r?.d === "2026-11-13" && r?.c === "2026-11-11 22:00" ? ok : bad)(`Wednesday noon, Friday delivery: still open until 5 pm today (${JSON.stringify(r)})`);
+r = await nd("fri", "2026-11-11 17:00:00-05");
+(r?.d === "2026-11-20" ? ok : bad)(`at 5 pm sharp the order has closed (${JSON.stringify(r)})`);
+r = await nd("tue", "2027-03-13 12:00:00-05");
+(r?.d === "2027-03-16" && r?.c === "2027-03-14 21:00" ? ok : bad)(`5 pm follows the clock change in March (${JSON.stringify(r)})`);
+r = await nd("mon", "2026-11-14 18:00:00-05");
+(r?.d === "2026-11-23" ? ok : bad)(`Saturday evening, Monday delivery: this Monday's order closed at 5 pm (${JSON.stringify(r)})`);
+r = await db.query(`select ((select count(*) from public.next_delivery('sun')) + (select count(*) from public.next_delivery(null)))::int n`);
+(r.rows[0].n === 0 ? ok : bad)("no delivery date without a delivery day");
+r = await db.query(`select prosecdef from pg_proc where proname = 'next_delivery'`);
+(r.rows[0].prosecdef === false ? ok : bad)("next_delivery runs with the caller's rights");
+
+// Asking for it, skipping, turning it off.
+await as(U1);
+r = await db.query(`select public.weekly_orders_live() live`);
+(r.rows[0].live === false ? ok : bad)("weekly orders start switched off for the whole site");
+await db.exec(`reset role; delete from public.usual_orders where account_id = '${A}';`);
+await as(U1);
+await expectError(`select public.set_weekly_order($1, true)`, [A], "22023", "a weekly order needs a saved usual order");
+await db.query(`select public.save_usual_order($1, $2::jsonb)`, [A, JSON.stringify([{ sku: "CUP-PET-16", cases: 4 }])]);
+await db.query(`select public.set_weekly_order($1, true)`, [A]);
+r = await db.query(`select weekly, weekly_since is not null since, skip_date from public.usual_orders where account_id = $1`, [A]);
+(r.rows[0].weekly === true && r.rows[0].since && r.rows[0].skip_date === null ? ok : bad)(`a member turns the weekly order on (${JSON.stringify(r.rows[0])})`);
+r = await db.query(`select public.skip_weekly_order($1, true)::text d, (select delivery_date::text from public.next_delivery('thu')) want`, [A]);
+const skipped = await db.query(`select skip_date::text d from public.usual_orders where account_id = $1`, [A]);
+(r.rows[0].d === r.rows[0].want && skipped.rows[0].d === r.rows[0].want ? ok : bad)(`skipping marks the coming delivery date (${r.rows[0].d})`);
+await db.query(`select public.skip_weekly_order($1, false)`, [A]);
+r = await db.query(`select skip_date from public.usual_orders where account_id = $1`, [A]);
+(r.rows[0].skip_date === null ? ok : bad)("the skip can be taken back");
+await db.query(`select public.skip_weekly_order($1, true)`, [A]);
+await db.query(`select public.set_weekly_order($1, false)`, [A]);
+r = await db.query(`select weekly, weekly_since, skip_date from public.usual_orders where account_id = $1`, [A]);
+(r.rows[0].weekly === false && r.rows[0].weekly_since === null && r.rows[0].skip_date === null ? ok : bad)("turning it off forgets the skip");
+await expectError(`select public.skip_weekly_order($1, true)`, [A], "22023", "nothing to skip while the weekly order is off");
+await expectError(`update public.usual_orders set weekly = true where account_id = $1`, [A], "42501", "the weekly order changes only through the functions");
+await as(U2);
+await expectError(`select public.set_weekly_order($1, true)`, [A], "42501", "someone from another business cannot turn it on");
+await expectError(`select public.skip_weekly_order($1, true)`, [A], "42501", "or skip it");
+// Taco Spot has no delivery day: it can ask, and has nothing to skip yet.
+await db.exec(`reset role; update public.accounts set active = true where id = '${B}';`);
+await as(U2);
+await db.query(`select public.save_usual_order($1, $2::jsonb)`, [B, JSON.stringify([{ sku: "HBG-96N", cases: 1 }])]);
+await db.query(`select public.set_weekly_order($1, true)`, [B]);
+await expectError(`select public.skip_weekly_order($1, true)`, [B], "22023", "no delivery day yet means nothing to skip");
+await db.exec(`reset role; update public.pricing set weekly_orders_on = true;`);
+await as(U2);
+r = await db.query(`select public.weekly_orders_live() live`);
+(r.rows[0].live === true ? ok : bad)("customers see the switch once it is on");
+await expectError(`select weekly_orders_on from public.pricing`, [], "42501", "and still cannot read the pricing table");
+await db.exec(`reset role; update public.pricing set weekly_orders_on = false; set role anon; select set_config('request.jwt.claims', '', false);`);
+await expectError(`select public.set_weekly_order($1, true)`, [A], "42501", "anon cannot turn a weekly order on");
+await expectError(`select public.weekly_orders_live()`, [], "42501", "anon cannot ask about the switch");
 await db.exec(`reset role;`);
 console.log(process.exitCode ? "SOME TESTS FAILED" : "ALL PASSED");
