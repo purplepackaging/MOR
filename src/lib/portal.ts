@@ -5,6 +5,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { site } from "@/config/site";
 import { localePath, type Locale } from "@/lib/i18n";
+import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 /**
  * Customer portal data access. Everything runs on the server with the signed-in
@@ -22,6 +23,7 @@ export function portalReady(): boolean {
 export async function userClient() {
   const jar = await cookies();
   return createServerClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    cookieOptions: SESSION_COOKIE,
     cookies: {
       getAll: () => jar.getAll(),
       setAll: (toSet) => {

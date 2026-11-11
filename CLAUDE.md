@@ -44,7 +44,8 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   emails both use `supabase/templates/sign-in-code.html` and must keep `{{ .Token }}`.
   Server actions in `src/app/[locale]/account/actions.ts`. `src/lib/portal.ts` builds a user-scoped client
   with the publishable key, so row level security applies to every read. The proxy refreshes the session on
-  `/account/*` and `/list`.
+  `/account/*` and `/list`. The sign-in cookie is HttpOnly and Secure (`src/lib/session-cookie.ts`): only the
+  server reads it, so never add a Supabase client that runs in the browser.
 - **Data:** `supabase/migrations/20261110000000_portal.sql` and `20261110190000_open_signup_pricing.sql`.
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
   `save_usual_order` and `create_my_account`. Prices: cost per case / (1 - margin), rounded to cents, one

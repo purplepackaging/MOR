@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { LOCALE_COOKIE, defaultLocale, isLocale, type Locale } from "@/lib/i18n";
+import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
@@ -53,6 +54,7 @@ async function refreshSession(request: NextRequest): Promise<Finish> {
   const pending: { name: string; value: string; options: CookieOptions }[] = [];
   let noCache: Record<string, string> = {};
   const supabase = createServerClient(url, key, {
+    cookieOptions: SESSION_COOKIE,
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (toSet, headers) => {
