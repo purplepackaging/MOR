@@ -55,6 +55,14 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   with the publishable key, so row level security applies to every read. The proxy refreshes the session on
   `/account/*` and `/list`. The sign-in cookie is HttpOnly and Secure (`src/lib/session-cookie.ts`): only the
   server reads it, so never add a Supabase client that runs in the browser.
+- **Business form** (`/account/setup`): required fields first, the text message box, then one closed group of
+  optional details (type of business, language, rep code). `validateSetup` runs in the browser before anything
+  is sent, and `createAccount` sends back what was typed (`SetupState.values`) when it finds a problem, so the
+  form never empties. A select needs a `key` to take a new default after a form reset. The page carries
+  `data-one-job`, which folds the footer down to its closing line. A new account lands on
+  `/products?welcome=1` (`Welcome` says it is ready, once, to someone signed in).
+- **Toasts** belong to the page they were shown on and go when the visitor moves on. Pass `travels: true`
+  for one shown just before a move and meant for the next page (`ToListButton`).
 - **Data:** `supabase/migrations/20261110000000_portal.sql`, `20261110190000_open_signup_pricing.sql` and
   `20261111150518_priced_skus.sql`.
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,

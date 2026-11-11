@@ -1,4 +1,86 @@
+/* One job on this page, so less room above and below than a browsing page. */
+.page {
+  padding-block: clamp(24px, 4vw, 64px) var(--s-7);
+}
+
 /* Same column width as the request form, so lines stay readable. */
 .column {
   max-width: 40rem;
+}
+
+.wrap {
+  display: grid;
+  gap: var(--s-5);
+}
+
+.form {
+  display: grid;
+  gap: var(--s-5);
+}
+
+/* City and ZIP share a row at every width: a ZIP code is five digits. */
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 8.5rem;
+  gap: var(--s-4);
+  /* Inputs line up even when only one of the two shows a message. */
+  align-items: end;
+}
+
+.consent {
+  padding: var(--s-3) var(--s-4);
+}
+
+/* Optional details: closed until someone wants them. */
+.more {
+  border-block: 1px solid var(--line);
+}
+
+.more > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 48px;
+  font-weight: var(--w-medium);
+  list-style: none;
+  cursor: pointer;
+}
+
+.more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.more > summary svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-2);
+  transition: transform var(--t-fast) ease;
+}
+
+.more[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.moreFields {
+  display: grid;
+  gap: var(--s-5);
+  padding-block: var(--s-2) var(--s-5);
+}
+
+.submitRow {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-3);
+}
+
+.submit {
+  min-width: 12rem;
+}
+
+@media (max-width: 559px) {
+  .submitRow {
+    justify-items: stretch;
+  }
 }

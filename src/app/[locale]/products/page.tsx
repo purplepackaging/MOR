@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ProductBrowser } from "@/components/ProductBrowser";
+import { Welcome } from "@/components/Welcome";
 import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { pageMetadata } from "@/lib/metadata";
@@ -24,6 +25,8 @@ export default async function ProductsPage({ params }: PageProps<"/[locale]/prod
         <h1 className="display">{dict.products.title}</h1>
         <p className="lede">{dict.products.lede}</p>
       </header>
+      {/* With the portal on, a new account lands here straight from the business form. */}
+      {prices ? <Welcome message={dict.setup.welcome} /> : null}
       <ProductBrowser
         locale={locale}
         items={items}

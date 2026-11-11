@@ -10,7 +10,13 @@ import { isLocale, localePath, type Locale } from "@/lib/i18n";
 import { sendNewAccountEmail, sendOrderEmail } from "@/lib/notify";
 import { ACCOUNT_COOKIE, getPortal, portalReady, safeNext, setupPath, userClient } from "@/lib/portal";
 import { getShelfNow } from "@/lib/shelf";
-import { validateSetup, valuesFromForm, type ErrorCode, type SetupKey } from "@/lib/request-validation";
+import {
+  validateSetup,
+  valuesFromForm,
+  type ErrorCode,
+  type RequestValues,
+  type SetupKey,
+} from "@/lib/request-validation";
 
 /* ───────── Sign in with a password, or sign in and sign up with an email code ───────── */
 
@@ -183,9 +189,40 @@ export async function verifyCode(prev: SignInState, form: FormData): Promise<Sig
 
 /* ───────── First sign-in: set up the business ───────── */
 
+/** What the person typed, sent back with a problem so the form keeps it. */
+export interface SetupValues {
+  businessName: string;
+  businessType: string;
+  street: string;
+  city: string;
+  zip: string;
+  contactName: string;
+  phone: string;
+  language: string;
+  repCode: string;
+  smsConsent: boolean;
+}
+
 export interface SetupState {
   errors?: Partial<Record<SetupKey, ErrorCode>>;
   failed?: boolean;
+  values?: SetupValues;
+}
+
+function setupValues(v: RequestValues): SetupValues {
+  const cut = (s: string) => s.slice(0, 200);
+  return {
+    businessName: cut(v.businessName),
+    businessType: cut(v.businessType),
+    street: cut(v.street),
+    city: cut(v.city),
+    zip: cut(v.zip),
+    contactName: cut(v.contactName),
+    phone: cut(v.phone),
+    language: cut(v.language),
+    repCode: cut(v.repCode),
+    smsConsent: v.smsConsent,
+  };
 }
 
 export async function createAccount(_prev: SetupState, form: FormData): Promise<SetupState> {
@@ -196,8 +233,10 @@ export async function createAccount(_prev: SetupState, form: FormData): Promise<
   if (portal.account || portal.paused) redirect(localePath(locale, "/account"));
   if (String(form.get("website") ?? "").trim()) return { failed: true };
 
-  const { errors, clean } = validateSetup(valuesFromForm(form));
-  if (!clean) return { errors };
+  const typed = valuesFromForm(form);
+  const values = setupValues(typed);
+  const { errors, clean } = validateSetup(typed);
+  if (!clean) return { errors, values };
 
   // A rep code from the form, or else from the flyer QR code they scanned.
   const repCode = clean.repCode ?? (normalizeRepCode((await cookies()).get(REP_COOKIE)?.value) || null);
@@ -218,7 +257,7 @@ export async function createAccount(_prev: SetupState, form: FormData): Promise<
   if (error) {
     if (error.code === "23505") redirect(localePath(locale, "/account"));
     console.error("[portal] create_my_account failed:", error.code, error.message);
-    return { failed: true };
+    return { failed: true, values };
   }
 
   (await cookies()).set(ACCOUNT_COOKIE, String(data), {
@@ -229,7 +268,8 @@ export async function createAccount(_prev: SetupState, form: FormData): Promise<
     maxAge: 60 * 60 * 24 * 365,
   });
   await sendNewAccountEmail({ ...clean, repCode, email: portal.user.email ?? "" });
-  redirect(next ?? localePath(locale, "/products"));
+  // Straight to the products, with a line that says the account is ready.
+  redirect(next ?? `${localePath(locale, "/products")}?welcome=1`);
 }
 
 export async function signOut(form: FormData): Promise<void> {

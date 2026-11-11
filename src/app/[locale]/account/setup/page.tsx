@@ -8,7 +8,6 @@ import { getDictionary } from "@/i18n";
 import { localePath, type Locale } from "@/lib/i18n";
 import { getPortal, portalReady, safeNext, setupPath } from "@/lib/portal";
 import { SetupForm } from "./SetupForm";
-import styles from "../../request-account/request.module.css";
 import setup from "./setup.module.css";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/account/setup">): Promise<Metadata> {
@@ -36,7 +35,7 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/[l
   const rep = repCode ? { code: repCode, name: repDisplayName(repCode) } : null;
 
   return (
-    <div className={`container ${styles.page}`}>
+    <div className={`container ${setup.page}`} data-one-job>
       <div className={setup.column}>
         <SetupForm
           locale={locale}

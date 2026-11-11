@@ -367,6 +367,8 @@ const tr: Dict = {
     phoneHint: "Teslimatlarınızla ilgili bu numarayı arar veya mesaj atarız.",
     submit: "Siparişe başla",
     saving: "Kaydediliyor…",
+    more: "Daha fazla bilgi ekleyin (isteğe bağlı)",
+    welcome: "Hesabınız hazır. İhtiyacınız olanları ekleyin, sonra siparişinizi verin.",
     failed: "İşletmenizi kaydedemedik. Bir dakika sonra tekrar deneyin.",
   },
   footer: {
