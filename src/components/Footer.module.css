@@ -52,14 +52,14 @@
 
 .links {
   display: grid;
-  gap: 2px;
   margin: 0;
 }
 
+/* 44 px each: a full touch target, with no gap between two links to miss into. */
 .links a {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   color: var(--on-dark);
   font-size: var(--fs-small);
   text-decoration: none;
@@ -93,8 +93,8 @@
 .langs a {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 44px;
+  padding: 0 12px;
   border-radius: var(--r-pill);
   color: var(--on-dark);
   text-decoration: none;

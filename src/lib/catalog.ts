@@ -5,12 +5,13 @@ import type { CardPriceLabels } from "@/components/CardPrice";
 import type { CardData } from "@/components/ProductCard";
 import { site } from "@/config/site";
 import { categories, products } from "@/data/catalog";
+import { searchWords } from "@/data/search-words";
 import type { Category, CategoryId, IconName, Product, Text, Variant } from "@/data/types";
 import type { Dict } from "@/i18n";
 import { formatNumber, isolate, localePath, plural, type Locale } from "./i18n";
 import { normalize } from "./text";
 
-/* Guard against duplicate SKUs, broken cross-links and missing photo files while building. */
+/* Guard against duplicate SKUs, broken cross-links, search words for no product and missing photo files while building. */
 (function validate() {
   const skus = new Set<string>();
   const slugs = new Set(products.map((p) => p.slug));
@@ -30,6 +31,9 @@ import { normalize } from "./text";
     for (const s of p.goesWith ?? []) {
       if (!slugs.has(s)) throw new Error(`${p.slug} links to missing product ${s}`);
     }
+  }
+  for (const slug of Object.keys(searchWords)) {
+    if (!slugs.has(slug)) throw new Error(`Search words for missing product ${slug}`);
   }
 })();
 
@@ -254,7 +258,10 @@ export function visualOf(p: { image?: string; icon?: IconName }): Visual {
 export interface SkuInfo {
   name: string;
   summary: string;
+  /** What a case holds: a count ("1,000", "150 sets"), or "Ask your rep" when the catalog has none. */
   pack: string;
+  /** True when `pack` is a count, so the list can write "1,000 per case". */
+  counted: boolean;
   href: string;
   image?: string;
   icon?: IconName;
@@ -268,6 +275,7 @@ export function skuIndex(locale: Locale, dict: Dict, products: Product[]): Recor
         name: p.name[locale],
         summary: variantSummary(v, locale),
         pack: packLabel(v, locale, dict),
+        counted: v.packText != null || v.pack != null,
         href: productHref(locale, p),
         image: p.image,
         icon: p.icon,
@@ -277,8 +285,9 @@ export function skuIndex(locale: Locale, dict: Dict, products: Product[]): Recor
   return index;
 }
 
+/** Everything search reads for one product: its names, category, sizes, material and its search words. */
 export function searchText(p: Product): string {
-  const parts: string[] = Object.values(p.name);
+  const parts: string[] = [...Object.values(p.name), ...(searchWords[p.slug] ?? [])];
   const cat = getCategory(p.category);
   if (cat) parts.push(...Object.values(cat.name));
   for (const v of p.variants) {

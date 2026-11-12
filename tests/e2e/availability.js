@@ -258,12 +258,100 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await p.fill("#product-search", "sushi");
     await p.waitForSelector("text=No products match");
     check(true, `${tag} searching for a hidden product finds nothing`);
+    // With nothing found the page offers every category for sale, so the search is not a dead end.
+    const offered = await p.evaluate(() => [...document.querySelectorAll("main ul[aria-label='Categories'] a")].map((a) => a.getAttribute("href").split("/").pop()));
+    check(offered.join() === CATEGORIES.join(), `${tag} and the page offers every category for sale in its place (${offered.length})`);
     await p.fill("#product-search", "napkins");
-    await p.waitForFunction(() => document.querySelectorAll("main ul[role=list] a[href*='/products/']").length > 0);
+    await p.waitForSelector("main a[href*='/products/napkins-paper/']");
     const found = await p.evaluate(() => [...document.querySelectorAll("main a[href*='/products/napkins-paper/']")].map((a) => a.getAttribute("href").split("/").pop()));
     // The search also reads the category name, so both products for sale in "Napkins & paper" match. The five hidden ones do not.
     check(found.join() === "dinner-napkins,guest-checks", `${tag} search finds only products for sale (${found.join()})`);
     await axe(p, `${tag} products page with items hidden`);
+
+    // Search understands the words a kitchen uses. A product whose own name answers the search comes first.
+    {
+      const search = async (q) => {
+        await p.fill("#product-search", q);
+        await p.waitForTimeout(250);
+        return p.evaluate(() => [...new Set([...document.querySelectorAll("main ul[role=list] a")].map((a) => a.getAttribute("href")).filter((h) => /\/products\/[^/]+\/[^/?]+$/.test(h)).map((h) => h.split("/").pop()))].join());
+      };
+      const toGo = await search("to go box");
+      check(toGo === "hinged-foam-free,bagasse-hinged,kraft-takeout-boxes", `${tag} "to go box" finds the hinged containers and the takeout boxes (${toGo})`);
+      check((await search("togo")) === toGo && (await search("to-go")) === toGo && (await search("clamshell")) === "hinged-foam-free,bagasse-hinged", `${tag} so do "togo" and "to-go", and "clamshell" finds the hinged containers`);
+      check((await search("sauce cup")) === "portion-cups" && (await search("coffee cup")) === "hot-cups", `${tag} "sauce cup" finds portion cups and "coffee cup" finds hot cups`);
+      const bag = await search("bag");
+      check(bag === "kraft-bags,bagasse-hinged", `${tag} "bag" lists the bags before a product that is only made of bagasse (${bag})`);
+      check((await search("saran")) === "" && (await search("pan")) === "", `${tag} a search word for a hidden product finds nothing, and "pan" does not match inside other words`);
+      await p.fill("#product-search", "");
+    }
+
+    // The bar under the search field: every category whole on a wide screen, one button on a phone.
+    {
+      await p.goto(BASE + "/products", { waitUntil: "networkidle" });
+      await p.waitForTimeout(400);
+      const loadShift = await p.evaluate(() => Math.round(window.__shift * 1000) / 1000);
+      check(loadShift < 0.01, `${tag} the products page loads without a jump (layout shift ${loadShift})`);
+      const button = p.locator("button[aria-controls='product-categories']");
+      const panel = p.locator("#product-categories");
+      const chips = () => p.evaluate(() => [...document.querySelectorAll("#product-categories a, #product-categories button")].map((el) => {
+        const r = el.getBoundingClientRect();
+        return { text: el.textContent.trim(), whole: r.width > 0 && r.left >= 0 && r.right <= innerWidth && el.scrollWidth <= el.clientWidth + 1, h: Math.round(r.height) };
+      }));
+      const want = CATEGORIES.length + 2; // "All products", each category, "Plant-based"
+      if (tag === 390) {
+        check((await button.innerText()).trim() === "All products" && (await button.getAttribute("aria-expanded")) === "false" && !(await panel.isVisible()), `390 the bar holds one button, named for what is on show, with the list of categories closed`);
+        await button.click();
+        const open = await chips();
+        check(open.length === want && open.every((c) => c.whole && c.h >= 44) && open.at(-1).text === "Plant-based", `390 opened, it shows every category and the plant-based filter, whole and 44 px tall (${open.map((c) => c.text).join(", ")})`);
+        await axe(p, "390 products page with the list of categories open");
+        await p.keyboard.press("Escape");
+        const afterEscape = await panel.isVisible();
+        await button.click();
+        await p.mouse.click(195, 800);
+        check(!afterEscape && !(await panel.isVisible()), `390 Escape closes it, and so does a tap anywhere else`);
+        await button.click();
+        await Promise.all([p.waitForURL("**/products/napkins-paper"), panel.locator("a", { hasText: "Napkins & paper" }).click()]);
+        await p.waitForLoadState("networkidle");
+        check((await button.innerText()).trim() === "Napkins & paper" && !(await panel.isVisible()), `390 choosing a category opens its page, where the button carries its name`);
+        await p.goto(BASE + "/products", { waitUntil: "networkidle" });
+      } else {
+        const all = (await chips()).filter((c) => c.text !== "Plant-based");
+        const filter = await p.locator("main button[aria-pressed]:visible").allInnerTexts();
+        check(all.length === want - 1 && all.every((c) => c.whole) && !(await button.isVisible()), `1280 every category shows whole in the bar (${all.length}), with no button to open them`);
+        check(filter.join() === "Plant-based", `1280 the plant-based filter sits beside the search field (${filter.join()})`);
+      }
+      // The search field scrolls away; a button at the end of the bar brings it back, and the bar does not change.
+      const find = p.locator("main button[aria-label='Search products']");
+      const shown = () => find.evaluate((el) => getComputedStyle(el).visibility === "visible");
+      const barHeight = () => button.evaluate((el) => Math.round(el.parentElement.getBoundingClientRect().height));
+      const [atTop, h0] = [await shown(), await barHeight()];
+      await p.evaluate(() => window.scrollTo(0, 1200));
+      await p.waitForTimeout(400);
+      const [scrolled, h1] = [await shown(), await barHeight()];
+      check(!atTop && scrolled && h0 === h1, `${tag} a search button shows in the bar once the search field is out of sight, and the bar keeps its height (${h0} px, ${h1} px)`);
+      const stuck = await button.evaluate((el) => Math.round(el.parentElement.getBoundingClientRect().top));
+      check(stuck === (tag === 390 ? 64 : 72), `${tag} the bar stays under the header while the page scrolls (${stuck} px from the top)`);
+      await find.click();
+      await p.waitForFunction(() => window.scrollY < 5, null, { timeout: 5000 }).catch(() => {});
+      check(await p.evaluate(() => window.scrollY < 5 && document.activeElement?.id === "product-search"), `${tag} it goes back to the top with the search field ready to type in`);
+      const scrollShift = await p.evaluate(() => Math.round(window.__shift * 1000) / 1000);
+      check(scrollShift < 0.01, `${tag} nothing jumped on the way (layout shift ${scrollShift})`);
+      const small = await p.evaluate(() => [...document.querySelectorAll("main h2 + a, footer nav a, footer ul a")].filter((a) => a.getBoundingClientRect().height < 44).map((a) => a.textContent.trim()));
+      check(small.length === 0, `${tag} the count beside each category heading and every footer link are 44 px tall (${small.length} are not${small.length ? ": " + small.slice(0, 4).join(", ") : ""})`);
+    }
+
+    // The home page: products before explanations, and a search field that opens the products page.
+    {
+      await p.goto(BASE + "/", { waitUntil: "networkidle" });
+      const tops = await p.evaluate(() => Object.fromEntries(["carry-title", "staples-title", "how-title", "faq-title"].map((id) => [id, Math.round(document.getElementById(id).getBoundingClientRect().top + scrollY)])));
+      check(tops["carry-title"] < tops["staples-title"] && tops["staples-title"] < tops["how-title"] && tops["how-title"] < tops["faq-title"], `${tag} the home page shows what we carry and the basics before "How ordering works"`);
+      const seeAll = await p.evaluate(() => Math.round(document.querySelector("main a.btn[href='/products']:not(:first-child), main p > a.btn[href='/products']").getBoundingClientRect().height));
+      check(seeAll >= 44, `${tag} "See all products" is a full-size button (${seeAll} px)`);
+      await p.fill("#home-search", "napkins");
+      await Promise.all([p.waitForURL((u) => u.pathname === "/products" && u.searchParams.get("q") === "napkins"), p.press("#home-search", "Enter")]);
+      await p.waitForSelector("main a[href*='/products/napkins-paper/']");
+      check((await p.inputValue("#product-search")) === "napkins", `${tag} searching from the home page opens the products page with the search filled in`);
+    }
     // Choosing another language from an English page lands on the same page in that language, and back.
     {
       await p.goto(BASE + "/products/cups-lids", { waitUntil: "networkidle" });
@@ -299,6 +387,7 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await p.waitForTimeout(300);
     let text = await p.textContent("main");
     check(text.includes("Some items are not available right now. We took them off your list.") && text.includes("2 items") && !text.includes("Paper food trays"), `${tag} signed out: a hidden item comes off the list, with a note`);
+    check(text.includes("1,000 per case") && !text.includes("Case:"), `${tag} a list line words the case as the product page does ("1,000 per case")`);
     check((await savedSkus(p)) === "CUP-PET-16,HBG-96N", `${tag} and off the saved list (${await savedSkus(p)})`);
     const shift = await p.evaluate(() => Math.round(window.__shift * 1000) / 1000);
     check(shift < 0.01, `${tag} the note shows without the page jumping (layout shift ${shift})`);
@@ -311,6 +400,8 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await p.goto(BASE + "/list", { waitUntil: "networkidle" });
     text = await p.textContent("main");
     check(text.includes("Your list is empty") && text.includes("Some items are not available right now"), `${tag} a list of only hidden items shows as empty, with the note`);
+    const emptyCats = await p.evaluate(() => [...document.querySelectorAll("main ul[aria-label='Categories'] a")].map((a) => ({ slug: a.getAttribute("href").split("/").pop(), h: Math.round(a.getBoundingClientRect().height) })));
+    check(emptyCats.map((c) => c.slug).join() === CATEGORIES.join() && emptyCats.every((c) => c.h >= 44), `${tag} an empty list offers every category for sale, 44 px tall (${emptyCats.length})`);
     await axe(p, `${tag} empty list with the note`);
     // Arabic
     await setList(p, [{ sku: "CUP-PET-16", cases: 1 }, { sku: "KFT-1K", cases: 1 }]);

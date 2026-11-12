@@ -106,7 +106,6 @@ const es: Dict = {
     detail: "Tipo",
     color: "Color",
     fits: "Para",
-    case: "Caja",
     caseHead: "Por caja",
     perCase: "{n} por caja",
     lidSize: "Tamaño de tapa",

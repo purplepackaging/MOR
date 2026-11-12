@@ -106,7 +106,6 @@ const en = {
     detail: "Type",
     color: "Color",
     fits: "Fits",
-    case: "Case",
     caseHead: "Per case",
     perCase: "{n} per case",
     lidSize: "Lid size",

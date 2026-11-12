@@ -39,6 +39,38 @@
   outline: none;
 }
 
+/* Under "Browse products" on an empty list: every category, as on the products page. */
+.emptyCats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: var(--s-2) 0 0;
+  padding-block-start: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.emptyCat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    border-color var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+
+.emptyCat:hover {
+  border-color: var(--mor);
+  color: var(--mor);
+}
+
 /* Says that items went off sale and came off the list. Sits on the ticket or the empty panel. */
 .notice {
   padding: var(--s-3) var(--s-4);
