@@ -75,7 +75,7 @@ const tr: Dict = {
       },
       {
         q: "Teslimat ücreti ne kadar?",
-        a: "Teslimat ücretsiz, ertesi gün teslimat da ücretsiz.",
+        a: "Teslimat ücretsiz.",
       },
     ],
     ctaTitle: "Hesabınızı açın",
@@ -182,8 +182,6 @@ const tr: Dict = {
     perCase: "Kolisi {price}",
     orderingFor: "{name} için sipariş",
     delivery: "Teslimat",
-    nextDay: "Ertesi gün teslimat",
-    nextDayOption: "Ertesi gün teslimat, +{price}",
     free: "Ücretsiz",
     total: "Toplam",
     totalWithDelivery: "Teslimat dahil toplam",

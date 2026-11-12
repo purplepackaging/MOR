@@ -75,7 +75,7 @@ const es: Dict = {
       },
       {
         q: "¿Cuánto cuesta la entrega?",
-        a: "La entrega es gratis, y la entrega al día siguiente también.",
+        a: "La entrega es gratis.",
       },
     ],
     ctaTitle: "Abra su cuenta",
@@ -182,8 +182,6 @@ const es: Dict = {
     perCase: "{price} por caja",
     orderingFor: "Pedido para {name}",
     delivery: "Entrega",
-    nextDay: "Entrega al día siguiente",
-    nextDayOption: "Entrega al día siguiente, +{price}",
     free: "Gratis",
     total: "Total",
     totalWithDelivery: "Total con entrega",

@@ -86,7 +86,6 @@ export function ListView({
   const focusEmpty = useRef(false);
   const placedHeading = useRef<HTMLHeadingElement>(null);
   const [note, setNote] = useState("");
-  const [nextDay, setNextDay] = useState(false);
   const [placed, setPlaced] = useState<Placed | null>(null);
   /** After an order: whether it has been saved as the usual order, or why not. */
   const [usualSaved, setUsualSaved] = useState<"no" | "yes" | "failed">("no");
@@ -121,7 +120,7 @@ export function ListView({
   const cents = (n: number) => Math.round(n * 100);
   const subtotal = prices ? known.reduce((sum, l) => sum + cents(prices[l.sku] ?? 0) * l.cases, 0) / 100 : 0;
   const total =
-    prices && fees && unpriced === 0 ? (cents(subtotal) + cents(fees.delivery) + (nextDay ? cents(fees.nextDay) : 0)) / 100 : null;
+    prices && fees && unpriced === 0 ? (cents(subtotal) + cents(fees.delivery)) / 100 : null;
   const orderLines = known.map(({ sku, cases }) => ({ sku, cases }));
   const itemCount = plural(locale, known.length, labels.items);
   const caseCount = plural(locale, totalCases, labels.cases);
@@ -311,7 +310,7 @@ export function ListView({
   const place = () => {
     setProblem(null);
     startPlacing(async () => {
-      const result = await placeOrder({ locale, lines: orderLines, note, nextDay });
+      const result = await placeOrder({ locale, lines: orderLines, note, nextDay: false });
       if (!result.ok) {
         if (result.reason === "unavailable") takeOff(result.skus);
         else setProblem(failure(result.reason));
@@ -321,7 +320,6 @@ export function ListView({
       dismissToast();
       listStore.clear();
       setNote("");
-      setNextDay(false);
       setUsualSaved("no");
       setPlaced({
         number: result.number,
@@ -474,12 +472,6 @@ export function ListView({
                     <dd>{fees.delivery === 0 ? labels.free : <bdi>{formatMoney(locale, fees.delivery)}</bdi>}</dd>
                   </div>
                 ) : null}
-                {fees && nextDay ? (
-                  <div>
-                    <dt>{labels.nextDay}</dt>
-                    <dd>{fees.nextDay === 0 ? labels.free : <bdi>{formatMoney(locale, fees.nextDay)}</bdi>}</dd>
-                  </div>
-                ) : null}
                 {fees ? (
                   <div className={styles.costsTotal}>
                     <dt>{labels.total}</dt>
@@ -487,12 +479,6 @@ export function ListView({
                   </div>
                 ) : null}
               </dl>
-            ) : null}
-            {fees ? (
-              <label className={styles.nextDayOption}>
-                <input type="checkbox" checked={nextDay} onChange={(e) => setNextDay(e.target.checked)} />
-                <span>{fees.nextDay === 0 ? labels.nextDay : fill(labels.nextDayOption, { price: formatMoney(locale, fees.nextDay) })}</span>
-              </label>
             ) : null}
             {!prices || unpriced ? <p className="small muted">{prices ? labels.needsPrice : labels.pricesSoon}</p> : null}
             <p className="small muted">{fill(labels.cardFee, { pct: portal.cardFeePercent })}</p>

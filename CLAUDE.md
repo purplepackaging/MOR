@@ -147,9 +147,10 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   `save_usual_order`, `create_my_account`, `update_my_account`, `cancel_my_order`, `set_weekly_order` and
   `skip_weekly_order`. Prices: cost per case / (1 - margin), rounded to cents, one
   margin for everyone (30% since Nov 12, 2026; 25% before). Each order copies a delivery fee and, if `next_day`, a next-day fee: both $0
-  since Nov 12, 2026 (they were $50). The list and an order's page show a $0 fee as "Free", and the next-day box
-  names no price; the FAQ says delivery is free in words, so a fee coming back means changing that answer in
-  four languages. The margin
+  since Nov 12, 2026 (they were $50). The list and an order's page show a $0 fee as "Free". The list offers no
+  next-day delivery since Nov 12 (Matt): every order goes in as standard, and `place_order` keeps `p_next_day`
+  for the orders placed before. The FAQ says delivery is free in words, so a fee coming back means changing
+  that answer in four languages. The margin
   and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
   margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
   (`accounts.active = false`) see no prices and cannot order.

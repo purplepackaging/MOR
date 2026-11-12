@@ -75,7 +75,7 @@ const en = {
       },
       {
         q: "What does delivery cost?",
-        a: "Delivery is free, and so is next-day delivery.",
+        a: "Delivery is free.",
       },
     ],
     ctaTitle: "Set up your account",
@@ -182,8 +182,6 @@ const en = {
     perCase: "{price} a case",
     orderingFor: "Ordering for {name}",
     delivery: "Delivery",
-    nextDay: "Next-day delivery",
-    nextDayOption: "Next-day delivery, +{price}",
     free: "Free",
     total: "Total",
     totalWithDelivery: "Total with delivery",

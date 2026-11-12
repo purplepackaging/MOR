@@ -89,7 +89,7 @@ const ar: Dict = {
       },
       {
         q: "كم تكلفة التوصيل؟",
-        a: "التوصيل مجاني، والتوصيل في اليوم التالي مجاني أيضًا.",
+        a: "التوصيل مجاني.",
       },
     ],
     ctaTitle: "افتح حسابك",
@@ -231,8 +231,6 @@ const ar: Dict = {
     perCase: "{price} للكرتونة",
     orderingFor: "الطلب لـ {name}",
     delivery: "التوصيل",
-    nextDay: "التوصيل في اليوم التالي",
-    nextDayOption: "التوصيل في اليوم التالي، +{price}",
     free: "مجاني",
     total: "المجموع",
     totalWithDelivery: "المجموع مع التوصيل",

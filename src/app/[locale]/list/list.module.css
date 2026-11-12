@@ -362,24 +362,6 @@
   color: var(--ink);
 }
 
-.nextDayOption {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  min-height: 44px;
-  font-size: var(--fs-small);
-  cursor: pointer;
-}
-
-.nextDayOption input {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  accent-color: var(--mor);
-  cursor: pointer;
-}
-
 .noteInput {
   min-height: 84px !important;
 }

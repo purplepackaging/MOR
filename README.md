@@ -60,8 +60,8 @@ Prices and fees are set in the database, never in the browser:
 
 - Price per case = cost per case / (1 - margin), rounded to cents. The margin is 30% (since Nov 12, 2026;
   25% before), so a $10.00 case sells for $14.29. Everyone gets the same margin.
-- Delivery is free, next-day delivery too, since Nov 12, 2026 (both fees were $50). Orders still copy both
-  fees, at $0, so a fee can come back by changing the pricing row.
+- Delivery is free since Nov 12, 2026, and the list no longer offers next-day delivery (both fees were $50).
+  Orders still copy both fees, at $0, so a fee can come back by changing the pricing row.
 - The margin and both fees are the one row in `public.pricing`. Orders copy prices and fees when they are
   placed. The FAQ says delivery is free in words: if a fee comes back, change that answer in the four
   dictionaries too.
@@ -105,4 +105,4 @@ Day to day, in the Supabase dashboard:
 - Load costs: `public.load_costs` with columns copied from the cost sheet. Items without a cost stay off
   the site until they have one.
 - Move orders along: `orders.status` is received, confirmed, out_for_delivery, delivered or canceled.
-  `orders.next_day` marks next-day requests.
+  `orders.next_day` marks next-day requests, from orders placed before Nov 12, 2026 (the list no longer offers it).
