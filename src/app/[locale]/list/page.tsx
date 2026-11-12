@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
-import { skuIndex } from "@/lib/catalog";
+import { categoryHref, skuIndex } from "@/lib/catalog";
 import { fill, formatNumber, localePath, type Locale } from "@/lib/i18n";
 import { MAX_CASES } from "@/lib/limits";
 import { pageMetadata } from "@/lib/metadata";
@@ -77,7 +77,7 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
           locale={locale}
           index={skuIndex(locale, dict, shelf.products)}
           labels={dict.list}
-          caseLabel={d.case}
+          perCase={d.perCase}
           stepper={{
             add: d.add,
             addTo: d.addTo,
@@ -89,6 +89,10 @@ export default async function ListPage({ params }: PageProps<"/[locale]/list">) 
             max: fill(d.maxCases, { n: formatNumber(locale, MAX_CASES) }),
           }}
           browseHref={localePath(locale, "/products")}
+          categories={{
+            label: dict.products.categoriesLabel,
+            links: shelf.categories.map((c) => ({ name: c.name[locale], href: categoryHref(locale, c.id) })),
+          }}
           requestHref={localePath(locale, "/request-account")}
           portal={portal}
           signIn={signIn}

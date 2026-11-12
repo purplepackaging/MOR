@@ -58,9 +58,10 @@ export function ListView({
   locale,
   index,
   labels,
-  caseLabel,
+  perCase,
   stepper,
   browseHref,
+  categories,
   requestHref,
   portal,
   signIn,
@@ -68,9 +69,12 @@ export function ListView({
   locale: Locale;
   index: Record<string, SkuInfo>;
   labels: Dict["list"];
-  caseLabel: string;
+  /** "{n} per case", the product page's wording for what a case holds. */
+  perCase: string;
   stepper: StepperLabels;
   browseHref: string;
+  /** Every category for sale, offered when the list is empty. */
+  categories: { label: string; links: { name: string; href: string }[] };
   requestHref: string;
   portal?: ListPortal;
   signIn?: ListSignIn;
@@ -108,6 +112,7 @@ export function ListView({
   const droppedNote = useRef<HTMLParagraphElement>(null);
   const focusDropped = useRef(false);
 
+  const [packBefore, packAfter] = perCase.split("{n}");
   const totalCases = known.reduce((sum, l) => sum + l.cases, 0);
   const prices = portal?.prices ?? null;
   const fees = portal?.fees ?? null;
@@ -276,6 +281,18 @@ export function ListView({
         <Link className="btn" href={browseHref}>
           {labels.browse}
         </Link>
+        {/* An empty list is a place to start from: every category is one tap away. */}
+        {categories.links.length ? (
+          <ul role="list" className={styles.emptyCats} aria-label={categories.label}>
+            {categories.links.map((c) => (
+              <li key={c.href}>
+                <IntentLink href={c.href} className={styles.emptyCat}>
+                  {c.name}
+                </IntentLink>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     );
   }
@@ -389,7 +406,9 @@ export function ListView({
                   </IntentLink>
                   {info.summary ? <p className={styles.summary}>{info.summary}</p> : null}
                   <p className={styles.pack}>
-                    {caseLabel}: <span className="num">{info.pack}</span>
+                    {info.counted ? packBefore : null}
+                    <bdi className="num">{info.pack}</bdi>
+                    {info.counted ? packAfter : null}
                   </p>
                 </div>
                 {prices ? (

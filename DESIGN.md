@@ -44,6 +44,17 @@ line height. Numbers in tables and steppers are tabular.
   ("5 sizes: 9, 10, 12, 16, 24 oz"; a range above six sizes; the count alone when sizes are not one
   measure). A signed-in customer's price takes the last line, which is there for everyone, so nothing moves
   when it arrives. No borders, no hover lift, no shadow on the card.
+- The products page and every category page open with the search field, which scrolls away with the page.
+  Under it a bar stays below the header. Wide screens: every category as a chip in the bar, wrapped so no
+  label is cut, and the plant-based filter beside the search field. Phones: one button that names the
+  category on show; it opens the whole list, and the filter, under the bar, closed by the heavy violet
+  rule. Once the search field is out of sight, a search button at the end of the bar brings it back.
+- Search understands the words a kitchen uses. Each product can carry search words
+  (`src/data/search-words.ts`: "clamshells", "sauce cups", "tin foil") beside its names, sizes and material.
+  A search word names the same thing as the product; it is never a claim about it and never a brand name. A product whose own
+  name answers the search comes first. A search that finds nothing offers every category.
+- The home page puts finding before explaining: the hero, what we carry (with a search field that opens
+  the products page), the basics, then how ordering works, questions and the account panel.
 - The product page, top to bottom: photo, name, one line with the material and the size range, pills for
   what every size shares, then the sizes. The sizes are the page: they open with a heading ("5 sizes"),
   "Sold by the case" and the heavy violet rule, and each row is a size, what a case holds and Add. On a
@@ -53,6 +64,8 @@ line height. Numbers in tables and steppers are tabular.
 - "Goes with" names each product with a 64 px tile. Where the catalog says which of its sizes fit this
   product, those sizes follow, each with Add. It says only what the catalog says: a fit written in words
   is left out.
+- Your list words a case as the product page does ("1,000 per case"). An empty list offers every category
+  under "Browse products".
 - The list bar: on a phone's product page, once the list has an item, a slip with the ticket's torn edge
   sits at the foot of the screen with the count and "View list". It stands on a line of brand violet and
   has no shadow. It confirms an Add, so the "Added" toast is spoken there and not shown.
@@ -67,5 +80,6 @@ line height. Numbers in tables and steppers are tabular.
 - No all-caps labels, no eyebrow text above headings, no single highlighted word in headlines.
 - Buttons say what happens: "Add", "Send request", "Browse products".
 - Motion only answers an action (add to list, open menu, toast). Nothing animates on scroll.
-- Every interactive element has a 44px target and a visible focus ring.
+- Every interactive element has a 44px target and a visible focus ring. That includes chips, footer links,
+  the language links and the count beside a category heading.
 - Product pages and cards say only what the catalog data says: no invented specs, uses or claims.

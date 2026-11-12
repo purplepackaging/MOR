@@ -5,29 +5,20 @@
   gap: var(--s-5);
 }
 
-.controls {
+/* The search field leads the page and scrolls away with it. Wide screens: the plant-based filter sits beside it. */
+.top {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-3);
-  position: sticky;
-  top: var(--header-h);
-  z-index: 20;
-  margin-inline: calc(var(--gutter) * -1);
-  padding: var(--s-3) var(--gutter);
-  background: rgb(255 255 255 / 0.97);
-  border-bottom: 1px solid var(--line);
+  gap: var(--s-2);
 }
 
 .search {
   position: relative;
-  flex: 1 1 100%;
+  flex: 0 1 26rem;
 }
 
-@media (min-width: 900px) {
-  .search {
-    flex: 0 1 340px;
-  }
+.panel .narrow {
+  display: none;
 }
 
 .searchIcon {
@@ -53,12 +44,12 @@
 
 .clear {
   position: absolute;
-  inset-inline-end: 4px;
+  inset-inline-end: 2px;
   top: 50%;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: var(--r-pill);
   background: transparent;
@@ -76,31 +67,116 @@
   height: 18px;
 }
 
-.chips {
+/*
+ * The bar stays under the header while the page scrolls. Wide screens: every category in it, wrapped, so no
+ * label is cut. Phones: one button that names the category on show; it opens the whole list under the bar.
+ */
+.bar {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 20;
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: calc(var(--s-2) - var(--s-5));
+  margin-inline: calc(var(--gutter) * -1);
+  padding: var(--s-2) var(--gutter);
+  background: rgb(255 255 255 / 0.97);
+  border-bottom: 1px solid var(--line);
+}
+
+.panel {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  flex: 1 1 0;
+}
+
+/* The one chip that may shrink: a long category name ends in an ellipsis before the bar takes a second line. */
+.bar .cats {
+  flex: 0 1 auto;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
-.chips::-webkit-scrollbar {
-  display: none;
+.catsName {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Fade the trailing edge so a cut-off chip reads as "scroll for more". */
-@media (max-width: 1279px) {
-  .chips {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
-    padding-inline-end: 32px;
+.chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-2);
+  transition: transform var(--t-fast) ease;
+}
+
+.bar[data-open] .chevron {
+  transform: rotate(180deg);
+}
+
+/* On the button while the plant-based filter is on, so a closed list still says so. */
+.leaf {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ok);
+}
+
+@media (max-width: 639px) {
+  .search {
+    flex-basis: 100%;
   }
-  [dir="rtl"] .chips {
-    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
-    mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent);
+  .top .wide {
+    display: none;
+  }
+  .panel .narrow {
+    display: inline-flex;
+  }
+  .bar {
+    flex-wrap: nowrap;
+  }
+  /* The list hangs under the bar, over the page, and closes with the heavy rule that ends a list on this site. */
+  .panel {
+    position: absolute;
+    top: 100%;
+    inset-inline: 0;
+    display: none;
+    flex-direction: column;
+    align-items: start;
+    gap: var(--s-3);
+    padding: var(--s-3) var(--gutter) var(--s-4);
+    background: var(--paper);
+    border-bottom: 2px solid var(--mor);
+  }
+  .bar[data-open] .panel {
+    display: flex;
+  }
+  .find {
+    margin-inline-start: auto;
+  }
+}
+
+@media (min-width: 640px) {
+  .bar .cats {
+    display: none;
+  }
+  .panel {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .row {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .row .chip {
+    padding-inline: 14px;
   }
 }
 
@@ -109,8 +185,8 @@
   flex: none;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 var(--s-4);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
   background: var(--paper);
@@ -148,6 +224,37 @@
   color: var(--ok);
 }
 
+/*
+ * Back to the top with the search field ready to type in. It keeps its place in the bar and shows once the
+ * field has scrolled out of sight.
+ */
+.find {
+  visibility: hidden;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.find[data-away] {
+  visibility: visible;
+}
+
+.find:hover {
+  border-color: var(--mor);
+  color: var(--mor);
+}
+
+.find svg {
+  width: 18px;
+  height: 18px;
+}
+
 .count {
   color: var(--ink-2);
   font-size: var(--fs-small);
@@ -167,9 +274,21 @@
 
 .groupHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--s-4);
+}
+
+/*
+ * "8 products" opens the category's own page. Its target is 44 px tall and reaches into the empty space
+ * above and below, so the heading row is no taller for it.
+ */
+.groupHead a {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 44px;
+  margin-block: -9px;
 }
 
 /* Phones: one product to a line. Wider: three, then four cards to a row. */
@@ -178,6 +297,11 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--s-4);
   margin: 0;
+}
+
+/* A product reached with the keyboard stops below the bar, not under it (the page already allows for the header). */
+.grid a {
+  scroll-margin-block-start: 112px;
 }
 
 @media (min-width: 640px) {
@@ -198,5 +322,15 @@
   display: grid;
   justify-items: start;
   gap: var(--s-3);
-  padding: var(--s-7) 0;
+  padding: var(--s-6) 0 var(--s-7);
+}
+
+/* Under "no products match": every category, so the search is not a dead end. */
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: var(--s-4) 0 0;
+  padding-block-start: var(--s-5);
+  border-top: 1px solid var(--line);
 }

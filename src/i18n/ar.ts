@@ -141,7 +141,6 @@ const ar: Dict = {
     detail: "النوع",
     color: "اللون",
     fits: "يناسب",
-    case: "الكرتونة",
     caseHead: "في الكرتونة",
     perCase: "{n} في الكرتونة",
     lidSize: "مقاس الغطاء",

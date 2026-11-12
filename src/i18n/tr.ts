@@ -106,7 +106,6 @@ const tr: Dict = {
     detail: "Tip",
     color: "Renk",
     fits: "Uyumlu",
-    case: "Koli",
     caseHead: "Koli içi",
     perCase: "Kolide {n}",
     lidSize: "Kapak ölçüsü",

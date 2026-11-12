@@ -127,6 +127,50 @@
 
 /* ───────── Categories ───────── */
 
+/* Search from the home page: the field opens the products page with the words filled in. */
+.find {
+  position: relative;
+  flex: 1 1 18rem;
+  max-width: 26rem;
+}
+
+.findInput {
+  padding-inline: var(--s-5) 52px;
+  border-radius: var(--r-pill);
+}
+
+.findInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+.findGo {
+  position: absolute;
+  inset-inline-end: 2px;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--mor);
+  color: var(--paper);
+  transform: translateY(-50%);
+}
+
+.findGo:hover {
+  background: var(--mor-strong);
+}
+
+.findGo svg {
+  width: 18px;
+  height: 18px;
+}
+
+.carryAll {
+  margin-block-start: var(--s-6);
+}
+
 .cats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -241,6 +285,11 @@
 
 /* ───────── Staples ───────── */
 
+/* Follows the categories on the same white ground: one section's worth of space between them, not two. */
+.staplesSection {
+  padding-top: 0;
+}
+
 /* Phones: one product to a line. Wider: two, then four cards to a row. */
 .staples {
   display: grid;
@@ -264,10 +313,6 @@
 }
 
 /* ───────── FAQ ───────── */
-
-.faqSection {
-  padding-top: 0;
-}
 
 .faqGrid {
   display: grid;

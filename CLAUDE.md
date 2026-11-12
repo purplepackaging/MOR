@@ -43,6 +43,22 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
   says fit this one ("fits 12–24 oz" covers a 16 oz cup; where both sides give a rim in mm they must
   agree; a fit written in words is left out). Those sizes show with Add. Never add a fit the data does
   not state.
+- **Search:** `searchText` builds what search reads for a product: its names in four languages, its
+  category, sizes, material and its search words (`src/data/search-words.ts`, the other words kitchens use,
+  keyed by slug; the build fails on a slug that is not in the catalog). A search word names the same thing
+  as the product. It is never a claim about it and never a brand name (Matt, Nov 12). `matchesQuery` (`src/lib/text.ts`): every word typed has
+  to start a word of that text when it is in Latin letters or digits ("pan" finds "foil pans", not
+  "Spanish"); other scripts match anywhere, because Arabic joins "the" to a word. `nameRank` puts a product
+  whose own name answers the search first. The home page's search field is a plain form that opens
+  `/products?q=...`.
+- **Product browser** (`ProductBrowser`, the products page and category pages): the search field scrolls
+  away; `.bar` stays under the header. From 640 px the bar holds every category chip, wrapped, and the
+  plant-based filter sits beside the search field. Below 640 px the bar holds one button named after the
+  category on show, which opens the same chips and the filter in a panel under the bar (closes on Escape,
+  on a tap outside and on a choice). The filter button is in the page twice and CSS shows one of them.
+  The search button at the bar's end always keeps its place and shows once the field is out of sight
+  (`searchAway`), so nothing in the bar moves. No string is new: the button reuses "Categories" and
+  "Search products".
 - **Cards:** `productDetail` writes the line under a product's name ("5 sizes: 9, 10, 12, 16, 24 oz").
   `ProductCard` is a line on phones and a card from 640 px; the grids that hold it are one column below
   640 px (`ProductBrowser.module.css`, `home.module.css`).

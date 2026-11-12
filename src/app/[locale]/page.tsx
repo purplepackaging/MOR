@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { IntentLink } from "@/components/IntentLink";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductVisual } from "@/components/ProductVisual";
@@ -118,9 +118,26 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 })}
               </p>
             </div>
-            <Link className="link" href={localePath(locale, "/products")}>
-              {h.carryAll}
-            </Link>
+            {/* A plain form: it opens the products page with the search filled in, with or without scripts. */}
+            <form className={styles.find} action={localePath(locale, "/products")} method="get" role="search">
+              <label htmlFor="home-search" className="visually-hidden">
+                {dict.products.searchLabel}
+              </label>
+              <input
+                id="home-search"
+                className={`input ${styles.findInput}`}
+                type="search"
+                name="q"
+                placeholder={dict.products.searchPlaceholder}
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                maxLength={80}
+              />
+              <button type="submit" className={styles.findGo} aria-label={dict.products.searchLabel}>
+                <Search aria-hidden="true" />
+              </button>
+            </form>
           </div>
           <ul role="list" className={styles.cats} data-columns={catColumns}>
             {categories.map((c) => {
@@ -138,30 +155,16 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               );
             })}
           </ul>
-        </div>
-      </section>
-
-      <section id="how" className={`section ${styles.how}`} aria-labelledby="how-title">
-        <div className="container">
-          <h2 id="how-title" className="h2">
-            {h.howTitle}
-          </h2>
-          <ol role="list" className={styles.steps}>
-            {h.steps.map((s, i) => (
-              <li key={s.title} className={styles.step}>
-                <span className={styles.stepNum} aria-hidden="true">
-                  {formatNumber(locale, i + 1)}
-                </span>
-                <h3 className="h3">{s.title}</h3>
-                <p className="muted">{s.body}</p>
-              </li>
-            ))}
-          </ol>
+          <p className={styles.carryAll}>
+            <Link className="btn btn-quiet" href={localePath(locale, "/products")}>
+              {h.carryAll}
+            </Link>
+          </p>
         </div>
       </section>
 
       {staples.length ? (
-        <section className="section" aria-labelledby="staples-title">
+        <section className={`section ${styles.staplesSection}`} aria-labelledby="staples-title">
           <div className="container">
             <div className="section-head">
               <div>
@@ -182,7 +185,26 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </section>
       ) : null}
 
-      <section className={`section ${styles.faqSection}`} aria-labelledby="faq-title">
+      <section id="how" className={`section ${styles.how}`} aria-labelledby="how-title">
+        <div className="container">
+          <h2 id="how-title" className="h2">
+            {h.howTitle}
+          </h2>
+          <ol role="list" className={styles.steps}>
+            {h.steps.map((s, i) => (
+              <li key={s.title} className={styles.step}>
+                <span className={styles.stepNum} aria-hidden="true">
+                  {formatNumber(locale, i + 1)}
+                </span>
+                <h3 className="h3">{s.title}</h3>
+                <p className="muted">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="faq-title">
         <div className={`container ${styles.faqGrid}`}>
           <h2 id="faq-title" className="h2">
             {h.faqTitle}
