@@ -11,6 +11,7 @@ async function expectError(sql, params, code, label) {
 const run = (f) => db.exec(readFileSync(`${dir}/${f}`, "utf8"));
 const SELF_SERVICE = readdirSync(dir).find((f) => f.endsWith("_self_service.sql"));
 const WEEKLY = readdirSync(dir).find((f) => f.endsWith("_weekly_order.sql"));
+const MARGIN_30 = readdirSync(dir).find((f) => f.endsWith("_margin_30.sql"));
 // Supabase stand-ins
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
@@ -52,11 +53,18 @@ ok("self-service migration ran, twice");
 await run(WEEKLY);
 await run(WEEKLY);
 ok("weekly order migration ran, twice");
+await run(MARGIN_30);
+await run(MARGIN_30);
+ok("30% margin migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
 r = await db.query(`select margin::text m, delivery_fee::text d, next_day_fee::text n, (select count(*)::int from public.pricing) rows from public.pricing`);
-(r.rows[0].m === "0.2500" && r.rows[0].d === "50.00" && r.rows[0].n === "50.00" && r.rows[0].rows === 1 ? ok : bad)(`one pricing row: ${JSON.stringify(r.rows[0])}`);
+(r.rows[0].m === "0.3000" && r.rows[0].d === "50.00" && r.rows[0].n === "50.00" && r.rows[0].rows === 1 ? ok : bad)(`one pricing row, at a 30% margin: ${JSON.stringify(r.rows[0])}`);
+r = await db.query(`select round(10 / (1 - margin), 2)::text p from public.pricing`);
+(r.rows[0].p === "14.29" ? ok : bad)(`a $10.00 case sells for ${r.rows[0].p} at 30% (it was 13.33 at 25%)`);
+// The checks below keep the launch margin (25%), so their arithmetic stays as written.
+await db.exec(`update public.pricing set margin = 0.25`);
 await expectError(`insert into public.pricing (id) values (false)`, [], "23514", "pricing stays a single row");
 r = await db.query(`select count(*)::int n from public.accounts`);
 (r.rows[0].n === 2 ? ok : bad)("existing accounts kept");

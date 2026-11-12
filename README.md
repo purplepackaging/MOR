@@ -58,8 +58,8 @@ order and reorder from history. You confirm each order before it ships.
 
 Prices and fees are set in the database, never in the browser:
 
-- Price per case = cost per case / (1 - margin), rounded to cents. The margin is 25%, so a $10.00 case
-  sells for $13.33. Everyone gets the same margin.
+- Price per case = cost per case / (1 - margin), rounded to cents. The margin is 30% (since Nov 12, 2026;
+  25% before), so a $10.00 case sells for $14.29. Everyone gets the same margin.
 - Every order adds a $50 delivery fee. Next-day delivery adds $50 more when the customer ticks it.
 - The margin and both fees are the one row in `public.pricing`. Orders copy prices and fees when they are
   placed. The FAQ shows the fees from `src/config/site.ts`, so change both together.

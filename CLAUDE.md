@@ -142,7 +142,7 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
   `save_usual_order`, `create_my_account`, `update_my_account`, `cancel_my_order`, `set_weekly_order` and
   `skip_weekly_order`. Prices: cost per case / (1 - margin), rounded to cents, one
-  margin for everyone (25%). Each order copies a delivery fee and, if `next_day`, a next-day fee. The margin
+  margin for everyone (30% since Nov 12, 2026; 25% before). Each order copies a delivery fee and, if `next_day`, a next-day fee. The margin
   and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
   margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
   (`accounts.active = false`) see no prices and cannot order.
