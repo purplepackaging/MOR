@@ -3,7 +3,8 @@
  *
  * A word here names the same thing as the product, the way a kitchen says it ("clamshell", "sauce cup",
  * "tin foil"). It is never a claim about the product: nothing like "compostable" or "microwave safe".
- * And it is never a brand name, however common (Matt, Nov 12, 2026): "cling wrap", not the brand people say.
+ * And it is never a brand name, however common (Matt, Nov 12, 2026): "cling wrap" and "foam boxes", not the
+ * brands people say for them.
  * Write each phrase in the plural with spaces ("to go boxes"). Every word a customer types has to start
  * a word of the product's name, sizes or these phrases, so "to go box" and "to-go" both find it. A spelling
  * people run together gets its own entry ("togo").
@@ -28,7 +29,7 @@ export const searchWords: Record<string, string[]> = {
   "microwavable-round": ["to go containers", "togo containers", "take out containers", "meal prep containers", "plastic containers"],
   "deli-containers": ["soup containers", "deli cups", "pint containers", "quart containers", "plastic containers"],
   "paper-soup-cups": ["soup containers", "paper food cups"],
-  "hinged-foam-free": ["clamshells", "to go boxes", "togo boxes", "take out boxes", "carry out boxes", "carryout boxes", "foam boxes", "styrofoam boxes"],
+  "hinged-foam-free": ["clamshells", "to go boxes", "togo boxes", "take out boxes", "carry out boxes", "carryout boxes", "foam boxes"],
   "hinged-clear-lid": ["clamshells", "to go boxes", "togo boxes", "take out boxes", "carry out boxes", "carryout boxes"],
   "clear-hinged": ["clamshells", "to go boxes", "togo boxes", "salad containers", "plastic containers"],
   "bagasse-hinged": ["clamshells", "to go boxes", "togo boxes", "take out boxes", "carry out boxes", "carryout boxes", "fiber boxes"],
@@ -64,7 +65,7 @@ export const searchWords: Record<string, string[]> = {
   "bagasse-plates": ["fiber plates", "bagasse plates", "disposable plates"],
   "bagasse-square-plates": ["fiber plates", "bagasse plates", "disposable plates"],
   "bagasse-bowls": ["fiber bowls", "bagasse bowls", "disposable bowls"],
-  "mfpp-plates": ["foam plates", "styrofoam plates", "disposable plates"],
+  "mfpp-plates": ["foam plates", "disposable plates"],
   "plastic-plates": ["party plates", "disposable plates"],
   "paper-plates": ["disposable plates"],
 
