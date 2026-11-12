@@ -36,6 +36,8 @@ A first visit picks the browser language; the language menu choice is remembered
   Product photos go in `public/img/products/` as transparent WebP, two files each: `name.webp`
   (1000 px on its long side, 600 at least) and `name-480.webp` for cards and lists, for example
   `magick name.webp -resize '480x480>' -quality 80 name-480.webp`. The build fails if one is missing.
+  After replacing a photo under the same name, raise `PHOTO_VERSION` in `src/components/ProductVisual.tsx`,
+  or browsers keep showing the old one for a day.
 - **Words on the site:** `src/i18n/en.ts`, then the same key in `es.ts`, `tr.ts`, `ar.ts`.
 - **Phone, email, card surcharge, fees shown in the FAQ:** `src/config/site.ts`.
 - **Sales reps:** `src/config/reps.ts` (display names) and the `reps` table in Supabase.
