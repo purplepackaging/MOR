@@ -163,6 +163,30 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await until("pill again", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Case");
   }
 
+  // A row whose first column is empty (plain film beside meat film): a dash in the table, and on phones the
+  // next value is the row's title, never "–".
+  {
+    await setCosts({ "FLM-12": 20, "FLM-M18-4": 30 });
+    const film = "/products/foil-wrap/food-film";
+    const ok = await until("food film", async () => (await status(film)) === 200 && /FLM-M18-4|Meat film/.test(await html(film)));
+    const b2 = await chromium.launch();
+    const rows = {};
+    for (const width of [1280, 390]) {
+      const pg = await b2.newPage({ viewport: { width, height: 900 } });
+      await pg.goto(BASE + film, { waitUntil: "networkidle" });
+      rows[width] = await pg.evaluate(() => [...document.querySelectorAll("main tbody tr")].map((tr) => {
+        const first = tr.querySelector("td");
+        return [...first.querySelectorAll("bdi")].filter((b) => getComputedStyle(b).display !== "none").map((b) => b.innerText.trim()).join(" ");
+      }));
+      await pg.close();
+    }
+    await b2.close();
+    check(ok && rows[1280].join("|") === "–|Meat film", `food film at 1280 px: the Item column reads ${rows[1280].join(", ")}`);
+    check(rows[390].join("|") === "12 in × 2,000 ft|Meat film", `food film at 390 px: each row's title is a value, not a dash (${rows[390].join(", ")})`);
+    await setCosts({ "FLM-12": null, "FLM-M18-4": null });
+    await until("film hidden", async () => (await status(film)) === 404);
+  }
+
   // The language menu and the current-page mark. English is served at the root, but a page built ahead
   // of time knows itself as /en/...: that must not end up inside a link to another language.
   const header = (text) => text.match(/<header[\s\S]*?<\/header>/)?.[0] ?? "";

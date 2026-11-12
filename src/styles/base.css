@@ -314,17 +314,19 @@ textarea {
 }
 
 /* Centered absolutely so tall photos (cups) can never stretch the tile. */
-.tile > img,
+.shot > img,
 .tile > svg {
   position: absolute;
   inset: 0;
   margin: auto;
 }
 
-.tile > img {
-  width: 80%;
-  height: 80%;
-  object-fit: contain;
+/* The photo's layer covers the whole tile. Its shadow is drawn here, not on the photo: Safari cuts a shadow off at
+   the edge of the image it belongs to, so on iPhones it ended in straight lines across the tile. */
+.tile > .shot {
+  position: absolute;
+  inset: 0;
+  display: block;
   /* The product sits on the tile: a fine edge and a soft shadow under it, so white and clear items read. */
   filter: drop-shadow(0 1px 1px rgb(35 23 46 / 0.2)) drop-shadow(0 12px 12px rgb(35 23 46 / 0.13));
   /* The shadow is a share of the tile's width, so a thumbnail on the list gets a small one and the
@@ -333,9 +335,15 @@ textarea {
     drop-shadow(0 4.2cqw 4.2cqw rgb(35 23 46 / 0.13));
 }
 
+.shot > img {
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+}
+
 /* A tile that holds a photo gets a deeper floor than one that holds a drawing. The tile keeps its own
    color underneath (a card deepens it under the pointer); this lays a little brand violet over its foot. */
-.tile:has(> img) {
+.tile:has(> .shot) {
   background-image: linear-gradient(180deg, rgb(91 42 134 / 0) 0%, rgb(91 42 134 / 0.08) 100%);
   background-image: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--mor) 8%, transparent) 100%);
 }

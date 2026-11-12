@@ -37,7 +37,10 @@ line height. Numbers in tables and steppers are tabular.
 - Every photo comes in two files: `name.webp` (1000 px on its long side, 600 at least) for the product
   page and `name-480.webp` for cards and lists. The build fails if either is missing.
 - Cards are plain: a tile, a name, one line of detail. No borders, no hover lift, no shadow on the card.
-- Shadows only on things that float (the ticket, the toast, menus) and under a product photo.
+- Shadows only on things that float (the ticket, the toast, menus) and under a product photo. A photo's shadow is
+  drawn on a layer that covers the tile, never on the image (Safari clips it at the image's edge).
+- Clear and white products show as photographed on white: their insides are opaque, so the tile never shows
+  through a clear bowl.
 
 ## Rules
 

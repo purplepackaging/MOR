@@ -67,8 +67,8 @@ const NAMES = [...new Set([...fs.readFileSync(path.join(ROOT, "src/data/catalog.
     const p = await ctx.newPage();
     await p.goto(BASE + "/products", { waitUntil: "networkidle" });
     await p.evaluate(async () => { for (let y = 0; y < document.documentElement.scrollHeight; y += 500) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 80)); } });
-    await p.waitForFunction(() => [...document.querySelectorAll(".tile > img")].every((i) => i.complete), null, { timeout: 15000 }).catch(() => {});
-    const cards = await p.evaluate(() => [...document.querySelectorAll(".tile > img")].map((i) => ({ src: i.currentSrc.split("/").pop().split("?")[0], ok: i.complete && i.naturalWidth > 0, drawn: i.getBoundingClientRect().width })));
+    await p.waitForFunction(() => [...document.querySelectorAll(".tile img")].every((i) => i.complete), null, { timeout: 15000 }).catch(() => {});
+    const cards = await p.evaluate(() => [...document.querySelectorAll(".tile img")].map((i) => ({ src: i.currentSrc.split("/").pop().split("?")[0], ok: i.complete && i.naturalWidth > 0, drawn: i.getBoundingClientRect().width })));
     const notSmall = cards.filter((c) => !c.src.endsWith("-480.webp"));
     const notArrived = cards.filter((c) => !c.ok);
     check(cards.length > 5 && notArrived.length === 0, `products page on ${label}: all ${cards.length} photos arrive${notArrived.length ? " -> " + notArrived.map((c) => c.src).join(", ") : ""}`);
@@ -78,7 +78,7 @@ const NAMES = [...new Set([...fs.readFileSync(path.join(ROOT, "src/data/catalog.
     check(starved.length === 0, `products page on ${label}: the small copy is enough for a ${Math.round(cards[0].drawn)} px card`);
 
     await p.goto(BASE + product, { waitUntil: "networkidle" });
-    const main = await p.evaluate(() => { const i = document.querySelector("main .tile > img"); return i ? { src: i.currentSrc.split("/").pop().split("?")[0], ok: i.complete && i.naturalWidth > 0, eager: i.loading === "eager", priority: i.getAttribute("fetchpriority") } : null; });
+    const main = await p.evaluate(() => { const i = document.querySelector("main .tile img"); return i ? { src: i.currentSrc.split("/").pop().split("?")[0], ok: i.complete && i.naturalWidth > 0, eager: i.loading === "eager", priority: i.getAttribute("fetchpriority") } : null; });
     check(!!main && main.ok && main.eager && main.priority === "high", `product page on ${label}: the photo arrives first (not lazy, high priority)`);
     check(!!main && main.src.endsWith("-480.webp") !== bigOnProductPage, `product page on ${label}: takes the ${bigOnProductPage ? "full photo" : "small copy"} (${main?.src})`);
     await ctx.close();
@@ -99,12 +99,22 @@ const NAMES = [...new Set([...fs.readFileSync(path.join(ROOT, "src/data/catalog.
     const p = await ctx.newPage();
     await p.goto(BASE + "/products", { waitUntil: "networkidle" });
     const look = await p.evaluate(() => {
-      const photo = document.querySelector(".tile > img");
+      const tiles = [...document.querySelectorAll(".tile")].filter((t) => t.querySelector("img"));
+      const photo = tiles.map((t) => {
+        const shot = t.querySelector(".shot"), img = t.querySelector("img"), r = t.getBoundingClientRect(), s = shot?.getBoundingClientRect();
+        return {
+          floor: getComputedStyle(t).backgroundImage.includes("linear-gradient"),
+          layerShadow: !!shot && getComputedStyle(shot).filter.includes("drop-shadow"),
+          imgShadow: getComputedStyle(img).filter !== "none",
+          // The shadow's layer covers the tile, so no browser can cut the shadow off inside the tile.
+          covers: !!s && Math.abs(s.left - r.left) < 1 && Math.abs(s.top - r.top) < 1 && Math.abs(s.width - r.width) < 1 && Math.abs(s.height - r.height) < 1,
+        };
+      });
       const drawing = document.querySelector(".tile > svg");
-      const of = (el) => (el ? { floor: getComputedStyle(el.parentElement).backgroundImage, shadow: getComputedStyle(el).filter } : null);
-      return { photo: of(photo), drawing: of(drawing) };
+      return { photo, drawing: drawing ? { floor: getComputedStyle(drawing.parentElement).backgroundImage, shadow: getComputedStyle(drawing).filter } : null };
     });
-    check(!!look.photo && look.photo.floor.includes("linear-gradient") && look.photo.shadow.includes("drop-shadow"), "a photo tile has its floor and the photo its shadow");
+    const bad = look.photo.filter((x) => !x.floor || !x.layerShadow || x.imgShadow || !x.covers);
+    check(look.photo.length > 5 && bad.length === 0, `every photo tile (${look.photo.length}) has its floor, and the shadow sits on a layer that covers the whole tile, not on the photo`);
     if (look.drawing) check(look.drawing.floor === "none" && look.drawing.shadow === "none", "a tile with a drawing stays flat, with no shadow");
     await ctx.close();
   }
