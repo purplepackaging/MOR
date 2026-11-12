@@ -23,7 +23,7 @@ Never commit secrets. API keys live in Vercel project environment variables only
 | Request an account | `/request-account` | With the portal on, forwards to account creation. Off: saves a request to Supabase |
 | Sign in | `/account/sign-in` | Email code sign-in and sign-up (`?new=1`). Shows "opens soon" while the portal is off |
 | Business setup | `/account/setup` | First sign-in: business, address, phone, then ordering |
-| Your account | `/account`, `/account/orders` | Client portal: usual order, order history, reorder |
+| Your account | `/account`, `/account/orders` | Client portal: order guide, order history, reorder |
 | Legal | `/privacy`, `/terms`, `/sms-terms` | English text, translated titles |
 | Rep QR codes | `/r/CODE` | Remembers the rep for 180 days, opens account creation |
 
@@ -39,7 +39,7 @@ A first visit picks the browser language; the language menu choice is remembered
   After replacing a photo under the same name, raise `PHOTO_VERSION` in `src/components/ProductVisual.tsx`,
   or browsers keep showing the old one for a day.
 - **Words on the site:** `src/i18n/en.ts`, then the same key in `es.ts`, `tr.ts`, `ar.ts`.
-- **Phone, email, card surcharge, fees shown in the FAQ:** `src/config/site.ts`.
+- **Phone, email, card surcharge:** `src/config/site.ts`.
 - **Sales reps:** `src/config/reps.ts` (display names) and the `reps` table in Supabase.
 - **Design tokens:** `src/styles/tokens.css`. See `DESIGN.md`.
 
@@ -53,16 +53,18 @@ A first visit picks the browser language; the language menu choice is remembered
 ## Client portal
 
 Phase 1 is ordering. Anyone can create an account: they enter their email, type in the code we email them,
-and on their first sign-in fill in a short business form. Then they see prices, place orders, save a usual
-order and reorder from history. You confirm each order before it ships.
+and on their first sign-in fill in a short business form. Then they see prices, place orders, save an order
+guide and reorder from history. You confirm each order before it ships.
 
 Prices and fees are set in the database, never in the browser:
 
 - Price per case = cost per case / (1 - margin), rounded to cents. The margin is 30% (since Nov 12, 2026;
   25% before), so a $10.00 case sells for $14.29. Everyone gets the same margin.
-- Every order adds a $50 delivery fee. Next-day delivery adds $50 more when the customer ticks it.
+- Delivery is free, next-day delivery too, since Nov 12, 2026 (both fees were $50). Orders still copy both
+  fees, at $0, so a fee can come back by changing the pricing row.
 - The margin and both fees are the one row in `public.pricing`. Orders copy prices and fees when they are
-  placed. The FAQ shows the fees from `src/config/site.ts`, so change both together.
+  placed. The FAQ says delivery is free in words: if a fee comes back, change that answer in the four
+  dictionaries too.
 - Credit cards add a 3% surcharge (`cardSurchargePercent` in `src/config/site.ts`), charged by the card
   processor at payment, never on debit cards or bank payments. Card rules cap it at what card acceptance
   actually costs you, and the processor needs 30 days' notice before you start.

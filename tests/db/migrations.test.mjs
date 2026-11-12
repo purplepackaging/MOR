@@ -12,6 +12,7 @@ const run = (f) => db.exec(readFileSync(`${dir}/${f}`, "utf8"));
 const SELF_SERVICE = readdirSync(dir).find((f) => f.endsWith("_self_service.sql"));
 const WEEKLY = readdirSync(dir).find((f) => f.endsWith("_weekly_order.sql"));
 const MARGIN_30 = readdirSync(dir).find((f) => f.endsWith("_margin_30.sql"));
+const NO_FEES = readdirSync(dir).find((f) => f.endsWith("_no_delivery_fees.sql"));
 // Supabase stand-ins
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
@@ -56,15 +57,18 @@ ok("weekly order migration ran, twice");
 await run(MARGIN_30);
 await run(MARGIN_30);
 ok("30% margin migration ran, twice");
+await run(NO_FEES);
+await run(NO_FEES);
+ok("no-fees migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
 r = await db.query(`select margin::text m, delivery_fee::text d, next_day_fee::text n, (select count(*)::int from public.pricing) rows from public.pricing`);
-(r.rows[0].m === "0.3000" && r.rows[0].d === "50.00" && r.rows[0].n === "50.00" && r.rows[0].rows === 1 ? ok : bad)(`one pricing row, at a 30% margin: ${JSON.stringify(r.rows[0])}`);
+(r.rows[0].m === "0.3000" && r.rows[0].d === "0.00" && r.rows[0].n === "0.00" && r.rows[0].rows === 1 ? ok : bad)(`one pricing row, at a 30% margin with no delivery or next-day fee: ${JSON.stringify(r.rows[0])}`);
 r = await db.query(`select round(10 / (1 - margin), 2)::text p from public.pricing`);
 (r.rows[0].p === "14.29" ? ok : bad)(`a $10.00 case sells for ${r.rows[0].p} at 30% (it was 13.33 at 25%)`);
-// The checks below keep the launch margin (25%), so their arithmetic stays as written.
-await db.exec(`update public.pricing set margin = 0.25`);
+// The checks below keep the launch values (25%, $50 delivery, $50 next-day), so their arithmetic stays as written.
+await db.exec(`update public.pricing set margin = 0.25, delivery_fee = 50, next_day_fee = 50`);
 await expectError(`insert into public.pricing (id) values (false)`, [], "23514", "pricing stays a single row");
 r = await db.query(`select count(*)::int n from public.accounts`);
 (r.rows[0].n === 2 ? ok : bad)("existing accounts kept");
@@ -212,6 +216,17 @@ r = await db.query(`select price_per_case::text p from public.my_prices($1) wher
 r = await db.query(`select price_per_case::text p from public.order_lines`);
 (r.rows[0].p === "53.33" ? ok : bad)(`old orders keep their prices: ${r.rows[0].p}`);
 await db.exec(`reset role; update public.pricing set margin = 0.25`);
+// With no fees, as production has since Nov 12: an order still copies both fees, at $0, and its total is its subtotal.
+await db.exec(`update public.pricing set delivery_fee = 0, next_day_fee = 0`);
+await as(U2);
+r = await db.query(`select delivery_fee::text d, next_day_fee::text n from public.order_fees()`);
+(r.rows[0].d === "0.00" && r.rows[0].n === "0.00" ? ok : bad)(`customers see no fees: ${JSON.stringify(r.rows[0])}`);
+r = await db.query(`select * from public.place_order($1, $2::jsonb, null, 'en', true)`, [B, JSON.stringify([{ sku: "CUP-PET-16", cases: 2 }])]);
+const free = r.rows[0];
+(Number(free.order_subtotal) === 106.66 && Number(free.order_total) === 106.66 ? ok : bad)(`with no fees a next-day order's total is its subtotal: ${free.order_subtotal}, ${free.order_total} (2 x 53.33)`);
+r = await db.query(`select next_day, delivery_fee::text d, next_day_fee::text n from public.orders where id = $1`, [free.order_id]);
+(r.rows[0].next_day === true && r.rows[0].d === "0.00" && r.rows[0].n === "0.00" ? ok : bad)(`the order keeps next-day and copies both fees at $0: ${JSON.stringify(r.rows[0])}`);
+await db.exec(`reset role; update public.pricing set delivery_fee = 50, next_day_fee = 50`);
 
 // link_customer: the dashboard helper for adding people to accounts.
 await db.exec(`reset role;`);

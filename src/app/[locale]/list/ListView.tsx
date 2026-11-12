@@ -471,17 +471,13 @@ export function ListView({
                 {fees ? (
                   <div>
                     <dt>{labels.delivery}</dt>
-                    <dd>
-                      <bdi>{formatMoney(locale, fees.delivery)}</bdi>
-                    </dd>
+                    <dd>{fees.delivery === 0 ? labels.free : <bdi>{formatMoney(locale, fees.delivery)}</bdi>}</dd>
                   </div>
                 ) : null}
                 {fees && nextDay ? (
                   <div>
                     <dt>{labels.nextDay}</dt>
-                    <dd>
-                      <bdi>{formatMoney(locale, fees.nextDay)}</bdi>
-                    </dd>
+                    <dd>{fees.nextDay === 0 ? labels.free : <bdi>{formatMoney(locale, fees.nextDay)}</bdi>}</dd>
                   </div>
                 ) : null}
                 {fees ? (
@@ -495,7 +491,7 @@ export function ListView({
             {fees ? (
               <label className={styles.nextDayOption}>
                 <input type="checkbox" checked={nextDay} onChange={(e) => setNextDay(e.target.checked)} />
-                <span>{fill(labels.nextDayOption, { price: formatMoney(locale, fees.nextDay) })}</span>
+                <span>{fees.nextDay === 0 ? labels.nextDay : fill(labels.nextDayOption, { price: formatMoney(locale, fees.nextDay) })}</span>
               </label>
             ) : null}
             {!prices || unpriced ? <p className="small muted">{prices ? labels.needsPrice : labels.pricesSoon}</p> : null}

@@ -110,11 +110,15 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   form never empties. A select needs a `key` to take a new default after a form reset. The page carries
   `data-one-job`, which folds the footer down to its closing line. A new account lands on
   `/products?welcome=1` (`Welcome` says it is ready, once, to someone signed in).
-- **Reordering:** the account page is where a signed-in customer lands, and the usual order leads it: lines,
+- **Order guide:** the site calls the saved usual order the customer's "order guide", the word restaurants use
+  for the list of what they buy regularly (a restaurant owner's word, Matt, Nov 12, 2026). Spanish "guía de
+  pedidos" (Square's Spanish pages use it), Turkish "sipariş rehberi", Arabic "دليل الطلبات". Code and database
+  keep `usual` (`usual_orders`, `save_usual_order`, `usualTitle`); only what people read says order guide.
+- **Reordering:** the account page is where a signed-in customer lands, and the order guide leads it: lines,
   what each comes to, the total with delivery (today's prices from the database, added up on the server for
-  reading only) and one button, "Order my usual", which puts it on the list. Each recent order has
+  reading only) and one button, "Order from my guide", which puts it on the list. Each recent order has
   "Order again" (`OrdersTable`, only the lines that are for sale). The list's confirmation shows the total
-  `place_order` returned and offers "Make this my usual order" unless the order already is.
+  `place_order` returned and offers "Make this my order guide" unless the order already is.
 - **Landing:** `src/proxy.ts` sends a home page load to `/account` when a sign-in cookie is present and the
   visit starts outside the site (`Sec-Fetch-Site` is `none` or `cross-site`). The logo and other links inside
   the site still open the home page. The cookie is only a hint; the account page checks the session.
@@ -126,7 +130,7 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   its page while it is still "received" (`cancel_my_order`, two taps; the database decides, and answers
   `too_late` once the team has confirmed it). The team gets an email for each: what changed, old value then
   new, and which order was canceled. `supabase/migrations/20261111191720_self_service.sql`.
-- **Weekly order (part 1, asking):** under the usual order on the account page a customer asks for it every
+- **Weekly order (part 1, asking):** under the order guide on the account page a customer asks for it every
   week (`set_weekly_order`), skips the coming delivery (`skip_weekly_order`) or turns it off. The calendar is
   `public.next_delivery(day)`: an order closes at 5 pm Eastern, two days before the delivery date. Nothing is
   placed automatically yet. `pricing.weekly_orders_on` (false) is the switch for the whole site; while it is
@@ -142,7 +146,10 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
   `save_usual_order`, `create_my_account`, `update_my_account`, `cancel_my_order`, `set_weekly_order` and
   `skip_weekly_order`. Prices: cost per case / (1 - margin), rounded to cents, one
-  margin for everyone (30% since Nov 12, 2026; 25% before). Each order copies a delivery fee and, if `next_day`, a next-day fee. The margin
+  margin for everyone (30% since Nov 12, 2026; 25% before). Each order copies a delivery fee and, if `next_day`, a next-day fee: both $0
+  since Nov 12, 2026 (they were $50). The list and an order's page show a $0 fee as "Free", and the next-day box
+  names no price; the FAQ says delivery is free in words, so a fee coming back means changing that answer in
+  four languages. The margin
   and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
   margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
   (`accounts.active = false`) see no prices and cannot order.

@@ -79,6 +79,8 @@ line height. Numbers in tables and steppers are tabular.
 - Numbered markers only for real sequences (how ordering works, what happens next).
 - No all-caps labels, no eyebrow text above headings, no single highlighted word in headlines.
 - Buttons say what happens: "Add", "Send request", "Browse products".
+- Name things the way a restaurant does. The saved list of what a customer buys regularly is their "order
+  guide" (never "usual order"), and its button reads "Order from my guide". A fee of $0 reads "Free".
 - Motion only answers an action (add to list, open menu, toast). Nothing animates on scroll.
 - Every interactive element has a 44px target and a visible focus ring. That includes chips, footer links,
   the language links and the count beside a category heading.
