@@ -74,6 +74,8 @@ line height. Numbers in tables and steppers are tabular.
   drawn on a layer that covers the tile, never on the image (Safari clips it at the image's edge).
 - Clear and white products show as photographed on white: their insides are opaque, so the tile never shows
   through a clear bowl.
+  A photo made on a colored background (Matt's Gemini images on lilac, Nov 12) has that cast taken out of its
+  clear and white plastic before it ships, so it reads the same way.
 
 ## Rules
 
