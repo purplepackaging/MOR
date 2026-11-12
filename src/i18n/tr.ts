@@ -30,7 +30,7 @@ const tr: Dict = {
     browse: "Ürünlere göz atın",
     request: "Hesap oluşturun",
     ticketLabel: "Örnek bir sipariş rehberi",
-    ticketTitle: "Sipariş rehberiniz",
+    ticketTitle: "Sipariş rehberi",
     ticketDay: "Her perşembe",
     ticketCases: "Koli",
     ticketNote: "Dilediğiniz zaman değiştirin, atlayın veya durdurun.",

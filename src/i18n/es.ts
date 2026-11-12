@@ -30,7 +30,7 @@ const es: Dict = {
     browse: "Ver productos",
     request: "Crear una cuenta",
     ticketLabel: "Ejemplo de una guía de pedidos",
-    ticketTitle: "Su guía de pedidos",
+    ticketTitle: "Guía de pedidos",
     ticketDay: "Cada jueves",
     ticketCases: "Cajas",
     ticketNote: "Cámbielo, sáltelo o páuselo cuando quiera.",

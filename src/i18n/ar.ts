@@ -37,7 +37,7 @@ const ar: Dict = {
     browse: "تصفّح المنتجات",
     request: "أنشئ حسابًا",
     ticketLabel: "مثال على دليل طلبات",
-    ticketTitle: "دليل طلباتك",
+    ticketTitle: "دليل الطلبات",
     ticketDay: "كل خميس",
     ticketCases: "كراتين",
     ticketNote: "غيّره أو تخطّه أو أوقفه مؤقتًا في أي وقت.",

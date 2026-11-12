@@ -55,6 +55,7 @@
 }
 
 .loop {
+  flex-shrink: 0; /* Beside a title that wraps, WebKit squeezed the mark to 1 px (Spanish, Turkish, 360 px phones). */
   width: 14px;
   height: 14px;
   color: var(--mor);

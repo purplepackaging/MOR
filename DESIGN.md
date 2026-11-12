@@ -19,7 +19,8 @@ like a kitchen printer ticket. Everything else stays quiet so products and the t
 | `--lemon` | `#f3e36a` | Only for "on repeat" moments: delivery day pill, list count, rep badge |
 | `--paper` | `#ffffff` | Page and ticket |
 
-The order ticket keeps ink rules so it reads as a printed slip against the violet around it.
+The order ticket keeps ink rules so it reads as a printed slip against the violet around it. Its title is
+short ("Order guide") and wraps beside the day pill when it has to; the pill and its loop mark never shrink.
 
 Errors use `--err` (`#a3241c`); success uses `--ok` (`#1d6b45`). All text pairs meet WCAG AA.
 

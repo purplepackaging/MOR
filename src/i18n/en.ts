@@ -30,7 +30,7 @@ const en = {
     browse: "Browse products",
     request: "Create an account",
     ticketLabel: "Example of an order guide",
-    ticketTitle: "Your order guide",
+    ticketTitle: "Order guide",
     ticketDay: "Every Thursday",
     ticketCases: "Cases",
     ticketNote: "Change, skip or pause anytime.",
