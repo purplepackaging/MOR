@@ -68,7 +68,7 @@ const NAMES = [...new Set([...fs.readFileSync(path.join(ROOT, "src/data/catalog.
     await p.goto(BASE + "/products", { waitUntil: "networkidle" });
     await p.evaluate(async () => { for (let y = 0; y < document.documentElement.scrollHeight; y += 500) { scrollTo(0, y); await new Promise((r) => setTimeout(r, 80)); } });
     await p.waitForFunction(() => [...document.querySelectorAll(".tile > img")].every((i) => i.complete), null, { timeout: 15000 }).catch(() => {});
-    const cards = await p.evaluate(() => [...document.querySelectorAll(".tile > img")].map((i) => ({ src: i.currentSrc.split("/").pop(), ok: i.complete && i.naturalWidth > 0, drawn: i.getBoundingClientRect().width })));
+    const cards = await p.evaluate(() => [...document.querySelectorAll(".tile > img")].map((i) => ({ src: i.currentSrc.split("/").pop().split("?")[0], ok: i.complete && i.naturalWidth > 0, drawn: i.getBoundingClientRect().width })));
     const notSmall = cards.filter((c) => !c.src.endsWith("-480.webp"));
     const notArrived = cards.filter((c) => !c.ok);
     check(cards.length > 5 && notArrived.length === 0, `products page on ${label}: all ${cards.length} photos arrive${notArrived.length ? " -> " + notArrived.map((c) => c.src).join(", ") : ""}`);
@@ -78,13 +78,22 @@ const NAMES = [...new Set([...fs.readFileSync(path.join(ROOT, "src/data/catalog.
     check(starved.length === 0, `products page on ${label}: the small copy is enough for a ${Math.round(cards[0].drawn)} px card`);
 
     await p.goto(BASE + product, { waitUntil: "networkidle" });
-    const main = await p.evaluate(() => { const i = document.querySelector("main .tile > img"); return i ? { src: i.currentSrc.split("/").pop(), ok: i.complete && i.naturalWidth > 0, eager: i.loading === "eager", priority: i.getAttribute("fetchpriority") } : null; });
+    const main = await p.evaluate(() => { const i = document.querySelector("main .tile > img"); return i ? { src: i.currentSrc.split("/").pop().split("?")[0], ok: i.complete && i.naturalWidth > 0, eager: i.loading === "eager", priority: i.getAttribute("fetchpriority") } : null; });
     check(!!main && main.ok && main.eager && main.priority === "high", `product page on ${label}: the photo arrives first (not lazy, high priority)`);
     check(!!main && main.src.endsWith("-480.webp") !== bigOnProductPage, `product page on ${label}: takes the ${bigOnProductPage ? "full photo" : "small copy"} (${main?.src})`);
     await ctx.close();
   }
 
-  // 4. The tile: a photo sits on a floor that deepens, with a shadow under it. A drawing stays on the flat tile.
+  // 4. Replaced photos reach returning visitors: the address carries a version, the same one on every photo.
+  {
+    const page = await (await fetch(BASE + "/products")).text();
+    const versions = [...new Set([...page.matchAll(/\/img\/products\/[a-z0-9-]+\.webp(\?v=\d+)?/g)].map((m) => m[1] ?? "none"))];
+    check(versions.length === 1 && /^\?v=\d+$/.test(versions[0]), `photo addresses carry one version number (${versions.join(", ")})`);
+    const withVersion = await fetch(BASE + `/img/products/${NAMES[0]}-480.webp${versions[0] === "none" ? "" : versions[0]}`);
+    check(withVersion.status === 200 && (withVersion.headers.get("content-type") ?? "").includes("image/webp"), "and the site serves a photo at such an address");
+  }
+
+  // 5. The tile: a photo sits on a floor that deepens, with a shadow under it. A drawing stays on the flat tile.
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const p = await ctx.newPage();

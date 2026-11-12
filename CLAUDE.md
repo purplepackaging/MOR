@@ -25,7 +25,9 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
 - **Photos:** `public/img/products/`, transparent WebP cut-outs, two files each: `name.webp` (1000 px on
   its long side, 600 at least) and `name-480.webp` (the same photo at 480 px). `ProductVisual` gives the
   browser both and says how wide the photo is drawn (`sizes`), so cards and lists take the small file and
-  the product page the large one. The build fails if a catalog photo lacks either file. A tile that holds a
+  the product page the large one. The build fails if a catalog photo lacks either file. Browsers keep a
+  photo for a day, so after replacing one under the same name raise `PHOTO_VERSION` in `ProductVisual.tsx`
+  (it is the `?v=` on every photo address). A tile that holds a
   photo has a deeper floor and the photo a soft shadow (`.tile` in `src/styles/base.css`). Look at a new
   photo on the tile before it ships: the shadow shows a ragged cut-out or a leftover patch of studio white.
 - **Product page table:** a column that reads the same on every size for sale (color, lid size) moves up
