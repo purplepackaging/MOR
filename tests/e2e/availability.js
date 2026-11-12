@@ -281,7 +281,7 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
       check((await search("sauce cup")) === "portion-cups" && (await search("coffee cup")) === "hot-cups", `${tag} "sauce cup" finds portion cups and "coffee cup" finds hot cups`);
       const bag = await search("bag");
       check(bag === "kraft-bags,bagasse-hinged", `${tag} "bag" lists the bags before a product that is only made of bagasse (${bag})`);
-      check((await search("saran")) === "" && (await search("pan")) === "", `${tag} a search word for a hidden product finds nothing, and "pan" does not match inside other words`);
+      check((await search("cling wrap")) === "" && (await search("pan")) === "", `${tag} a search word for a hidden product finds nothing, and "pan" does not match inside other words`);
       await p.fill("#product-search", "");
     }
 

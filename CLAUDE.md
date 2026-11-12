@@ -46,7 +46,7 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
 - **Search:** `searchText` builds what search reads for a product: its names in four languages, its
   category, sizes, material and its search words (`src/data/search-words.ts`, the other words kitchens use,
   keyed by slug; the build fails on a slug that is not in the catalog). A search word names the same thing
-  as the product and is never a claim about it. `matchesQuery` (`src/lib/text.ts`): every word typed has
+  as the product. It is never a claim about it and never a brand name (Matt, Nov 12). `matchesQuery` (`src/lib/text.ts`): every word typed has
   to start a word of that text when it is in Latin letters or digits ("pan" finds "foil pans", not
   "Spanish"); other scripts match anywhere, because Arabic joins "the" to a word. `nameRank` puts a product
   whose own name answers the search first. The home page's search field is a plain form that opens

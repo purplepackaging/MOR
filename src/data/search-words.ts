@@ -3,6 +3,7 @@
  *
  * A word here names the same thing as the product, the way a kitchen says it ("clamshell", "sauce cup",
  * "tin foil"). It is never a claim about the product: nothing like "compostable" or "microwave safe".
+ * And it is never a brand name, however common (Matt, Nov 12, 2026): "cling wrap", not the brand people say.
  * Write each phrase in the plural with spaces ("to go boxes"). Every word a customer types has to start
  * a word of the product's name, sizes or these phrases, so "to go box" and "to-go" both find it. A spelling
  * people run together gets its own entry ("togo").
@@ -54,10 +55,10 @@ export const searchWords: Record<string, string[]> = {
   "oblong-foil-containers": ["aluminum pans", "foil pans", "aluminum containers"],
   "foil-rolls": ["tin foil", "foil wrap"],
   "foil-sheets": ["tin foil", "foil wrap", "sandwich foil", "pop up foil"],
-  "food-film": ["plastic wrap", "cling wrap", "cling film", "saran wrap", "food wrap"],
+  "food-film": ["plastic wrap", "cling wrap", "cling film", "food wrap"],
   "deli-paper": ["sandwich paper", "deli sheets", "burger paper", "basket liners"],
   "butcher-paper": ["meat paper", "bbq paper"],
-  "chafing-fuel": ["sterno", "canned heat", "fuel cans"],
+  "chafing-fuel": ["canned heat", "fuel cans"],
 
   /* Plates & bowls */
   "bagasse-plates": ["fiber plates", "bagasse plates", "disposable plates"],
@@ -88,7 +89,7 @@ export const searchWords: Record<string, string[]> = {
   "grocery-bags": ["paper bags", "brown bags", "paper sacks"],
   "flat-paper-bags": ["bakery bags"],
   "foil-bags": ["hot bags", "chicken bags", "foil lined bags", "hot food bags"],
-  "poly-bags": ["ziploc bags", "ziplock bags", "zip lock bags", "storage bags", "plastic bags"],
+  "poly-bags": ["zipper bags", "storage bags", "plastic bags"],
   "reusable-bags": ["tote bags", "shopping bags"],
 
   /* Napkins & paper */

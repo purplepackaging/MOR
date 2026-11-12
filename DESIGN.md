@@ -51,7 +51,7 @@ line height. Numbers in tables and steppers are tabular.
   rule. Once the search field is out of sight, a search button at the end of the bar brings it back.
 - Search understands the words a kitchen uses. Each product can carry search words
   (`src/data/search-words.ts`: "clamshells", "sauce cups", "tin foil") beside its names, sizes and material.
-  A search word names the same thing as the product; it is never a claim about it. A product whose own
+  A search word names the same thing as the product; it is never a claim about it and never a brand name. A product whose own
   name answers the search comes first. A search that finds nothing offers every category.
 - The home page puts finding before explaining: the hero, what we carry (with a search field that opens
   the products page), the basics, then how ordering works, questions and the account panel.
