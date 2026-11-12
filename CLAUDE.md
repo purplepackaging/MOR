@@ -32,8 +32,27 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
   `.shot`, a layer that covers the whole tile, never on the `img`: Safari cuts a filter on an image off at the
   image's own box, which showed as straight lines across the tile on iPhones. Look at a new
   photo on the tile before it ships: the shadow shows a ragged cut-out or a leftover patch of studio white.
-- **Product page table:** a column that reads the same on every size for sale (color, lid size) moves up
-  as a pill beside the material, as long as one column is left to tell the sizes apart.
+- **Product page:** `SizeTable` in the product page draws the sizes of one product, each with Add. A column
+  that reads the same on every size for sale (color, lid size) moves up as a pill under the name, as long
+  as one column is left to tell the sizes apart. The material and the size range are one line under the
+  name (`sizeRange`). On a cup (size in oz, `fits` in mm) the `fits` column is headed "Lid size". The case
+  column holds the count only; on phones "per case" is drawn around it from `product.perCase`
+  (`data-before`, `data-after`), so the cell's own text stays the count. Seven sizes or more in two to
+  five colors get a color filter: radio buttons and `:has()` in `product.module.css`, no script.
+- **Goes with:** `fitsFor` in `src/lib/catalog.ts` picks the sizes of each related product that the catalog
+  says fit this one ("fits 12–24 oz" covers a 16 oz cup; where both sides give a rim in mm they must
+  agree; a fit written in words is left out). Those sizes show with Add. Never add a fit the data does
+  not state.
+- **Cards:** `productDetail` writes the line under a product's name ("5 sizes: 9, 10, 12, 16, 24 oz").
+  `ProductCard` is a line on phones and a card from 640 px; the grids that hold it are one column below
+  640 px (`ProductBrowser.module.css`, `home.module.css`).
+- **List bar:** `ListBar` is fixed to the foot of a phone's product page once the list has an item. Like the
+  order bar on the list page, it sets `--bottom-bar` to its height: toasts, focus and the footer's last line
+  stay clear of it. Where it shows, the "Added" toast is hidden from sight and still spoken
+  (`Toaster.module.css`).
+- **Not-found title:** a product or category with nothing to sell is built ahead of time as "not found",
+  and Next gives that page the site's default title whatever the route's metadata says. `PageTitle` in
+  `not-found.tsx` sets it in the browser.
 - **Copy:** sentence case, short sentences, plain verbs, no em dashes. Prices are never shown publicly
   (only to signed-in customers with an active account).
   Spices and dry goods are planned but not mentioned on the site yet.
@@ -127,8 +146,8 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   `/api/session` says someone is signed in.
   `src/lib/price-store.ts` keeps them in memory between product pages and drops them at sign-out. On phones
   the price sits at the end of the case line, so rows do not grow when it arrives. Product cards show
-  the lowest price per case among the product's sizes ("From $36.00") on the photo tile (`CardPrice`),
-  so cards keep their height too. That picks one of the database's prices; it never works one out.
+  the lowest price per case among the product's sizes ("From $36.00") on the card's last line (`CardPrice`).
+  That line is there for everyone and empty until a price arrives, so cards keep their height too. That picks one of the database's prices; it never works one out.
 - **Your list:** each priced line shows what it comes to. Below 960px an order bar (total and Place order)
   shows while the summary's own button is below the screen; `--bottom-bar` lifts toasts and focus above it.
   One item takes 1 to 999 cases (`src/lib/limits.ts`; the order actions check the same limit).

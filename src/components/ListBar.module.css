@@ -1,0 +1,64 @@
+/* A slip of the order ticket at the foot of the screen: white paper with the ticket's torn top edge. Phones only. */
+.bar {
+  --notch: 6px;
+  --step: 18px;
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 30;
+  /* The ground the torn edge is cut against: a line of brand violet, so the slip stands off any page.
+     A plain background and no filter or shadow (Safari clips those on some layers). */
+  background: linear-gradient(var(--mor), var(--mor)) top / 100% calc(var(--notch) + 1px) no-repeat;
+}
+
+.enter {
+  animation: rise var(--t-med) var(--ease-out);
+}
+
+.slip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: calc(var(--notch) + 10px) var(--gutter) calc(10px + env(safe-area-inset-bottom));
+  background: var(--paper);
+  -webkit-mask: radial-gradient(circle at 50% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top center /
+    var(--step) 100% repeat-x;
+  mask: radial-gradient(circle at 50% 0, transparent var(--notch), #000 calc(var(--notch) + 0.5px)) top center /
+    var(--step) 100% repeat-x;
+}
+
+.text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.label {
+  color: var(--ink-2);
+  font-size: var(--fs-micro);
+}
+
+.count {
+  font-size: var(--fs-body);
+  font-weight: var(--w-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.view {
+  flex: none;
+  min-height: 44px;
+  padding-inline: var(--s-5);
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (min-width: 960px) {
+  .bar {
+    display: none;
+  }
+}

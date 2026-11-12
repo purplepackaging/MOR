@@ -81,7 +81,9 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
   }
   page = await html("/products/cups-lids/clear-cold-cups");
   const sizes = [...page.matchAll(/aria-label="Add [^"]*?, ([^"]+?) to (?:your )?list"/g)].map((m) => m[1]);
-  check(page.includes("16 oz") && !page.includes("24 oz") && !page.includes("32 oz"), `a product page lists only the sizes that have a price ${sizes.length ? `(${sizes.join("; ")})` : ""}`);
+  // The product's own sizes. "Goes with" below them names the lids that fit, and a lid fits "12–24 oz".
+  const ownSizes = page.match(/<section[^>]*aria-labelledby="sizes-title"[\s\S]*?<\/section>/)?.[0] ?? "";
+  check(ownSizes.includes("16 oz") && !ownSizes.includes("24 oz") && !ownSizes.includes("32 oz"), `a product page lists only the sizes that have a price ${sizes.length ? `(${sizes.join("; ")})` : ""}`);
   check(page.includes("Dome lids for cold cups") && !page.includes("Flat and sip lids") && !page.includes("Cup carriers") && !page.includes("Straws"), "“Goes with” leaves out products without a price");
   const sitemap = await html("/sitemap.xml");
   const urls = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
@@ -148,19 +150,47 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     const head = (text) => [...(text.match(/<thead>[\s\S]*?<\/thead>/)?.[0] ?? "").matchAll(/<th scope="col">([^<]+)<\/th>/g)].map((m) => m[1]).join(",");
     const facts = (text) => (text.match(/<ul role="list" class="[^"]*facts[^"]*">[\s\S]*?<\/ul>/)?.[0] ?? "").replace(/<[^>]+>/g, "|");
     const hot = await html("/products/cups-lids/hot-cups"); // 8 oz and 12 oz for sale, both white
-    check(head(hot) === "Size,Case" && /\|White\|/.test(facts(hot)), `two sizes that share a color: the color is a pill and the table keeps Size and Case (${head(hot)})`);
+    check(head(hot) === "Size,Per case" && /\|White\|/.test(facts(hot)), `two sizes that share a color: the color is a pill and the table keeps Size and Per case (${head(hot)})`);
     const boxes = await html("/products/containers/kraft-takeout-boxes"); // No. 1 and No. 8, both kraft
-    check(head(boxes) === "Item,Size,Case" && /\|Kraft\|/.test(facts(boxes)), `the same on a product with two columns left (${head(boxes)})`);
+    check(head(boxes) === "Item,Size,Per case" && /\|Kraft\|/.test(facts(boxes)), `the same on a product with two columns left (${head(boxes)})`);
     const cup = await html("/products/cups-lids/clear-cold-cups"); // one size for sale
-    check(head(cup) === "Size,Fits,Case" && !/98 mm/.test(facts(cup)), `one size for sale keeps its columns (${head(cup)})`);
+    check(head(cup) === "Size,Lid size,Per case" && !/98 mm/.test(facts(cup)), `one size for sale keeps its columns, and a cup's "fits" is headed Lid size (${head(cup)})`);
     const ar = await html("/ar/products/cups-lids/hot-cups");
     check(/<bdi>أبيض<\/bdi>/.test(ar) && !/<th scope="col">اللون<\/th>/.test(ar), "in Arabic too: the shared color is a pill and there is no color column");
     // A size in another color comes on sale: the color is a choice again, so the column is back.
     await setCosts({ "HOT-08J": 30 });
-    const back = await until("color column", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Color,Case");
+    const back = await until("color column", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Color,Per case");
     check(back, "when a size in another color goes on sale, the color column comes back");
     await setCosts({ "HOT-08J": null });
-    await until("pill again", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Case");
+    await until("pill again", async () => head(await html("/products/cups-lids/hot-cups")) === "Size,Per case");
+  }
+
+  // A long list in a few colors gets a color filter above it: one tap leaves only that color. A short list has none.
+  {
+    const MORE = ["HMF-55W", "HMF-66W", "HMF-69W", "HMF-88W", "HMF-66B", "HMF-69B", "HMF-88B"]; // with HMF-993W: 5 white, 3 black
+    const boxes = "/products/containers/hinged-foam-free";
+    check(!(await html(boxes)).includes("<fieldset") && !(await html("/products/cups-lids/hot-cups")).includes("<fieldset"), "a short list of sizes has no color filter");
+    await setCosts(Object.fromEntries(MORE.map((sku) => [sku, 20])));
+    const ok = await until("eight foam-free containers", async () => (await html(boxes)).includes("HMF-88B"));
+    const b3 = await chromium.launch();
+    const pg = await b3.newPage({ viewport: { width: 390, height: 844 } });
+    await pg.goto(BASE + boxes, { waitUntil: "networkidle" });
+    const rows = () => pg.evaluate(() => [...document.querySelectorAll("main section[aria-labelledby='sizes-title'] tbody tr")].filter((tr) => getComputedStyle(tr).display !== "none").length);
+    const choices = await pg.evaluate(() => [...document.querySelectorAll("main fieldset label")].map((l) => l.innerText.trim()).join(","));
+    const all = await rows();
+    await pg.click("main fieldset label:has-text('Black')");
+    const black = await rows();
+    await pg.click("main fieldset label:has-text('White')");
+    const white = await rows();
+    await axe(pg, "390 product page with the color filter on White");
+    await pg.click("main fieldset label:has-text('All')");
+    const again = await rows();
+    check(ok && choices === "All,White,Black" && all === 8 && black === 3 && white === 5 && again === 8, `eight sizes in two colors get a color filter (${choices}): ${all} rows, Black leaves ${black}, White ${white}, All ${again}`);
+    const pills = await pg.evaluate(() => [...document.querySelectorAll("main fieldset label span")].map((el) => Math.round(el.getBoundingClientRect().height)));
+    check(pills.every((h) => h >= 44), `each color choice is ${Math.min(...pills)} px tall or more`);
+    await b3.close();
+    await setCosts(Object.fromEntries(MORE.map((sku) => [sku, null])));
+    await until("one foam-free container again", async () => !(await html(boxes)).includes("HMF-88B"));
   }
 
   // A row whose first column is empty (plain film beside meat film): a dash in the table, and on phones the
@@ -256,6 +286,11 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     // A hidden product's address shows the site's own "not found" page.
     await p.goto(BASE + "/products/cups-lids/translucent-cups");
     check((await p.textContent("main")).toLowerCase().includes("couldn") && (await p.$("main a[href='/products']")) !== null, `${tag} a hidden product's address shows the not-found page, with a way back to products`);
+    const notFoundTitle = async () => { await p.waitForFunction(() => document.title.includes("couldn’t find"), null, { timeout: 3000 }).catch(() => {}); return p.title(); };
+    check((await notFoundTitle()).includes("couldn’t find"), `${tag} and the tab's title says so too (${await p.title()})`);
+    await p.goto(BASE + "/products/plates-bowls");
+    check((await notFoundTitle()).includes("couldn’t find"), `${tag} the same for a category with nothing to sell (${await p.title()})`);
+    await p.goto(BASE + "/products/cups-lids/translucent-cups");
     await axe(p, `${tag} not-found page for a hidden product`);
 
     // A list saved before the item was hidden: the line comes off, with a note, and nothing jumps.

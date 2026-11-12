@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { locale as rootLocale } from "next/root-params";
 import { IntentLink } from "@/components/IntentLink";
+import { PageTitle } from "@/components/PageTitle";
+import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { isLocale, localePath, type Locale } from "@/lib/i18n";
 import styles from "./simple.module.css";
@@ -11,6 +13,7 @@ export default async function NotFound() {
   const dict = getDictionary(locale);
   return (
     <section className={`container ${styles.page}`}>
+      <PageTitle title={`${dict.notFound.title} | ${site.name}`} />
       <div className={styles.panel}>
         <h1 className="h2">{dict.notFound.title}</h1>
         <p className="lede">{dict.notFound.body}</p>

@@ -117,12 +117,54 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     // Product cards, signed out: no prices.
     await p.goto(BASE + "/products", { waitUntil: "networkidle" });
     check((await p.$$("main a[href*='/products/'] span[class*='price']")).length === 0 && !(await visibleText(p)).includes("$"), `${tag} signed-out product cards show no prices`);
+    // A product in a listing is a line on a phone (a small photo, the name beside it) and a card on wide
+    // screens (the photo over the name). Under the name: what it comes in, with the sizes named.
+    const listed = await p.evaluate(() => {
+      const a = document.querySelector("main a[href$='/hot-cups']");
+      const tile = a.querySelector(".tile").getBoundingClientRect(), name = a.querySelector("h2, h3").getBoundingClientRect();
+      return { tile: Math.round(tile.width), beside: name.left >= tile.right, under: name.top >= tile.bottom, text: a.innerText.replace(/\s+/g, " ").trim() };
+    });
+    check(tag === 390 ? listed.tile === 96 && listed.beside : listed.tile > 150 && listed.under, `${tag} a product is ${tag === 390 ? "a line: a small photo with the name beside it" : "a card: the photo over the name"} (${listed.tile} px photo)`);
+    check(listed.text.includes(HIDE ? "2 sizes: 8, 12 oz" : "21 options: 4, 8, 10, 12, 16, 20 oz"), `${tag} and it names the sizes for sale (${listed.text})`);
 
     // Product page, signed out: no prices. Keep where the Add buttons are, to compare once prices show.
     await p.goto(BASE + PRODUCT, { waitUntil: "networkidle" });
     let productText = await visibleText(p);
     check(productText.includes("Prices show after you sign in") && !productText.includes("$"), `${tag} signed-out product page shows no prices`);
     const addsBefore = await addButtons(p);
+    // The sizes start on the first screen. A cup's "fits" is its lid size, and a case says what it holds.
+    const sizes = await p.evaluate(() => {
+      const section = document.querySelector("main section[aria-labelledby='sizes-title']");
+      const add = section.querySelector("tbody tr button").getBoundingClientRect();
+      const pack = section.querySelector("tbody tr [class*='pack']");
+      const around = ["::before", "::after"].map((x) => getComputedStyle(pack, x).content).join("").replace(/"|none|normal/g, "").trim();
+      return { addBottom: Math.round(add.bottom), screen: innerHeight, head: [...section.querySelectorAll("thead th")].map((th) => th.textContent.trim()).join(","), text: section.innerText, around };
+    });
+    check(sizes.addBottom <= sizes.screen, `${tag} the first Add button is on the first screen (its foot at ${sizes.addBottom} of ${sizes.screen} px)`);
+    check(sizes.head.includes("Lid size,Per case") && !sizes.head.includes("Fits") && (tag === 390 ? sizes.text.includes("Lid size: 98 mm") && sizes.around === "per case" : sizes.around === ""), `${tag} a cup names its lid size, and a case says what it holds (${sizes.head}${sizes.around ? `; "1,000 ${sizes.around}"` : ""})`);
+    // "Goes with": the lid the catalog says fits this cup is listed by size, with its own Add button.
+    const fits = await p.evaluate(() => {
+      const row = [...document.querySelectorAll("main section[aria-labelledby='goes-with'] tbody tr")].find((tr) => tr.querySelector("button[aria-label^='Add Dome lids for cold cups']"));
+      return row ? row.innerText.replace(/\s+/g, " ").trim() : null;
+    });
+    check(!!fits && fits.includes("12–24 oz"), `${tag} "Goes with" lists the dome lid that fits, with its own Add button (${fits})`);
+    // An Add on a phone: the list bar rises with the count and the way to the list, and nothing moves.
+    const shiftBeforeAdd = await p.evaluate(() => window.__shift);
+    await p.click("main section[aria-labelledby='goes-with'] button[aria-label^='Add Dome lids for cold cups']");
+    await p.waitForFunction(() => JSON.parse(localStorage.getItem("mor.list.v1") ?? "[]").length === 1);
+    await p.waitForTimeout(500);
+    const bar = await p.evaluate((before) => {
+      const el = document.querySelector("[data-list-bar]");
+      const shown = !!el && getComputedStyle(el).display !== "none";
+      const toast = document.querySelector("[role=status][aria-live] > div")?.getBoundingClientRect();
+      return { shown, text: shown ? el.innerText.replace(/\s+/g, " ").trim() : "", href: el?.querySelector("a")?.getAttribute("href") ?? null, toastShown: !!toast && toast.width > 10, spoken: document.querySelector("[role=status][aria-live]").textContent, sku: JSON.parse(localStorage.getItem("mor.list.v1"))[0].sku, moved: Math.round((window.__shift - before) * 1000) / 1000 };
+    }, shiftBeforeAdd);
+    check(bar.sku === "LID-DOME-98H", `${tag} that Add puts the lid on the list (${bar.sku})`);
+    if (tag === 390) check(bar.shown && bar.text.includes("1 item, 1 case") && bar.text.includes("View list") && bar.href === "/list" && !bar.toastShown && bar.spoken.includes("Added Dome lids for cold cups"), `${tag} the list bar shows the count and View list; the Added note is spoken, not shown (${bar.text})`);
+    else check(!bar.shown && bar.toastShown, `${tag} no list bar on a wide screen: the toast confirms the Add`);
+    check(bar.moved < 0.01, `${tag} nothing moves when the list gets its first item (layout shift ${bar.moved})`);
+    await axe(p, `${tag} product page after an Add`);
+    await p.evaluate(() => localStorage.removeItem("mor.list.v1"));
 
     // Sign-in page and redirect: email and password first
     await p.goto(BASE + "/account");
@@ -187,7 +229,9 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + PRODUCT);
     await p.waitForFunction(() => document.querySelector("main").innerText.includes("$53.33"));
     productText = await visibleText(p);
-    if (HIDE) check(productText.includes("16 oz") && !productText.includes("24 oz") && !productText.includes("To be confirmed"), `${tag} product page shows the price per case, and only the sizes that have one`);
+    // The product's own sizes. "Goes with" below them lists lids that fit, and a lid fits "12–24 oz".
+    const ownSizes = await p.evaluate(() => document.querySelector("main section[aria-labelledby='sizes-title']").innerText);
+    if (HIDE) check(ownSizes.includes("16 oz") && !ownSizes.includes("24 oz") && !productText.includes("To be confirmed"), `${tag} product page shows the price per case, and only the sizes that have one`);
     else check(productText.includes("To be confirmed"), `${tag} product page shows the price per case, and marks sizes without one`);
     check(!productText.includes("Prices show after you sign in"), `${tag} product page drops the sign-in line for customers`);
     const priceIn = await p.evaluate(() => {
@@ -216,8 +260,8 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(cardName.includes("From $36.00 a case"), `${tag} screen readers hear the price with "a case" (${cardName.trim()})`);
     const cardShift = await p.evaluate(() => Math.round(window.__shift * 1000) / 1000);
     check(cardShift < 0.01, `${tag} cards do not move when prices arrive (layout shift ${cardShift})`);
-    const pill = await p.evaluate(() => { const el = document.querySelector("main a[href$='/kraft-takeout-boxes'] span[class*='price']"); const t = el.parentElement.getBoundingClientRect(); const r = el.getBoundingClientRect(); return r.left >= t.left && r.right <= t.right && r.top >= t.top && r.bottom <= t.bottom; });
-    check(pill, `${tag} the price sits inside the photo tile`);
+    const priceLine = await p.evaluate(() => { const a = document.querySelector("main a[href$='/kraft-takeout-boxes']"); const c = a.getBoundingClientRect(), r = a.querySelector("span[class*='price']").getBoundingClientRect(), n = a.querySelector("h2, h3").getBoundingClientRect(); return r.left >= c.left && r.right <= c.right && r.bottom <= c.bottom + 1 && r.top >= n.bottom; });
+    check(priceLine, `${tag} the price sits on the card's last line, under the name`);
     await axe(p, `${tag} products page signed in`);
     if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "cards-prices-390.png") });
     else await p.screenshot({ path: path.join(SHOTS, "cards-prices-1280.png") });
@@ -690,7 +734,8 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     // A toast belongs to the page it was shown on: it does not follow the customer to the next one.
     await p.goto(BASE + "/products/cups-lids/clear-cold-cups");
     await p.click("main button[aria-label^='Add ']");
-    await p.waitForSelector("text=View list");
+    // On a wide screen "View list" is the toast's; on a phone it is the list bar's (its copy on wide screens is not shown).
+    await p.waitForSelector("text=View list >> visible=true");
     await p.evaluate(() => document.querySelector("header a[href='/list']").click());
     await p.waitForURL(/\/list$/);
     await p.waitForSelector("text=Ordering for Bake Shop");

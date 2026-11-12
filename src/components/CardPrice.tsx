@@ -18,8 +18,8 @@ export interface CardPriceLabels {
 /**
  * A signed-in customer's price on a product card: the lowest price per case among
  * the product's sizes. The prices come from the database through /api/prices; this
- * only picks which one to show. It sits on the photo tile, so the card keeps its
- * height when the price arrives after the page.
+ * only picks which one to show. It sits on the card's last line, which is there for
+ * everyone, so the card keeps its height when the price arrives after the page.
  */
 export function CardPrice({ skus, labels }: { skus: string[]; labels: CardPriceLabels }) {
   const { status, prices } = usePrices(true);
