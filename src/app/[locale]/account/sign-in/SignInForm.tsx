@@ -42,7 +42,15 @@ export function SignInForm({
   const [sent, sendAction, sending] = useActionState<SignInState, FormData>(sendCode, { step: "email", email: "" });
   const [checked, verifyAction, verifying] = useActionState<SignInState, FormData>(verifyCode, { step: "code", email: "" });
   const [signed, passwordAction, signingIn] = useActionState<PasswordState, FormData>(passwordSignIn, { email: "" });
-  const [view, setView] = useState<"password" | "email" | "code">(mode === "signin" && !startWithCode ? "password" : "email");
+  const opening = mode === "signin" && !startWithCode ? "password" : "email";
+  const [view, setView] = useState<"password" | "email" | "code">(opening);
+  // "Create an account" below only changes the address (?new=1): the page stays where it is, and this form
+  // with it. Follow the address, or a new customer taps the link and still sees the password form.
+  const [opened, setOpened] = useState(opening);
+  if (opened !== opening) {
+    setOpened(opening);
+    setView(opening);
+  }
   // What they typed stays put when they move between the password form and the code form.
   const [typed, setTyped] = useState(knownEmail ?? "");
   const heading = useRef<HTMLHeadingElement>(null);

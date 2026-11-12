@@ -599,9 +599,16 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
 
     // Open sign-up: new email, then the business form, then ordering
     const chef = `chef${tag}@new.test`;
-    await p.goto(BASE + "/account/sign-in?new=1&next=%2Faccount");
+    // The way a new customer arrives: the sign-in page, then its "Create an account" link. The link only changes
+    // the address, so the form has to follow it (it used to stay on the password form).
+    await p.goto(BASE + "/account/sign-in?next=%2Faccount");
+    await p.fill("#si-email", chef);
+    await Promise.all([p.waitForURL(/\/account\/sign-in\?new=1&next=%2Faccount$/), p.click("main a:has-text('Create an account')")]);
+    await p.waitForSelector("text=Then choose a password", { timeout: 5000 }).catch(() => {});
+    check((await p.textContent("main h1")) === "Create your account" && (await p.locator("#si-password").count()) === 0, `${tag} "Create an account" on the sign-in page opens the create form`);
+    check((await p.inputValue("#si-email")) === chef, `${tag} the email typed before the link is kept`);
     check((await p.textContent("main")).includes("Then choose a password"), `${tag} account creation says a password comes next`);
-    await p.fill("#si-email", chef); await p.click("main form button[type=submit]");
+    await p.click("main form button[type=submit]");
     await p.waitForSelector("#si-code");
     await sendCodeStep(p, null);
     await p.waitForSelector("#si-new-password-error");
