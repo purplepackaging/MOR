@@ -162,20 +162,31 @@ export default async function ProductPage({ params }: PageProps<"/[locale]/produ
             <tbody>
               {p.variants.map((v) => {
                 const name = `${p.name[locale]}, ${variantSummary(v, locale)}`.replace(/, $/, "");
-                // On phones the extra columns collapse into one line under the first.
+                const said = (c: Column) => {
+                  const value = txt(v[c], locale);
+                  return value && c === "fits" ? `${d.fits}: ${isolate(value, locale)}` : isolate(value, locale);
+                };
+                // On phones a row's first value is its title and the rest collapse into one line under it. When the
+                // first column is empty on this row (plain film beside meat film), the next value takes its place,
+                // so the title never reads "–".
+                const lead = Math.max(0, columns.findIndex((c) => txt(v[c], locale)));
                 const compact = columns
-                  .slice(1)
-                  .map((c) => {
-                    const value = txt(v[c], locale);
-                    return value && c === "fits" ? `${d.fits}: ${isolate(value, locale)}` : isolate(value, locale);
-                  })
+                  .filter((_, i) => i !== lead)
+                  .map(said)
                   .filter(Boolean)
                   .join(locale === "ar" ? "، " : ", ");
                 return (
                   <tr key={v.sku}>
                     {columns.map((c, i) => (
                       <td key={c} className={i === 0 ? styles.primary : styles.extra}>
-                        <bdi>{txt(v[c], locale) || "–"}</bdi>
+                        {i === 0 && lead > 0 ? (
+                          <>
+                            <bdi className={styles.wideOnly}>–</bdi>
+                            <bdi className={styles.narrowOnly}>{said(columns[lead])}</bdi>
+                          </>
+                        ) : (
+                          <bdi>{txt(v[c], locale) || "–"}</bdi>
+                        )}
                       </td>
                     ))}
                     {compact ? <td className={styles.compact}>{compact}</td> : null}

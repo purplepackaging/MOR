@@ -143,6 +143,11 @@
   display: none;
 }
 
+/* A row whose first column is empty: a dash in the table, the next value as its title on phones. */
+.narrowOnly {
+  display: none;
+}
+
 .addCell {
   width: 1%;
   text-align: end;
@@ -212,6 +217,12 @@
   }
   .table td.primary {
     font-size: var(--fs-body);
+  }
+  .table td.primary .wideOnly {
+    display: none;
+  }
+  .table td.primary .narrowOnly {
+    display: inline;
   }
   .table td.compact,
   .table td.caseCell {

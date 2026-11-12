@@ -28,7 +28,9 @@ Commands: `npm run dev`, `npm run typecheck`, `npm run build`.
   the product page the large one. The build fails if a catalog photo lacks either file. Browsers keep a
   photo for a day, so after replacing one under the same name raise `PHOTO_VERSION` in `ProductVisual.tsx`
   (it is the `?v=` on every photo address). A tile that holds a
-  photo has a deeper floor and the photo a soft shadow (`.tile` in `src/styles/base.css`). Look at a new
+  photo has a deeper floor and a soft shadow under the photo (`src/styles/base.css`). The shadow is drawn on
+  `.shot`, a layer that covers the whole tile, never on the `img`: Safari cuts a filter on an image off at the
+  image's own box, which showed as straight lines across the tile on iPhones. Look at a new
   photo on the tile before it ships: the shadow shows a ragged cut-out or a leftover patch of studio white.
 - **Product page table:** a column that reads the same on every size for sale (color, lid size) moves up
   as a pill beside the material, as long as one column is left to tell the sizes apart.

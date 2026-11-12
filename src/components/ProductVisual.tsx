@@ -23,7 +23,7 @@ export const CARD_PHOTO = "(max-width: 639px) 37vw, 230px";
  * /img in next.config.ts). When a photo is replaced under the same name, raise this number: the address
  * changes, so every browser fetches the new file on its next visit.
  */
-export const PHOTO_VERSION = 2;
+export const PHOTO_VERSION = 3;
 
 /** A product photo or drawing on a lilac tile. */
 export function ProductVisual({ image, icon, alt = "", className, priority, sizes = CARD_PHOTO }: Props) {
@@ -31,20 +31,24 @@ export function ProductVisual({ image, icon, alt = "", className, priority, size
   return (
     <div className={`tile ${className ?? ""}`}>
       {image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={file("")}
-          // Every photo comes in two files: 480 px on its long side for cards and lists, and up to 1000 px
-          // for the product page. The tile is square and the photo fits inside it, so the long side is what counts.
-          srcSet={`${file("-480")} 480w, ${file("")} 1000w`}
-          sizes={sizes}
-          alt={alt}
-          width={480}
-          height={480}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          fetchPriority={priority ? "high" : undefined}
-        />
+        // The shadow is drawn on this layer, which covers the whole tile, and not on the photo itself:
+        // Safari cuts a shadow off at the edge of its own image, which showed as straight lines on iPhones.
+        <span className="shot">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={file("")}
+            // Every photo comes in two files: 480 px on its long side for cards and lists, and up to 1000 px
+            // for the product page. The tile is square and the photo fits inside it, so the long side is what counts.
+            srcSet={`${file("-480")} 480w, ${file("")} 1000w`}
+            sizes={sizes}
+            alt={alt}
+            width={480}
+            height={480}
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : undefined}
+          />
+        </span>
       ) : icon ? (
         <>
           <ProductIcon name={icon} />
