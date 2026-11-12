@@ -33,7 +33,7 @@ const es: Dict = {
     ticketTitle: "Guía de pedidos",
     ticketDay: "Cada jueves",
     ticketCases: "Cajas",
-    ticketNote: "Cámbielo, sáltelo o páuselo cuando quiera.",
+    ticketNote: "Cámbiela, sáltela o páusela cuando quiera.",
     carryTitle: "Lo que manejamos",
     carryBody: "{n} productos en {c} categorías, por caja.",
     carryAll: "Ver todos los productos",
