@@ -307,7 +307,7 @@ textarea {
   place-items: center;
   aspect-ratio: 1;
   border-radius: var(--r-m);
-  background: var(--lilac);
+  background: var(--tile);
   overflow: hidden;
   /* Lets the photo's shadow follow the size of the tile (cqw below). */
   container-type: inline-size;
@@ -344,8 +344,8 @@ textarea {
 /* A tile that holds a photo gets a deeper floor than one that holds a drawing. The tile keeps its own
    color underneath (a card deepens it under the pointer); this lays a little brand violet over its foot. */
 .tile:has(> .shot) {
-  background-image: linear-gradient(180deg, rgb(91 42 134 / 0) 0%, rgb(91 42 134 / 0.08) 100%);
-  background-image: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--mor) 8%, transparent) 100%);
+  background-image: linear-gradient(180deg, rgb(91 42 134 / 0) 0%, rgb(91 42 134 / 0.12) 100%);
+  background-image: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--mor) 12%, transparent) 100%);
 }
 
 .tile > svg {

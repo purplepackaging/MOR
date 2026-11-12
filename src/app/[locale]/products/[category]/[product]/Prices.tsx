@@ -50,11 +50,17 @@ export function Price({
 }
 
 /**
- * The line under the sizes. Signed-out visitors keep "Prices show after you sign in";
+ * The note under the sizes. Signed-out visitors keep "Prices show after you sign in";
  * customers whose prices are showing, or whose account is switched off, see nothing.
+ * For them the note keeps its place, unseen: the page is built with it, and taking it
+ * out would pull everything under it ("Goes with" and its Add buttons) up as the session answers.
  */
 export function PricingNote({ enabled, soon, children }: { enabled: boolean; soon: string; children: ReactNode }) {
   const { status } = usePrices(enabled);
-  if (status === "ok" || status === "paused") return null;
-  return <p className={styles.pricing}>{status === "soon" ? soon : children}</p>;
+  const gone = status === "ok" || status === "paused";
+  return (
+    <p className={`${styles.pricing} ${gone ? styles.pricingGone : ""}`} aria-hidden={gone || undefined}>
+      {status === "soon" ? soon : children}
+    </p>
+  );
 }

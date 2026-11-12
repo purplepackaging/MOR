@@ -22,7 +22,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/products
   const { locale: raw, category } = await params;
   const locale = raw as Locale;
   const c = (await getShelf()).categories.find((x) => x.id === category);
-  if (!c) return {};
+  // Nothing to sell right now: the page is the not-found page, so it takes that page's title.
+  if (!c) return { title: getDictionary(locale).notFound.title };
   return pageMetadata(locale, `/products/${c.id}`, { title: c.name[locale], description: c.description[locale] });
 }
 

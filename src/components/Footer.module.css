@@ -1,7 +1,8 @@
 .footer {
   background: var(--mor-deep);
   color: var(--on-dark);
-  padding-block: var(--s-8) var(--s-6);
+  /* --bottom-bar: a bar fixed to the foot of the screen (the list bar on product pages) never covers the last line. */
+  padding-block: var(--s-8) calc(var(--s-6) + var(--bottom-bar, 0px));
 }
 
 .top {

@@ -8,6 +8,7 @@ export interface CardData {
   slug: string;
   href: string;
   name: string;
+  /** What it comes in: "5 sizes: 9, 10, 12, 16, 24 oz", "13 options". */
   meta: string;
   image?: string;
   icon?: IconName;
@@ -17,6 +18,10 @@ export interface CardData {
   skus?: string[];
 }
 
+/**
+ * A product in a listing. On phones it is a line, like a line on the order ticket: a small photo, then the
+ * name and what it comes in. From 640 px up it is a card, with the photo over the name.
+ */
 export function ProductCard({
   card,
   headingLevel = 3,
@@ -30,16 +35,19 @@ export function ProductCard({
   const H = headingLevel === 2 ? "h2" : "h3";
   return (
     <IntentLink href={card.href} className={styles.card}>
-      <div className={styles.visual}>
-        <ProductVisual image={card.image} icon={card.icon} className={styles.tile} />
-        {prices && card.skus?.length ? <CardPrice skus={card.skus} labels={prices} /> : null}
-      </div>
+      <ProductVisual image={card.image} icon={card.icon} className={styles.tile} />
       <div className={styles.body}>
         <H className={styles.name}>{card.name}</H>
         <p className={styles.meta}>
           {card.meta}
           {card.plantBased && card.plantLabel ? <span className={styles.plant}>{card.plantLabel}</span> : null}
         </p>
+        {/* The price's line is there for everyone, empty until a customer's price arrives, so nothing moves. */}
+        {prices && card.skus?.length ? (
+          <p className={styles.slot}>
+            <CardPrice skus={card.skus} labels={prices} />
+          </p>
+        ) : null}
       </div>
     </IntentLink>
   );

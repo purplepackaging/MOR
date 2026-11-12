@@ -56,7 +56,9 @@
   --mor-soft: #b99ae3;
   --glow: #e2d1fa;
   --lilac: #f2ecfa;
-  --lilac-2: #e6dcf6;
+  /* Product tiles. Deeper than the lilac of bands and panels, so white and clear products stand off them. */
+  --tile: #ded2f1;
+  --tile-2: #d2c3ec;
   --paper: #ffffff;
   --line: #e5ddef;
   --line-strong: #ccbfde;

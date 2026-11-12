@@ -62,6 +62,25 @@
   background: var(--lemon);
 }
 
+/* On a phone's product page the list bar confirms an Add: it rises with the first item and its count follows
+   every one after. A toast above it would cover the size just tapped, so "Added ..." is only spoken there
+   (the live region still holds it) and not shown. Other toasts show as usual. */
+@media (max-width: 959px) {
+  :global(body:has([data-list-bar])) .toast:has(a.action) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    animation: none;
+  }
+  :global(body:has([data-list-bar])) .toast a.action {
+    display: none;
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;

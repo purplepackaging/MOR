@@ -15,8 +15,8 @@ interface Props {
   sizes?: string;
 }
 
-/** A card: two to a row on a phone, three or four on wider screens. */
-export const CARD_PHOTO = "(max-width: 639px) 37vw, 230px";
+/** A card: a 96 px photo beside the name on a phone, three or four cards to a row on wider screens. */
+export const CARD_PHOTO = "(max-width: 639px) 96px, 230px";
 
 /**
  * Browsers keep a photo for a day, and may show their old copy once more after that (the cache rule for

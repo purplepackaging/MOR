@@ -1,12 +1,12 @@
 .page {
-  padding-block: var(--s-5) var(--section);
+  padding-block: var(--s-2) var(--section);
 }
 
 .crumbs ol {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin: 0 0 var(--s-5);
+  margin: 0 0 var(--s-1);
   color: var(--ink-2);
   font-size: var(--fs-small);
 }
@@ -25,7 +25,7 @@
 .crumbs a {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 44px;
   color: var(--ink-2);
   text-decoration: none;
 }
@@ -35,12 +35,29 @@
   text-decoration: underline;
 }
 
+/* Phones: the photo is a band, so the sizes start on the first screen. Wide screens: photo beside the sizes. */
 .layout {
   display: grid;
-  gap: var(--s-6);
+  gap: var(--s-4);
+}
+
+.tile {
+  aspect-ratio: 3 / 2;
+  border-radius: var(--r-l);
+}
+
+.tile img {
+  width: 86%;
+  height: 86%;
 }
 
 @media (min-width: 960px) {
+  .page {
+    padding-block-start: var(--s-4);
+  }
+  .crumbs ol {
+    margin-block-end: var(--s-4);
+  }
   .layout {
     grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: var(--s-8);
@@ -50,15 +67,13 @@
     position: sticky;
     top: calc(var(--header-h) + var(--s-5));
   }
-}
-
-.tile {
-  border-radius: var(--r-l);
-}
-
-.tile img {
-  width: 84%;
-  height: 84%;
+  .tile {
+    aspect-ratio: 1;
+  }
+  .tile img {
+    width: 84%;
+    height: 84%;
+  }
 }
 
 .info {
@@ -67,15 +82,27 @@
   align-content: start;
 }
 
+/* What it is: the name, then the material and how far the sizes run, then what every size shares. */
+.intro {
+  display: grid;
+  gap: var(--s-2);
+}
+
 .title {
-  font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.9rem);
+  font-size: clamp(1.75rem, 1.3rem + 1.8vw, 2.9rem);
+}
+
+.summary {
+  color: var(--ink-2);
+  font-size: var(--fs-lede);
+  line-height: 1.4;
 }
 
 .facts {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0;
+  margin: var(--s-1) 0 0;
   color: var(--ink-2);
   font-size: var(--fs-small);
 }
@@ -86,7 +113,7 @@
   gap: 6px;
   min-height: 30px;
   padding: 0 12px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
 }
 
@@ -107,7 +134,99 @@
   height: 15px;
 }
 
-/* Variant table */
+/* The sizes: the part of the page a customer came for. */
+
+.sizes {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.sizesHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px var(--s-4);
+}
+
+.byCase {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+/* One tap leaves only one color in a long list. Plain radio buttons and :has(), so the page stays static. */
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pick {
+  position: relative;
+  display: inline-flex;
+}
+
+.pick input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.pick span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+  transition:
+    background-color var(--t-fast) ease,
+    border-color var(--t-fast) ease,
+    color var(--t-fast) ease;
+}
+
+.pick:hover span {
+  border-color: var(--mor);
+  color: var(--mor);
+}
+
+.pick input:checked + span {
+  border-color: var(--mor);
+  background: var(--mor);
+  color: var(--paper);
+}
+
+.pick input:focus-visible + span {
+  outline: 2px solid var(--mor);
+  outline-offset: 3px;
+}
+
+.sizes:has(.pick input[value="1"]:checked) tr[data-c]:not([data-c="1"]),
+.sizes:has(.pick input[value="2"]:checked) tr[data-c]:not([data-c="2"]),
+.sizes:has(.pick input[value="3"]:checked) tr[data-c]:not([data-c="3"]),
+.sizes:has(.pick input[value="4"]:checked) tr[data-c]:not([data-c="4"]),
+.sizes:has(.pick input[value="5"]:checked) tr[data-c]:not([data-c="5"]) {
+  display: none;
+}
+
+/* A browser without :has() cannot filter, so it does not offer to. */
+@supports not selector(:has(*)) {
+  .filter {
+    display: none;
+  }
+}
 
 .table {
   width: 100%;
@@ -135,7 +254,7 @@
 }
 
 .primary {
-  font-weight: var(--w-medium);
+  font-weight: var(--w-strong);
   color: var(--ink);
 }
 
@@ -143,7 +262,7 @@
   display: none;
 }
 
-/* A row whose first column is empty: a dash in the table, the next value as its title on phones. */
+/* Shown only when rows stack on phones: a row's title when its first column is empty, and "per case". */
 .narrowOnly {
   display: none;
 }
@@ -182,6 +301,16 @@
 
 /* Stacked rows on small screens */
 @media (max-width: 639px) {
+  .sizesHead {
+    padding-block-end: 10px;
+    border-bottom: 2px solid var(--mor);
+  }
+  .sizes {
+    gap: 0;
+  }
+  .filter {
+    padding-block: var(--s-3) var(--s-1);
+  }
   .table thead {
     position: absolute;
     width: 1px;
@@ -200,7 +329,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 12px;
     align-items: center;
-    padding: 12px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--line);
   }
   .table td {
@@ -208,8 +337,12 @@
     padding: 1px 0;
     border: 0;
   }
-  .table .pack[data-label]::before {
-    content: attr(data-label) ": ";
+  /* "1,000 per case": the words sit around the count, which stays the cell's own text. */
+  .table .pack[data-before]::before {
+    content: attr(data-before);
+  }
+  .table .pack[data-after]::after {
+    content: attr(data-after);
   }
   .table td.extra,
   .table td.priceCell {
@@ -256,31 +389,114 @@
   }
 }
 
+/* Why there is no price, and the way to one. */
 .pricing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--s-2);
+  margin-block-start: var(--s-3);
+  padding: var(--s-1) var(--s-4);
+  border-radius: var(--r-m);
+  background: var(--lilac);
   color: var(--ink-2);
   font-size: var(--fs-small);
+}
+
+.pricing a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* A signed-in customer: the note is out of sight and keeps its place, so nothing under it moves. */
+.pricingGone {
+  visibility: hidden;
 }
 
 /* Goes with */
 
 .related {
   display: grid;
-  gap: var(--s-5);
-  margin-top: var(--section);
+  gap: var(--s-6);
+  margin-top: var(--s-6);
   padding-top: var(--s-6);
   border-top: 1px solid var(--line);
 }
 
-.relatedGrid {
+/* A product whose sizes the catalog says fit this one: its name, then those sizes, each with Add. */
+.fit {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-6) var(--s-4);
-  margin: 0;
+  gap: var(--s-2);
+  min-width: 0;
 }
 
-@media (min-width: 760px) {
-  .relatedGrid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--s-6) var(--s-5);
+.fitHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 64px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: var(--r-s);
+}
+
+.fitTile {
+  flex: none;
+  width: 64px;
+  border-radius: var(--r-s);
+}
+
+.fitName {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fitTitle {
+  font-weight: var(--w-medium);
+  line-height: 1.3;
+}
+
+.fitHead:hover .fitTitle {
+  color: var(--mor);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.fitMeta {
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+@media (max-width: 639px) {
+  /* On phones the table has no heading row; the product's name closes with the heavy rule instead. */
+  .ruled {
+    padding-block-end: var(--s-2);
+    border-bottom: 2px solid var(--mor);
+    border-radius: 0;
   }
+  .fit {
+    gap: 0;
+  }
+}
+
+@media (min-width: 960px) {
+  .related {
+    margin-top: var(--s-8);
+  }
+  .fit {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+}
+
+/* The rest of "goes with": a name and a photo each, no sizes to add from here. */
+.others {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: var(--s-3) var(--s-6);
+  margin: 0;
 }
