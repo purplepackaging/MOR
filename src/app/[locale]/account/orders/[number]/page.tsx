@@ -145,16 +145,12 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
         <dl className={styles.costs}>
           <div>
             <dt>{p.delivery}</dt>
-            <dd>
-              <bdi>{formatMoney(locale, order.deliveryFee)}</bdi>
-            </dd>
+            <dd>{order.deliveryFee === 0 ? dict.list.free : <bdi>{formatMoney(locale, order.deliveryFee)}</bdi>}</dd>
           </div>
           {order.nextDay && order.nextDayFee != null ? (
             <div>
               <dt>{p.nextDay}</dt>
-              <dd>
-                <bdi>{formatMoney(locale, order.nextDayFee)}</bdi>
-              </dd>
+              <dd>{order.nextDayFee === 0 ? dict.list.free : <bdi>{formatMoney(locale, order.nextDayFee)}</bdi>}</dd>
             </div>
           ) : null}
           <div className={styles.costsTotal}>

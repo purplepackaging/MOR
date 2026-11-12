@@ -30,9 +30,9 @@ export default async function TermsPage({ params }: PageProps<"/[locale]/terms">
         invoice shows the price for each order.
       </p>
 
-      <h2>Your usual order</h2>
+      <h2>Your order guide</h2>
       <p>
-        Your usual order repeats on your delivery day until you change, skip or pause it. Make changes before the cutoff
+        Your order guide repeats on your delivery day until you change, skip or pause it. Make changes before the cutoff
         your rep confirms for your route. If an item is out of stock, we tell you and may offer a comparable item.
       </p>
 

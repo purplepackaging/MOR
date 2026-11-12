@@ -19,7 +19,8 @@ like a kitchen printer ticket. Everything else stays quiet so products and the t
 | `--lemon` | `#f3e36a` | Only for "on repeat" moments: delivery day pill, list count, rep badge |
 | `--paper` | `#ffffff` | Page and ticket |
 
-The order ticket keeps ink rules so it reads as a printed slip against the violet around it.
+The order ticket keeps ink rules so it reads as a printed slip against the violet around it. Its title is
+short ("Order guide") and wraps beside the day pill when it has to; the pill and its loop mark never shrink.
 
 Errors use `--err` (`#a3241c`); success uses `--ok` (`#1d6b45`). All text pairs meet WCAG AA.
 
@@ -79,6 +80,8 @@ line height. Numbers in tables and steppers are tabular.
 - Numbered markers only for real sequences (how ordering works, what happens next).
 - No all-caps labels, no eyebrow text above headings, no single highlighted word in headlines.
 - Buttons say what happens: "Add", "Send request", "Browse products".
+- Name things the way a restaurant does. The saved list of what a customer buys regularly is their "order
+  guide" (never "usual order"), and its button reads "Order from my guide". A fee of $0 reads "Free".
 - Motion only answers an action (add to list, open menu, toast). Nothing animates on scroll.
 - Every interactive element has a 44px target and a visible focus ring. That includes chips, footer links,
   the language links and the count beside a category heading.

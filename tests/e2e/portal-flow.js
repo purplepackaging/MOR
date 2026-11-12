@@ -285,7 +285,7 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(!homeText.includes("Create an account") && homeText.includes("Go to your account") && homeText.includes("Ready to order?") && (await p.$("main a.btn[href='/account']")) !== null, `${tag} the home page offers a signed-in customer their account, not a new one`);
     check((await cardPrice("cold-cup-dome-lids")) === (HIDE ? "$40.00" : "From $40.00"), `${tag} home page staples show prices too (${await cardPrice("cold-cup-dome-lids")})`);
 
-    // List: prices at a 25% margin, delivery fee, next-day option, card fee note
+    // List: prices at a 25% margin, delivery fee, no next-day option (Matt, Nov 12, 2026), card fee note
     await setList(p, LIST);
     await p.goto(BASE + "/list");
     await p.waitForSelector("text=Ordering for Kebab House");
@@ -312,11 +312,9 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
       check((await orderBar(p)) === null, `${tag} no order bar when the summary sits beside the list`);
     }
     await axe(p, `${tag} list signed in`);
-    await p.check("text=Next-day delivery, +$50.00");
-    listText = await p.textContent("aside");
-    check((listText.match(/\$50\.00/g) ?? []).length >= 3, `${tag} next-day fee line appears when ticked`);
-    await p.click("text=Save as my usual order");
-    await p.waitForSelector("text=Saved as your usual order");
+    check((await p.$("aside input[type=checkbox]")) === null && !(await p.textContent("aside")).includes("Next-day"), `${tag} the list offers no next-day delivery`);
+    await p.click("text=Save as my order guide");
+    await p.waitForSelector("text=Saved as your order guide");
     check(true, `${tag} usual order saved`);
     await p.fill("#order-note", "Back door, before 10 am");
     await p.click("button:has-text('Place order')");
@@ -326,22 +324,22 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(await p.evaluate(() => JSON.parse(localStorage.getItem("mor.list.v1")).length === 0), `${tag} list cleared after ordering`);
     // The confirmation says what the order comes to, from the database. This order is already the usual one, so it does not offer to save it.
     const placedText = await p.textContent("main");
-    if (HIDE) check(placedText.includes("Total with delivery: $402.20"), `${tag} the confirmation shows the total the database saved`);
+    if (HIDE) check(placedText.includes("Total with delivery: $352.20"), `${tag} the confirmation shows the total the database saved`);
     else check(placedText.includes("We confirm the total before delivery.") && !placedText.includes("Total with delivery"), `${tag} the confirmation says the total comes later while an item has no price`);
-    check(!placedText.includes("Make this my usual order") && placedText.includes("View order") && placedText.includes("Keep browsing"), `${tag} an order that is already the usual one does not offer to save it again`);
-    check(!(await p.textContent("[role=status][aria-live]")).includes("Saved as your usual order"), `${tag} the toast from the list is gone on the confirmation`);
+    check(!placedText.includes("Make this my order guide") && placedText.includes("View order") && placedText.includes("Keep browsing"), `${tag} an order that is already the usual one does not offer to save it again`);
+    check(!(await p.textContent("[role=status][aria-live]")).includes("Saved as your order guide"), `${tag} the toast from the list is gone on the confirmation`);
     // The team's alert email for that order: every line with its price and amount, the fees, the note.
     const firstNumber = placed.match(/\d+/)[0];
-    let alert = (await teamEmails()).find((e) => e.subject === `New order ${firstNumber} (next day): Kebab House`);
-    check(Boolean(alert) && alert.to.join() === "team@mor.test" && alert.text.includes("Placed by owner@kebab.test") && alert.text.includes("NEXT-DAY DELIVERY requested"), `${tag} the team gets an alert email for the order (${alert ? alert.subject : "none"})`);
+    let alert = (await teamEmails()).find((e) => e.subject === `New order ${firstNumber}: Kebab House`);
+    check(Boolean(alert) && alert.to.join() === "team@mor.test" && alert.text.includes("Placed by owner@kebab.test") && !alert.text.includes("NEXT-DAY"), `${tag} the team gets an alert email for the order, standard delivery (${alert ? alert.subject : "none"})`);
     check(Boolean(alert) && alert.text.includes("  4 cs  CUP-PET-16  Clear cold cups, 16 oz  |  $53.33 a case, $213.32") && alert.text.includes("  2 cs  HBG-96N  ") && alert.text.includes("|  $44.44 a case, $88.88"), `${tag} the alert lists each item with its price per case and what it comes to`);
-    if (HIDE) check(Boolean(alert) && alert.text.includes("Subtotal: $302.20\nDelivery: $50.00\nNext-day delivery: $50.00\nTotal: $402.20\nNote: Back door, before 10 am\n\nConfirm it in Supabase"), `${tag} the alert adds up: subtotal, delivery, next-day fee, total, then the note, with no gaps`);
-    else check(Boolean(alert) && alert.text.includes("KFT-1K") && alert.text.includes("|  price to be confirmed") && alert.text.includes("Subtotal: to be confirmed\nDelivery: $50.00\nNext-day delivery: $50.00\nTotal: to be confirmed\nNote: Back door, before 10 am"), `${tag} the alert marks the item without a price and leaves the totals to be confirmed`);
+    if (HIDE) check(Boolean(alert) && alert.text.includes("Subtotal: $302.20\nDelivery: $50.00\nTotal: $352.20\nNote: Back door, before 10 am\n\nConfirm it in Supabase"), `${tag} the alert adds up: subtotal, delivery, total, then the note, with no gaps`);
+    else check(Boolean(alert) && alert.text.includes("KFT-1K") && alert.text.includes("|  price to be confirmed") && alert.text.includes("Subtotal: to be confirmed\nDelivery: $50.00\nTotal: to be confirmed\nNote: Back door, before 10 am"), `${tag} the alert marks the item without a price and leaves the totals to be confirmed`);
     await axe(p, `${tag} order placed`);
     await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
     let orderText = await p.textContent("main");
     check(orderText.includes("Back door, before 10 am") && orderText.includes("Received") && orderText.includes("$213.32"), `${tag} order page shows note, status and line totals`);
-    check(orderText.includes("Next-day delivery") && orderText.includes("$50.00") && orderText.includes("Delivery"), `${tag} order page shows delivery and next-day fees`);
+    check(orderText.includes("Delivery") && orderText.includes("$50.00") && !orderText.includes("Next-day delivery"), `${tag} order page shows the delivery fee`);
     await axe(p, `${tag} order page`);
     await p.click("text=Order these again");
     await p.waitForURL(/\/list$/);
@@ -397,9 +395,9 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.waitForSelector("text=/Order \\d+ is in/");
     // A different order from the usual one: one tap makes it the usual order.
     check((await p.textContent("main")).includes("Total with delivery: $156.66"), `${tag} the confirmation shows this order's total`);
-    await p.click("button:has-text('Make this my usual order')");
-    await p.waitForSelector("text=Saved as your usual order");
-    check((await p.$("button:has-text('Make this my usual order')")) === null, `${tag} the order becomes the usual order, and the offer goes away`);
+    await p.click("button:has-text('Make this my order guide')");
+    await p.waitForSelector("text=Saved as your order guide");
+    check((await p.$("button:has-text('Make this my order guide')")) === null, `${tag} the order becomes the usual order, and the offer goes away`);
     await axe(p, `${tag} order placed and saved as usual`);
     await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
     orderText = await p.textContent("main");
@@ -418,15 +416,15 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     const usualFirst = await p.evaluate(() => {
       const usual = document.querySelector("section[aria-labelledby=usual-title]").getBoundingClientRect();
       const recent = document.querySelector("section[aria-labelledby=recent-title]").getBoundingClientRect();
-      const button = [...document.querySelectorAll("section[aria-labelledby=usual-title] button")].find((b) => b.textContent.trim() === "Order my usual").getBoundingClientRect();
+      const button = [...document.querySelectorAll("section[aria-labelledby=usual-title] button")].find((b) => b.textContent.trim() === "Order from my guide").getBoundingClientRect();
       return { before: usual.top < recent.top || usual.left < recent.left, inView: button.bottom <= innerHeight, height: Math.round(button.height) };
     });
-    check(usualFirst.before && usualFirst.inView && usualFirst.height >= 44, `${tag} "Order my usual" comes first and is on the first screen (${JSON.stringify(usualFirst)})`);
+    check(usualFirst.before && usualFirst.inView && usualFirst.height >= 44, `${tag} "Order from my guide" comes first and is on the first screen (${JSON.stringify(usualFirst)})`);
     await setList(p, []);
-    await Promise.all([p.waitForURL(/\/list$/), p.click("button:has-text('Order my usual')")]);
+    await Promise.all([p.waitForURL(/\/list$/), p.click("button:has-text('Order from my guide')")]);
     await p.waitForSelector("text=Ordering for Kebab House");
     check(await p.evaluate(() => localStorage.getItem("mor.list.v1") === JSON.stringify([{ sku: "CUP-PET-16", cases: 2 }])), `${tag} one tap puts the usual order on the list`);
-    check((await p.textContent("[role=status][aria-live]")).includes("Your usual order is on your list"), `${tag} the list says the usual order is on it`);
+    check((await p.textContent("[role=status][aria-live]")).includes("Your order guide is on your list"), `${tag} the list says the usual order is on it`);
     // Every past order can go back on the list from the account page.
     await p.goto(BASE + "/account");
     const againLabels = await p.$$eval("section[aria-labelledby=recent-title] button:visible", (els) => els.map((e) => `${e.textContent.trim()}|${e.getAttribute("aria-label")}`));
@@ -447,7 +445,7 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.request.post(`${MOCK}/__test/weekly`, { data: { live: false } });
     await p.goto(BASE + "/account");
     let weeklyBox = await p.textContent("section[aria-labelledby=usual-title]");
-    check(weeklyBox.includes("Weekly order") && weeklyBox.includes("Get your usual order every week.") && weeklyBox.includes("Ask for a weekly order") && !weeklyBox.includes("Turn on my weekly order"), `${tag} the usual order offers a weekly order, as a request while the site has not switched them on`);
+    check(weeklyBox.includes("Weekly order") && weeklyBox.includes("Get your order guide delivered every week.") && weeklyBox.includes("Ask for a weekly order") && !weeklyBox.includes("Turn on my weekly order"), `${tag} the usual order offers a weekly order, as a request while the site has not switched them on`);
     await Promise.all([p.waitForURL(/\/account\?weekly=asked$/), p.click("button:has-text('Ask for a weekly order')")]);
     weeklyBox = await p.textContent("main");
     check((weeklyBox.match(/You asked for a weekly order\. We will tell you before the first one goes out\./g) ?? []).length === 2 && weeklyBox.includes("Cancel my request") && !weeklyBox.includes("Next delivery"), `${tag} asking is confirmed, and promises nothing that is not running yet`);
@@ -464,7 +462,7 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await Promise.all([p.waitForURL(/\/account\?weekly=asked$/), p.click("button:has-text('Turn on my weekly order')")]);
     weeklyBox = await p.textContent("section[aria-labelledby=usual-title]");
     const nextLine = weeklyBox.match(/Next delivery: (Thursday, [A-Z][a-z]+ \d{1,2})\. We place the order on (Tuesday, [A-Z][a-z]+ \d{1,2})(?:,| at) 5:00 PM\./);
-    check(Boolean(nextLine) && weeklyBox.includes("Your weekly order is on.") && weeklyBox.includes("To change what comes, change your usual order before then."), `${tag} a running weekly order names the next delivery and when its order closes (${nextLine ? nextLine[0] : weeklyBox.slice(-200)})`);
+    check(Boolean(nextLine) && weeklyBox.includes("Your weekly order is on.") && weeklyBox.includes("To change what comes, change your order guide before then."), `${tag} a running weekly order names the next delivery and when its order closes (${nextLine ? nextLine[0] : weeklyBox.slice(-200)})`);
     check((await p.textContent("header + div, main header")).includes("Your weekly order is on."), `${tag} turning it on is confirmed at the top of the page`);
     await axe(p, `${tag} weekly order on`);
     const skipName = `Skip ${nextLine ? nextLine[1] : ""}`;
@@ -476,7 +474,7 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     // Saving a different usual order keeps the weekly order on.
     await setList(p, [{ sku: "CUP-PET-16", cases: 2 }]);
     await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
-    await p.click("text=Save as my usual order"); await p.waitForSelector("text=Saved as your usual order");
+    await p.click("text=Save as my order guide"); await p.waitForSelector("text=Saved as your order guide");
     await setList(p, []);
     await p.goto(BASE + "/account");
     check((await p.textContent("section[aria-labelledby=usual-title]")).includes("Your weekly order is on."), `${tag} saving the usual order again keeps the weekly order on`);
@@ -526,6 +524,32 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.goto(BASE + "/account/details"); await p.waitForSelector("#su-street");
     await Promise.all([p.waitForURL(/\/account\?details=saved$/), p.click("button:has-text('Save details')")]);
     check((await teamEmails()).filter((e) => e.subject === "Details changed: Kebab House").length === before, `${tag} saving with nothing changed sends no email`);
+
+    // No fees, as production has since Nov 12, 2026: the list says delivery is free and the total is the subtotal,
+    // and the order, its page, the team's alert and the order guide's card say the same.
+    await p.request.post(`${MOCK}/__test/pricing`, { data: { delivery_fee: 0, next_day_fee: 0 } });
+    const costRows = (sel) => p.evaluate((s) => {
+      const dl = [...document.querySelectorAll(`${s} dl`)].find((d) => [...d.querySelectorAll("dt")].some((t) => t.textContent.trim() === "Delivery"));
+      return dl ? [...dl.querySelectorAll(":scope > div")].map((d) => `${d.querySelector("dt").textContent.trim()}=${d.querySelector("dd").textContent.trim()}`).join("|") : "none";
+    }, sel);
+    await setList(p, [{ sku: "CUP-PET-16", cases: 2 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    check((await costRows("aside")) === "Subtotal=$106.66|Delivery=Free|Total=$106.66", `${tag} with no fees the list says delivery is free and the total is the subtotal (${await costRows("aside")})`);
+    if (tag === 390) check(((await orderBar(p)) ?? "").includes("$106.66"), `${tag} the order bar's total has no fees (${await orderBar(p)})`);
+    await axe(p, `${tag} list with no fees`);
+    await p.click("button:has-text('Place order')");
+    await p.waitForSelector("text=/Order \\d+ is in/");
+    const freeNumber = (await p.textContent("h2")).match(/\d+/)[0];
+    check((await p.textContent("main")).includes("Total with delivery: $106.66"), `${tag} the confirmation's total has no fees`);
+    await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
+    check((await costRows("main")) === "Delivery=Free|Total=$106.66", `${tag} the order's page says delivery was free (${await costRows("main")})`);
+    alert = (await teamEmails()).find((e) => e.subject === `New order ${freeNumber}: Kebab House`);
+    check(Boolean(alert) && alert.text.includes("Subtotal: $106.66\nDelivery: $0.00\nTotal: $106.66"), `${tag} the team's alert shows delivery at $0.00 and the total`);
+    await p.goto(BASE + "/account");
+    const guideCard = await p.textContent("section[aria-labelledby=usual-title]");
+    check(guideCard.includes("Your order guide") && guideCard.includes("Total with delivery") && guideCard.includes("$106.66") && !guideCard.includes("$156.66") && guideCard.includes("Order from my guide"), `${tag} the order guide's card adds no delivery fee`);
+    await axe(p, `${tag} account home with no fees`);
+    await p.request.post(`${MOCK}/__test/pricing`, { data: { delivery_fee: 50, next_day_fee: 50 } });
 
     // Canceling: only while the order is still received, and only after a second tap.
     await setList(p, [{ sku: "HBG-96N", cases: 1 }]);
@@ -705,7 +729,7 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await p.waitForSelector("text=Ordering for Pho Place");
     check((await p.textContent("main")).includes("$44.44 a case") && (await p.textContent("aside")).includes("$94.44"), `${tag} new account can order at the same prices`);
     // A new account has no delivery day yet: it can ask for a weekly order, and is told the day comes first.
-    await p.click("text=Save as my usual order"); await p.waitForSelector("text=Saved as your usual order");
+    await p.click("text=Save as my order guide"); await p.waitForSelector("text=Saved as your order guide");
     await setList(p, []);
     await p.goto(BASE + "/account");
     await Promise.all([p.waitForURL(/\/account\?weekly=asked$/), p.click("button:has-text('Ask for a weekly order')")]);
@@ -827,7 +851,6 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
       await p.screenshot({ path: path.join(SHOTS, "portal-account.png"), fullPage: true });
       await setList(p, LIST);
       await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
-      await p.check("text=Next-day delivery, +$50.00");
       await p.screenshot({ path: path.join(SHOTS, "portal-list.png"), fullPage: true });
       await p.goto(BASE + "/account/orders");
       await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("table a >> nth=-1")]);

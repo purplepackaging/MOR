@@ -11,7 +11,8 @@ const ACCOUNTS = {
   A: { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Kebab House", delivery_day: "thu", created_at: "2026-11-01T12:00:00Z", active: true, contact_name: "Ali", phone: "+14045550101", street: "100 Buford Hwy", city: "Doraville", zip: "30340", preferred_language: "en" },
   P: { id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", name: "Taco Spot", delivery_day: null, created_at: "2026-11-02T12:00:00Z", active: false },
 };
-// Same rules as public.pricing: price = cost / (1 - margin); fees per order.
+// Same rules as public.pricing: price = cost / (1 - margin); fees per order. These are test values: production has
+// a 30% margin and no fees since Nov 12, 2026. POST /__test/pricing changes them for a test.
 const PRICING = { margin: 0.25, delivery_fee: 50, next_day_fee: 50 };
 // SKUs with a cost. The site sells only these, so the rest of the catalog stays hidden.
 // The first four carry the prices the portal checks add up; the rest fill out the shelves.
@@ -115,6 +116,11 @@ http.createServer(async (req, res) => {
   if (p === "/__test/fail-account" && req.method === "POST") {
     failAccounts = Number(body.times) || 1;
     return send(res, 200, { failAccounts });
+  }
+  // Sets the margin or the fees, as the dashboard would. Send only the keys to change; it answers with all three.
+  if (p === "/__test/pricing" && req.method === "POST") {
+    for (const k of ["margin", "delivery_fee", "next_day_fee"]) if (typeof body[k] === "number") PRICING[k] = body[k];
+    return send(res, 200, PRICING);
   }
   if (p === "/__test/outage" && req.method === "POST") {
     outage = body.on === true;

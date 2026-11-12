@@ -421,8 +421,8 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await setList(p, [{ sku: "CUP-PET-16", cases: 2 }, { sku: "GCK-1", cases: 1 }]);
     await p.goto(BASE + "/list");
     await p.waitForSelector("text=Ordering for Kebab House");
-    await p.click("text=Save as my usual order");
-    await p.waitForSelector("text=Saved as your usual order");
+    await p.click("text=Save as my order guide");
+    await p.waitForSelector("text=Saved as your order guide");
     await p.click("aside button:has-text('Place order')");
     await p.waitForSelector("text=/Order \\d+ is in/");
     const first = Number((await p.textContent("h2")).match(/\d+/)[0]);
@@ -433,10 +433,10 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await axe(p, `${tag} account page with an item marked`);
     if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "hide-account-390.png"), fullPage: true });
     await setList(p, []);
-    await p.click("text=Order my usual");
+    await p.click("text=Order from my guide");
     await p.waitForURL(/\/list$/);
     await p.waitForSelector("text=Ordering for Kebab House");
-    check((await savedSkus(p)) === "CUP-PET-16", `${tag} “Order my usual” adds only what is for sale (${await savedSkus(p)})`);
+    check((await savedSkus(p)) === "CUP-PET-16", `${tag} “Order from my guide” adds only what is for sale (${await savedSkus(p)})`);
     await p.goto(`${BASE}/account/orders/${first}`);
     text = await p.textContent("main");
     check(text.includes("Guest check books") && text.includes("Not available right now"), `${tag} the past order keeps the line and marks it`);
@@ -470,9 +470,9 @@ const CATEGORIES = ["cups-lids", "containers", "foil-wrap", "bags", "napkins-pap
     await p.waitForSelector("text=Ordering for Kebab House");
     await until("masks on the list page", async () => { await p.reload(); await p.waitForSelector("text=Ordering for Kebab House"); return (await p.textContent("main")).includes("Disposable face masks"); });
     await setCosts({ "MSK-BL": null });
-    await p.click("text=Save as my usual order");
+    await p.click("text=Save as my order guide");
     await p.waitForSelector("text=Some items are not available right now");
-    check((await p.$("text=Saved as your usual order")) === null && (await savedSkus(p)) === "CUP-PET-16", `${tag} saving a usual order with an item that just went off sale is held back too`);
+    check((await p.$("text=Saved as your order guide")) === null && (await savedSkus(p)) === "CUP-PET-16", `${tag} saving a usual order with an item that just went off sale is held back too`);
     // What is left can be ordered.
     await p.click("aside button:has-text('Place order')");
     await p.waitForSelector("text=/Order \\d+ is in/");
