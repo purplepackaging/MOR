@@ -5,7 +5,9 @@
  * Super Win Enterprise catalog (NY), Wellcare International product lines.
  * Case packs come from those catalogs: confirm each one before quoting.
  * Super Win and Wellcare were reconciled line by line on Nov 10, 2026. Where a
- * supplier packs the same item differently, the variant keeps its first source.
+ * supplier packs the same item differently, the variant keeps its first source,
+ * except that 27 variants sold from Wellcare's price list carry Wellcare's case
+ * pack since Nov 12, 2026 (bagasse bowls, rose bowls, food pails and others).
  * SKUs are MOR's own and must stay stable once orders reference them.
  */
 import type { Category, L10n, Product, TagId } from "./types";
@@ -316,9 +318,9 @@ export const products: Product[] = [
       { sku: "CUP-PET-12", size: "12 oz", fits: "98 mm", pack: 1000 },
       { sku: "CUP-PET-12S", size: "12 oz", detail: D.squat, pack: 1000 },
       { sku: "CUP-PET-16", size: "16 oz", fits: "98 mm", pack: 1000 },
-      { sku: "CUP-PET-20", size: "20 oz", fits: "98 mm", pack: 600 },
+      { sku: "CUP-PET-20", size: "20 oz", fits: "98 mm", pack: 1000 },
       { sku: "CUP-PET-24", size: "24 oz", fits: "98 mm", pack: 600 },
-      { sku: "CUP-PET-32", size: "32 oz", fits: "107 mm", pack: 300 },
+      { sku: "CUP-PET-32", size: "32 oz", fits: "107 mm", pack: 500 },
     ],
   },
   {
@@ -397,7 +399,7 @@ export const products: Product[] = [
       { sku: "HOT-10", size: "10 oz", color: C.white, pack: 1000 },
       { sku: "HOT-12", size: "12 oz", color: C.white, pack: 1000 },
       { sku: "HOT-16", size: "16 oz", color: C.white, pack: 1000 },
-      { sku: "HOT-20", size: "20 oz", color: C.white, pack: 1000 },
+      { sku: "HOT-20", size: "20 oz", color: C.white, pack: 600 },
       { sku: "HOT-08J", size: "8 oz", color: C.java, pack: 1000 },
       { sku: "HOT-10J", size: "10 oz", color: C.java, pack: 1000 },
       { sku: "HOT-12J", size: "12 oz", color: C.java, pack: 1000 },
@@ -484,7 +486,7 @@ export const products: Product[] = [
     variants: [
       { sku: "CAR-2", size: t("2 cups", "2 vasos", "2 bardak", "كوبان"), color: C.natural, pack: 300 },
       { sku: "CAR-4", size: t("4 cups", "4 vasos", "4 bardak", "4 أكواب"), color: C.natural, fits: "8–32 oz", pack: 300 },
-      { sku: "CAR-2B", size: t("2 cups", "2 vasos", "2 bardak", "كوبان"), detail: D.paperboard, color: C.kraft, pack: 200 },
+      { sku: "CAR-2B", size: t("2 cups", "2 vasos", "2 bardak", "كوبان"), detail: D.paperboard, color: C.kraft, pack: 250 },
       { sku: "CAR-4B", size: t("4 cups", "4 vasos", "4 bardak", "4 أكواب"), detail: D.paperboard, color: C.kraft, pack: 200 },
     ],
   },
@@ -616,14 +618,14 @@ export const products: Product[] = [
     material: M.pp,
     goesWith: ["cutlery-kits", "tshirt-bags"],
     variants: [
-      { sku: "HPP-66", size: "6 × 6 × 3 in", detail: D.comp1, color: C.black, pack: 250 },
+      { sku: "HPP-66", size: "6 × 6 × 3 in", detail: D.comp1, color: C.black, pack: 150 },
       { sku: "HPP-69", size: "6 × 9 × 3 in", detail: D.comp1, color: C.black, pack: 150 },
       { sku: "HPP-88", size: "8 × 8 × 3 in", detail: D.comp1, color: C.black, pack: 150 },
       { sku: "HPP-883", size: "8 × 8 × 3 in", detail: D.comp3, color: C.black, pack: 150 },
       { sku: "HPP-99", size: "9 × 9 × 3 in", detail: D.comp1, color: C.black, pack: 150 },
       { sku: "HPP-993", size: "9 × 9 × 3 in", detail: D.comp3, color: C.black, pack: 150 },
-      { sku: "HPP-1010", size: "10 × 10 × 3 in", detail: D.comp1, color: C.black, pack: 150 },
-      { sku: "HPP-10103", size: "10 × 10 × 3 in", detail: D.comp3, color: C.black, pack: 150 },
+      { sku: "HPP-1010", size: "10 × 10 × 3 in", detail: D.comp1, color: C.black, pack: 100 },
+      { sku: "HPP-10103", size: "10 × 10 × 3 in", detail: D.comp3, color: C.black, pack: 100 },
     ],
   },
   {
@@ -656,7 +658,7 @@ export const products: Product[] = [
     goesWith: ["compostable-cutlery", "kraft-bags", "bagasse-plates"],
     variants: [
       { sku: "HBG-55W", size: "5 × 5 in", detail: D.comp1, color: C.white, pack: 500 },
-      { sku: "HBG-66W", size: "6 × 6 in", detail: D.comp1, color: C.white, pack: 500 },
+      { sku: "HBG-66W", size: "6 × 6 in", detail: D.comp1, color: C.white, pack: 400 },
       { sku: "HBG-88W", size: "8 × 8 in", detail: D.comp1, color: C.white, pack: 200 },
       { sku: "HBG-883W", size: "8 × 8 in", detail: D.comp3, color: C.white, pack: 200 },
       { sku: "HBG-96W", size: "9 × 6 in", detail: D.comp1, color: C.white, pack: 200 },
@@ -705,13 +707,13 @@ export const products: Product[] = [
     plantBased: true,
     goesWith: ["chopsticks", "kraft-bags"],
     variants: [
-      { sku: "PAI-08", size: "8 oz", color: C.white, pack: 1000 },
-      { sku: "PAI-16", size: "16 oz", color: C.white, pack: 500 },
-      { sku: "PAI-26", size: "26 oz", color: C.white, pack: 500 },
-      { sku: "PAI-32", size: "32 oz", color: C.white, pack: 500 },
-      { sku: "PAI-16P", size: "16 oz", color: C.printed, pack: 500 },
-      { sku: "PAI-26P", size: "26 oz", color: C.printed, pack: 500 },
-      { sku: "PAI-32P", size: "32 oz", color: C.printed, pack: 500 },
+      { sku: "PAI-08", size: "8 oz", color: C.white, pack: 400 },
+      { sku: "PAI-16", size: "16 oz", color: C.white, pack: 400 },
+      { sku: "PAI-26", size: "26 oz", color: C.white, pack: 400 },
+      { sku: "PAI-32", size: "32 oz", color: C.white, pack: 400 },
+      { sku: "PAI-16P", size: "16 oz", color: C.printed, pack: 400 },
+      { sku: "PAI-26P", size: "26 oz", color: C.printed, pack: 400 },
+      { sku: "PAI-32P", size: "32 oz", color: C.printed, pack: 400 },
     ],
   },
   {
@@ -831,8 +833,8 @@ export const products: Product[] = [
       { sku: "RBL-18", size: "18 oz", color: C.clear, pack: 150, unit: "sets" },
       { sku: "RBL-24", size: "24 oz", color: C.clear, pack: 150, unit: "sets" },
       { sku: "RBL-32", size: "32 oz", color: C.clear, pack: 150, unit: "sets" },
-      { sku: "RBL-40", size: "40 oz", color: C.clear, pack: 150, unit: "sets" },
-      { sku: "RBL-48", size: "48 oz", color: C.clear, pack: 150, unit: "sets" },
+      { sku: "RBL-40", size: "40 oz", color: C.clear, pack: 100, unit: "sets" },
+      { sku: "RBL-48", size: "48 oz", color: C.clear, pack: 100, unit: "sets" },
       { sku: "RBL-64", size: "64 oz", color: C.clear, pack: 100, unit: "sets" },
     ],
   },
@@ -1216,8 +1218,8 @@ export const products: Product[] = [
     goesWith: ["bagasse-plates", "compostable-cutlery"],
     variants: [
       { sku: "BBW-12", item: I.bowl, size: "12 oz", detail: D.round, color: C.natural, pack: 1000 },
-      { sku: "BBW-24", item: t("Bowl", "Tazón", "Kase", "وعاء"), size: "24 oz", detail: D.round, color: C.natural, pack: 500 },
-      { sku: "BBW-32", item: t("Bowl", "Tazón", "Kase", "وعاء"), size: "32 oz", detail: D.round, color: C.natural, pack: 500 },
+      { sku: "BBW-24", item: t("Bowl", "Tazón", "Kase", "وعاء"), size: "24 oz", detail: D.round, color: C.natural, pack: 400 },
+      { sku: "BBW-32", item: t("Bowl", "Tazón", "Kase", "وعاء"), size: "32 oz", detail: D.round, color: C.natural, pack: 400 },
       { sku: "BBW-40", item: I.bowl, size: "40 oz", detail: D.round, color: C.natural, pack: 400 },
       { sku: "BBW-26O", item: t("Bowl", "Tazón", "Kase", "وعاء"), size: "26 oz", detail: D.oval, color: C.white, pack: 300 },
       { sku: "BBL-2432", item: I.clearLid, fits: "24, 32 oz", pack: 500 },
@@ -1268,7 +1270,7 @@ export const products: Product[] = [
     variants: [
       { sku: "PPP-06", size: "6 in", color: C.white, pack: 1000 },
       { sku: "PPP-09U", size: "9 in", detail: t("Uncoated", "Sin recubrimiento", "Kaplamasız", "غير مغلف"), color: C.white, pack: 1000 },
-      { sku: "PPP-09C", size: "9 in", detail: t("Coated, heavy duty", "Recubierto, uso rudo", "Kaplamalı, ağır hizmet", "مغلف، للاستخدام الشاق"), color: C.white, pack: 400 },
+      { sku: "PPP-09C", size: "9 in", detail: t("Coated, heavy duty", "Recubierto, uso rudo", "Kaplamalı, ağır hizmet", "مغلف، للاستخدام الشاق"), color: C.white, pack: 1000 },
       { sku: "PPP-09H", size: "9 in", detail: t("Heavy weight", "Peso pesado", "Kalın", "وزن ثقيل"), color: C.white, pack: 500 },
       { sku: "PPP-09P", size: "9 in", detail: t("Heavy weight", "Peso pesado", "Kalın", "وزن ثقيل"), color: C.printed, pack: 500 },
     ],
@@ -1424,9 +1426,9 @@ export const products: Product[] = [
       { sku: "STR-J22C", item: t("Jumbo straw, wrapped", "Popote jumbo, envuelto", "Jumbo pipet, paketli", "شفاطة جامبو مغلفة"), size: "7.75 in", color: C.clear, pack: 12000 },
       { sku: "STR-J24B", item: t("Jumbo straw, wrapped", "Popote jumbo, envuelto", "Jumbo pipet, paketli", "شفاطة جامبو مغلفة"), size: "7.75 in", color: C.black, pack: 5000 },
       { sku: "STR-F24C", item: t("Flexible straw, wrapped", "Popote flexible, envuelto", "Bükülebilir pipet, paketli", "شفاطة مرنة مغلفة"), size: "7.75 in", color: C.clear, pack: 10000 },
-      { sku: "STR-G32B", item: t("Giant straw, wrapped", "Popote gigante, envuelto", "Dev pipet, paketli", "شفاطة عملاقة مغلفة"), size: "10.25 in", color: C.black, pack: 2000 },
+      { sku: "STR-G32B", item: t("Giant straw, wrapped", "Popote gigante, envuelto", "Dev pipet, paketli", "شفاطة عملاقة مغلفة"), size: "10.25 in", color: C.black, pack: 1200 },
       { sku: "STR-SM40", item: t("Smoothie and boba straw", "Popote para smoothie y boba", "Smoothie ve boba pipeti", "شفاطة سموذي وبوبا"), size: "9 in", color: C.neon, pack: 1600 },
-      { sku: "STR-SP24", item: t("Spoon straw", "Popote cuchara", "Kaşıklı pipet", "شفاطة بملعقة"), size: "8 in", color: C.neon, pack: 5000 },
+      { sku: "STR-SP24", item: t("Spoon straw", "Popote cuchara", "Kaşıklı pipet", "شفاطة بملعقة"), size: "8 in", color: C.neon, pack: 6000 },
       { sku: "STR-ST55", item: t("Stirrer", "Agitador", "Karıştırıcı", "عود تقليب"), size: "5.5 in", color: C.black, pack: 10000 },
       { sku: "STR-ST5", item: t("Coffee stirrer", "Agitador para café", "Kahve karıştırıcı", "عود تقليب القهوة"), size: "5 in", pack: 10000 },
       { sku: "STR-ST8", item: t("Coffee stirrer", "Agitador para café", "Kahve karıştırıcı", "عود تقليب القهوة"), size: "8 in", pack: 10000 },
@@ -1448,9 +1450,9 @@ export const products: Product[] = [
     plantBased: true,
     goesWith: ["sushi-trays", "noodle-bowls", "paper-food-pails"],
     variants: [
-      { sku: "CHP-TW", item: t("Twin, paper wrapped", "Gemelos, envueltos en papel", "İkiz, kâğıt sargılı", "مزدوجة، بغلاف ورقي"), size: "23 cm", pack: 2000, unit: "pairs" },
-      { sku: "CHP-RR", item: t("Round, paper wrapped", "Redondos, envueltos en papel", "Yuvarlak, kâğıt sargılı", "دائرية، بغلاف ورقي"), size: "22.5 cm", pack: 3000, unit: "pairs" },
-      { sku: "CHP-RO", item: t("Round, plastic sleeve", "Redondos, funda de plástico", "Yuvarlak, plastik kılıflı", "دائرية، بغلاف بلاستيكي"), size: "22.5 cm", pack: 3000, unit: "pairs" },
+      { sku: "CHP-TW", item: t("Twin, paper wrapped", "Gemelos, envueltos en papel", "İkiz, kâğıt sargılı", "مزدوجة، بغلاف ورقي"), size: "23 cm", pack: 1600, unit: "pairs" },
+      { sku: "CHP-RR", item: t("Round, paper wrapped", "Redondos, envueltos en papel", "Yuvarlak, kâğıt sargılı", "دائرية، بغلاف ورقي"), size: "22.5 cm", pack: 600, unit: "pairs" },
+      { sku: "CHP-RO", item: t("Round, plastic sleeve", "Redondos, funda de plástico", "Yuvarlak, plastik kılıflı", "دائرية، بغلاف بلاستيكي"), size: "22.5 cm", pack: 500, unit: "pairs" },
     ],
   },
   {
@@ -1721,7 +1723,7 @@ export const products: Product[] = [
     variants: [
       { sku: "NDN-W", size: "15 × 17 in", detail: D.ply2, color: C.white, pack: 3000 },
       { sku: "NDN-WP", size: "15 × 17 in", detail: D.premium, color: C.white, pack: 3000 },
-      { sku: "NDN-W3", detail: D.ply3, color: C.white, pack: 3000 },
+      { sku: "NDN-W3", detail: D.ply3, color: C.white, pack: 2000 },
       { sku: "NDN-BR", size: "15 × 17 in", detail: D.recycled, color: C.brown, pack: 3000 },
       { sku: "NDN-AL", size: "16 × 16 in", detail: D.airlaid, color: C.white, pack: 1000 },
     ],
@@ -1934,7 +1936,7 @@ export const products: Product[] = [
     icon: "mask",
     goesWith: ["hair-beard-covers", "nitrile-gloves"],
     variants: [
-      { sku: "MSK-BL", detail: D.ply3, color: C.blue, pack: 1000 },
+      { sku: "MSK-BL", detail: D.ply3, color: C.blue, pack: 2000 },
       { sku: "MSK-WH", detail: D.ply3, color: C.white, pack: 1000 },
       { sku: "MSK-PK", detail: D.ply3, color: C.pink, pack: 1000 },
       { sku: "MSK-YL", detail: D.ply3, color: C.yellow, pack: 1000 },
