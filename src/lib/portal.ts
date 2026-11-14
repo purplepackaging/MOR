@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { site } from "@/config/site";
 import type { DeliveryTerms } from "@/lib/delivery";
 import { isLocale, localePath, type Locale } from "@/lib/i18n";
+import type { Payment } from "@/lib/payments";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 
 /**
@@ -187,10 +188,13 @@ export interface OrderSummary {
   /** Subtotal plus fees. Null while any line has no price. */
   total: number | null;
   lines: OrderLine[];
+  /** The end of the order's pay link (/pay/<token>). */
+  payToken: string;
+  payment: Payment;
 }
 
 const ORDER_COLUMNS =
-  "id, number, created_at, status, note, subtotal, next_day, delivery_fee, next_day_fee, total, order_lines(sku, cases, price_per_case)";
+  "id, number, created_at, status, note, subtotal, next_day, delivery_fee, next_day_fee, total, order_lines(sku, cases, price_per_case), pay_token, payment_status, payment_method, card_fee, payment_amount, paid_at, payment_updated_at";
 
 const money = (v: unknown) => (v == null ? null : Number(v));
 
@@ -208,6 +212,15 @@ function toOrder(r: Record<string, unknown>): OrderSummary {
     nextDayFee: money(r.next_day_fee),
     total: money(r.total),
     lines: lines.map((l) => ({ sku: l.sku, cases: l.cases, price: money(l.price_per_case) })),
+    payToken: String(r.pay_token),
+    payment: {
+      status: (r.payment_status as Payment["status"]) ?? "unpaid",
+      method: (r.payment_method as Payment["method"]) ?? null,
+      cardFee: money(r.card_fee),
+      amount: money(r.payment_amount),
+      paidAt: (r.paid_at as string | null) ?? null,
+      updatedAt: (r.payment_updated_at as string | null) ?? null,
+    },
   };
 }
 

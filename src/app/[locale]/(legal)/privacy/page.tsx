@@ -34,9 +34,14 @@ export default async function PrivacyPage({ params }: PageProps<"/[locale]/priva
           to prevent abuse and to keep a record of your consent.
         </li>
         <li>
+          <strong>Payments:</strong> when you pay online, your card or bank details go straight to Stripe, our payment
+          processor, and never to us. We keep how you paid (bank account, credit card or debit card), the amount, any
+          card fee and the date.
+        </li>
+        <li>
           <strong>Cookies and storage:</strong> one cookie remembers your language and one remembers the rep whose flyer
-          you scanned. Your list is kept in your browser’s storage on your device until you send it. We do not use
-          advertising cookies.
+          you scanned. Your list is kept in your browser’s storage on your device until you send it. On the pay page,
+          Stripe sets its own cookies to prevent fraud. We do not use advertising cookies.
         </li>
       </ul>
 

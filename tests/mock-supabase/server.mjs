@@ -76,10 +76,129 @@ const single = (req, res, rows) =>
   (req.headers.accept || "").includes("vnd.pgrst.object")
     ? rows.length ? send(res, 200, rows[0]) : send(res, 406, { code: "PGRST116", message: "0 rows" })
     : send(res, 200, rows);
+// ───────── A stand-in for Stripe ─────────
+// The fake Stripe.js (tests/e2e/fake-stripe.js) asks for a ConfirmationToken for a scenario, as the real one does
+// from the details typed into the Payment Element. Each scenario is a payment method Stripe would report.
+const SCENARIOS = {
+  credit: { type: "card", card: { brand: "visa", funding: "credit", country: "US", last4: "4242" } },
+  debit: { type: "card", card: { brand: "visa", funding: "debit", country: "US", last4: "5556" } },
+  prepaid: { type: "card", card: { brand: "mastercard", funding: "prepaid", country: "US", last4: "5100" } },
+  foreign: { type: "card", card: { brand: "visa", funding: "credit", country: "GB", last4: "0002" } },
+  amex: { type: "card", card: { brand: "amex", funding: "credit", country: "US", last4: "8431" } },
+  decline: { type: "card", card: { brand: "visa", funding: "credit", country: "US", last4: "0341" } },
+  "3ds": { type: "card", card: { brand: "visa", funding: "credit", country: "US", last4: "3155" } },
+  "3ds_fail": { type: "card", card: { brand: "visa", funding: "credit", country: "US", last4: "3184" } },
+  bank: { type: "us_bank_account", us_bank_account: { bank_name: "STRIPE TEST BANK", last4: "6789" }, billing_details: { email: "ali@kebab.test", name: "Ali" } },
+};
+const STRIPE_KEY = "sk_test_mock";
+const SURCHARGE_VERSION = "2026-03-25.preview";
+const ctokens = new Map(); // id -> ConfirmationToken
+const intents = new Map(); // id -> PaymentIntent
+const idempotent = new Map(); // Idempotency-Key -> PaymentIntent id
+const stripeCalls = []; // what the site sent when it made each payment
+let failPayments = 0; // how many set_order_payment calls answer 500 before it works again
+let nIntent = 0;
+const stripeError = (res, status, error) => send(res, status, { error });
+function stripe(req, res, p, body) {
+  // Stripe.js in the browser: a token for the details "typed in", and the customer confirming with their card.
+  if (p === "/stripe/js/v1/confirmation_tokens" && req.method === "POST") {
+    const scenario = SCENARIOS[body.scenario] ? body.scenario : "credit";
+    const id = `ctoken_${scenario.replace(/[^a-z0-9]/g, "")}_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+    ctokens.set(id, {
+      id, object: "confirmation_token", livemode: false, scenario, payment_intent: null,
+      expires_at: Math.floor(Date.now() / 1000) + (body.expired === "1" ? 30 : 12 * 3600),
+      payment_method_preview: { billing_details: { email: null, name: null }, ...SCENARIOS[scenario] },
+    });
+    return send(res, 200, { id, object: "confirmation_token" });
+  }
+  const next = p.match(/^\/stripe\/js\/v1\/payment_intents\/(pi_[A-Za-z0-9_]+)\/next_action$/);
+  if (next) {
+    const pi = intents.get(next[1]);
+    if (!pi) return stripeError(res, 404, { type: "invalid_request_error", code: "resource_missing", message: "No such payment_intent" });
+    if (pi.status === "requires_action") {
+      if (pi.scenario === "3ds_fail") Object.assign(pi, { status: "requires_payment_method", last_payment_error: { type: "card_error", code: "payment_intent_authentication_failure", message: "We are unable to authenticate your payment method." } });
+      else Object.assign(pi, { status: "succeeded", amount_received: pi.amount, client_secret: pi.client_secret });
+    }
+    return send(res, 200, { paymentIntent: { id: pi.id, status: pi.status } });
+  }
+  // The site's server, with the secret key.
+  if ((req.headers.authorization || "") !== `Bearer ${STRIPE_KEY}`) return stripeError(res, 401, { type: "invalid_request_error", message: "Invalid API Key provided" });
+  const ct = p.match(/^\/stripe\/v1\/confirmation_tokens\/([A-Za-z0-9_]+)$/);
+  if (ct && req.method === "GET") {
+    const t = ctokens.get(ct[1]);
+    if (!t) return stripeError(res, 404, { type: "invalid_request_error", code: "resource_missing", message: "No such confirmationtoken" });
+    const { scenario, ...token } = t;
+    return send(res, 200, token);
+  }
+  const got = p.match(/^\/stripe\/v1\/payment_intents\/(pi_[A-Za-z0-9_]+)$/);
+  if (got && req.method === "GET") {
+    const pi = intents.get(got[1]);
+    if (!pi) return stripeError(res, 404, { type: "invalid_request_error", code: "resource_missing", message: "No such payment_intent" });
+    const { scenario, ...intent } = pi;
+    return send(res, 200, intent);
+  }
+  if (p === "/stripe/v1/payment_intents" && req.method === "POST") {
+    const version = req.headers["stripe-version"] || null;
+    const key = req.headers["idempotency-key"] || null;
+    const call = { params: body, version, idempotencyKey: key, intent: null };
+    stripeCalls.push(call);
+    if (key && idempotent.has(key)) {
+      const { scenario, ...intent } = intents.get(idempotent.get(key));
+      call.intent = intent.id;
+      call.replayed = true;
+      return send(res, 200, intent);
+    }
+    const t = ctokens.get(body.confirmation_token);
+    if (!t) return stripeError(res, 400, { type: "invalid_request_error", code: "resource_missing", message: "No such confirmationtoken" });
+    if (t.payment_intent) return stripeError(res, 400, { type: "invalid_request_error", code: "confirmation_token_already_used", message: "This ConfirmationToken has already been used" });
+    if (body.confirm !== "true" || body.currency !== "usd" || !(Number(body.amount) >= 50)) return stripeError(res, 400, { type: "invalid_request_error", message: "confirm, currency usd and an amount of 50 or more are required" });
+    if (body.payment_method_types || body["payment_method_types[0]"]) return stripeError(res, 400, { type: "invalid_request_error", code: "parameter_unknown", message: "Received unknown parameter: payment_method_types" });
+    // The surcharge, as Stripe's public preview takes it: on US credit cards, at most 3%, under the preview version.
+    const surcharge = body["amount_details[surcharge][amount]"];
+    if (surcharge != null) {
+      if (version !== SURCHARGE_VERSION) return stripeError(res, 400, { type: "invalid_request_error", code: "parameter_unknown", message: "Received unknown parameter: amount_details[surcharge]" });
+      const card = t.payment_method_preview.card;
+      const base = Number(body.amount) - Number(surcharge);
+      if (body["amount_details[surcharge][enforce_validation]"] !== "enabled" || card?.funding !== "credit" || card?.country !== "US" || Number(surcharge) > Math.floor(base * 0.03)) {
+        return stripeError(res, 400, { type: "invalid_request_error", code: "amount_details_surcharge_invalid", message: "Surcharging is not available for this payment" });
+      }
+    }
+    const id = `pi_mock_${++nIntent}`;
+    const metadata = Object.fromEntries(Object.entries(body).filter(([k]) => k.startsWith("metadata[")).map(([k, v]) => [k.slice(9, -1), v]));
+    const pi = { id, object: "payment_intent", amount: Number(body.amount), amount_received: 0, currency: "usd", livemode: false, client_secret: `${id}_secret_mock`, metadata, last_payment_error: null, scenario: t.scenario, status: "succeeded" };
+    t.payment_intent = id;
+    call.intent = id;
+    intents.set(id, pi);
+    if (key) idempotent.set(key, id);
+    if (t.scenario === "decline") {
+      Object.assign(pi, { status: "requires_payment_method", last_payment_error: { type: "card_error", code: "card_declined", decline_code: "generic_decline", message: "Your card was declined." } });
+      const { scenario, ...intent } = pi;
+      return stripeError(res, 402, { type: "card_error", code: "card_declined", decline_code: "generic_decline", message: "Your card was declined.", payment_intent: intent });
+    }
+    if (t.scenario === "bank") pi.status = "processing";
+    else if (t.scenario.startsWith("3ds")) Object.assign(pi, { status: "requires_action", next_action: { type: "use_stripe_sdk" } });
+    else pi.amount_received = pi.amount;
+    const { scenario, ...intent } = pi;
+    return send(res, 200, intent);
+  }
+  // For the tests: a bank payment clears or fails, as Stripe reports it days later. Answers the payment as it now stands.
+  const settle = p.match(/^\/stripe\/__settle\/(pi_[A-Za-z0-9_]+)$/);
+  if (settle) {
+    const pi = intents.get(settle[1]);
+    if (!pi) return send(res, 404, { message: "no such payment" });
+    if (body.outcome === "fail") Object.assign(pi, { status: "requires_payment_method", last_payment_error: { type: "invalid_request_error", code: "insufficient_funds", message: "The customer's account has insufficient funds to cover this payment." } });
+    else Object.assign(pi, { status: "succeeded", amount_received: pi.amount });
+    const { scenario, ...intent } = pi;
+    return send(res, 200, intent);
+  }
+  return stripeError(res, 404, { type: "invalid_request_error", message: "not mocked: " + p });
+}
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   let raw = ""; for await (const c of req) raw += c;
-  const body = raw ? JSON.parse(raw) : {};
+  const form = (req.headers["content-type"] || "").includes("application/x-www-form-urlencoded");
+  const body = !raw ? {} : form ? Object.fromEntries(new URLSearchParams(raw)) : JSON.parse(raw);
   const bearer = (req.headers.authorization || "").replace(/^Bearer /, "");
   const email = tokens.get(bearer);
   const p = url.pathname;
@@ -89,6 +208,50 @@ http.createServer(async (req, res) => {
     if (req.headers.apikey !== SECRET) return send(res, 401, { message: "Invalid API key" });
     if (outage) return send(res, 503, { message: "down for the test" });
     return send(res, 200, Object.keys(COSTS).sort());
+  }
+  // Stripe: the site's server calls /stripe/v1/... (STRIPE_API_URL), the fake Stripe.js in the browser /stripe/js/...
+  if (p.startsWith("/stripe/")) return stripe(req, res, p, body);
+  // The pay page's two server-key functions, with the same rules as the migration.
+  if (p === "/rest/v1/rpc/order_for_pay") {
+    if (req.headers.apikey !== SECRET) return send(res, 401, { message: "Invalid API key" });
+    const o = orders.find((x) => x.pay_token === body.p_token);
+    if (!o) return send(res, 200, []);
+    const a = Object.values(ACCOUNTS).find((x) => x.id === o.account_id);
+    return send(res, 200, [{
+      order_id: o.id, order_number: o.number, account_name: a.name, created_at: o.created_at, status: o.status, subtotal: o.subtotal,
+      delivery_fee: o.delivery_fee, next_day: o.next_day, next_day_fee: o.next_day_fee, amount_due: o.delivery_fee == null ? o.subtotal : o.total,
+      site_locale: o.site_locale, lines: [...o.order_lines].sort((x, y) => x.sku.localeCompare(y.sku)).map((l) => ({ sku: l.sku, cases: l.cases, price: l.price_per_case })),
+      payment_status: o.payment_status, payment_method: o.payment_method, card_fee: o.card_fee, payment_amount: o.payment_amount, paid_at: o.paid_at, payment_updated_at: o.payment_updated_at,
+    }]);
+  }
+  if (p === "/rest/v1/rpc/set_order_payment") {
+    if (req.headers.apikey !== SECRET) return send(res, 401, { message: "Invalid API key" });
+    if (failPayments > 0) { failPayments--; return send(res, 500, { code: "XX000", message: "failed for the test" }); }
+    const { p_order, p_status, p_intent, p_method, p_card_fee, p_amount } = body;
+    if (!["processing", "paid", "failed"].includes(p_status) || !/^pi_[A-Za-z0-9_]+$/.test(p_intent ?? "")) return send(res, 400, { code: "22023", message: "bad payment" });
+    if (p_status !== "failed" && (!["bank", "credit_card", "debit_card", "card"].includes(p_method) || !(p_amount > 0) || (p_card_fee ?? 0) < 0)) return send(res, 400, { code: "22023", message: "bad payment" });
+    const o = orders.find((x) => x.id === p_order);
+    if (!o) return send(res, 200, []);
+    const was = o.payment_status, intent = o.stripe_payment_intent;
+    let result;
+    const now = new Date().toISOString();
+    if (p_status === "failed") {
+      if (intent !== p_intent || was === "paid") result = "ignored";
+      else if (was === "failed") result = "same";
+      else { Object.assign(o, { payment_status: "failed", payment_updated_at: now }); result = "changed"; }
+    } else if (intent === p_intent && (was === p_status || (was === "paid" && p_status === "processing"))) result = "same";
+    else if (was === "paid" || (was === "processing" && p_status === "processing")) result = "twice";
+    else {
+      Object.assign(o, { payment_status: p_status, stripe_payment_intent: p_intent, payment_method: p_method, card_fee: Math.round((p_card_fee ?? 0) * 100) / 100, payment_amount: p_amount, paid_at: p_status === "paid" ? now : null, payment_updated_at: now });
+      result = was === "processing" && intent !== p_intent ? "twice" : "changed";
+    }
+    const a = Object.values(ACCOUNTS).find((x) => x.id === o.account_id);
+    return send(res, 200, [{ result, order_number: o.number, account_name: a.name, pay_token: o.pay_token, site_locale: o.site_locale, order_status: o.status }]);
+  }
+  if (p === "/__test/stripe") return send(res, 200, { intents: stripeCalls, tokens: [...ctokens.values()] });
+  if (p === "/__test/fail-payments" && req.method === "POST") {
+    failPayments = Number(body.times) || 1;
+    return send(res, 200, { failPayments });
   }
   // For the tests only: load or remove costs as the dashboard would, or take priced_skus down.
   if (p === "/__test/costs" && req.method === "POST") {
@@ -106,6 +269,35 @@ http.createServer(async (req, res) => {
   if (p === "/__test/fail-details" && req.method === "POST") {
     failDetails = Number(body.times) || 1;
     return send(res, 200, { failDetails });
+  }
+  // An order placed for Kebab House without the browser, priced like place_order: the pay tests make many.
+  if (p === "/__test/order" && req.method === "POST") {
+    const a = ACCOUNTS[body.account ?? "A"];
+    const lines = (body.lines ?? [{ sku: "CUP-PET-16", cases: 2 }]).map((l) => ({ sku: l.sku, cases: l.cases, price_per_case: COSTS[l.sku] == null ? null : price(COSTS[l.sku]) }));
+    const pricedCents = Math.round(lines.reduce((t, l) => t + (l.price_per_case ?? 0) * l.cases * 100, 0));
+    const subtotal = lines.some((l) => l.price_per_case == null) ? null : pricedCents / 100;
+    // The same delivery rule as place_order: free once the priced lines come to the threshold.
+    const deliveryFee = PRICING.free_delivery_from != null && pricedCents >= Math.round(PRICING.free_delivery_from * 100) ? 0 : PRICING.delivery_fee;
+    const total = subtotal == null ? null : Math.round((subtotal + deliveryFee) * 100) / 100;
+    const o = {
+      id: crypto.randomUUID(), number: next++, account_id: a.id, created_at: new Date().toISOString(), status: body.status ?? "received", note: null,
+      subtotal, next_day: false, delivery_fee: deliveryFee, next_day_fee: 0, total, order_lines: lines,
+      site_locale: body.locale ?? "en", pay_token: crypto.randomUUID(), payment_status: "unpaid", payment_method: null, card_fee: null,
+      payment_amount: null, paid_at: null, payment_updated_at: null, stripe_payment_intent: null,
+    };
+    orders.push(o);
+    return send(res, 200, { id: o.id, number: o.number, pay_token: o.pay_token, total: o.total });
+  }
+  // The team corrects what an order comes to in the dashboard (a short delivery, say).
+  if (p === "/__test/order-amount" && req.method === "POST") {
+    const o = orders.find((x) => String(x.number) === String(body.number));
+    if (!o) return send(res, 404, { message: "no such order" });
+    Object.assign(o, { subtotal: body.subtotal, total: body.total });
+    return send(res, 200, { number: o.number, total: o.total });
+  }
+  if (p === "/__test/order") {
+    const o = orders.find((x) => String(x.number) === url.searchParams.get("number"));
+    return o ? send(res, 200, o) : send(res, 404, { message: "no such order" });
   }
   // The team moves an order along in the dashboard.
   if (p === "/__test/order-status" && req.method === "POST") {
@@ -203,8 +395,9 @@ http.createServer(async (req, res) => {
     if (!a) return send(res, 403, { code: "42501", message: "not a member of this account" });
     const o = orders.find((x) => x.account_id === a.id && String(x.number) === String(body.p_number));
     if (!o) return send(res, 200, "not_found");
-    if (o.status === "received") { o.status = "canceled"; o.canceled_at = new Date().toISOString(); return send(res, 200, "canceled"); }
-    return send(res, 200, o.status === "canceled" ? "canceled" : "too_late");
+    const paying = o.payment_status === "paid" || o.payment_status === "processing";
+    if (o.status === "received" && !paying) { o.status = "canceled"; o.canceled_at = new Date().toISOString(); return send(res, 200, "canceled"); }
+    return send(res, 200, o.status === "canceled" ? "canceled" : paying ? "paid" : "too_late");
   }
   if (p === "/rest/v1/rpc/my_prices") {
     if (!mine(email).some((x) => x.id === body.p_account)) return send(res, 200, []);
@@ -233,7 +426,7 @@ http.createServer(async (req, res) => {
     if (url.searchParams.get("id")) rows = rows.filter((o) => o.id === eq("id"));
     if (url.searchParams.get("number")) rows = rows.filter((o) => String(o.number) === eq("number"));
     rows = [...rows].sort((a, b) => b.number - a.number).slice(0, Number(url.searchParams.get("limit") || 1000));
-    return single(req, res, rows.map(({ account_id, ...o }) => o));
+    return single(req, res, rows.map(({ account_id, stripe_payment_intent, site_locale, ...o }) => o));
   }
   if (p === "/rest/v1/rpc/place_order") {
     const a = mine(email).find((x) => x.id === body.p_account);
@@ -249,6 +442,9 @@ http.createServer(async (req, res) => {
     const o = {
       id: crypto.randomUUID(), number: next++, account_id: a.id, created_at: new Date().toISOString(), status: "received", note: body.p_note,
       subtotal, next_day: nextDay, delivery_fee: deliveryFee, next_day_fee: nextDayFee, total, order_lines: lines,
+      site_locale: ["en", "es", "tr", "ar"].includes(body.p_locale) ? body.p_locale : "en",
+      pay_token: crypto.randomUUID(), payment_status: "unpaid", payment_method: null, card_fee: null, payment_amount: null, paid_at: null,
+      payment_updated_at: null, stripe_payment_intent: null,
     };
     orders.push(o);
     return send(res, 200, [{ order_id: o.id, order_number: o.number, order_subtotal: subtotal, order_total: total }]);

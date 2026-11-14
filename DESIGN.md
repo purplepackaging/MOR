@@ -67,6 +67,10 @@ line height. Numbers in tables and steppers are tabular.
   is left out.
 - Your list words a case as the product page does ("1,000 per case"). An empty list offers every category
   under "Browse products".
+- The pay page puts paying first: the amount due on a heavy violet rule, then Stripe's form, in a lilac panel;
+  what the order holds comes after it (beside it from 960 px). One step shows at a time: the form, then a check
+  of the amount with any card fee as its own line, then the answer. Stripe's form takes the site's colors; its
+  fields keep Stripe's own font.
 - The list bar: on a phone's product page, once the list has an item, a slip with the ticket's torn edge
   sits at the foot of the screen with the count and "View list". It stands on a line of brand violet and
   has no shadow. It confirms an Add, so the "Added" toast is spoken there and not shown.
