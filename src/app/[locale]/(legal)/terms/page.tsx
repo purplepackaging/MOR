@@ -1,5 +1,5 @@
 import { site } from "@/config/site";
-import type { Locale } from "@/lib/i18n";
+import { formatDollars, type Locale } from "@/lib/i18n";
 import { ContactUs, LegalPage, legalMetadata } from "../LegalPage";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/terms">) {
@@ -40,6 +40,11 @@ export default async function TermsPage({ params }: PageProps<"/[locale]/terms">
       <p>
         We deliver on your scheduled day to the address on your account. Please check your delivery when it arrives and
         tell us right away about missing or damaged items.
+      </p>
+      <p>
+        Delivery is free when the products on an order come to {formatDollars("en", site.freeDeliveryFrom)} or more.
+        Orders under {formatDollars("en", site.freeDeliveryFrom)} have a {formatDollars("en", site.deliveryFee)} delivery
+        fee. Your list shows the fee before you order.
       </p>
 
       <h2>Payment</h2>

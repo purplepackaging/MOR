@@ -146,13 +146,20 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
   `save_usual_order`, `create_my_account`, `update_my_account`, `cancel_my_order`, `set_weekly_order` and
   `skip_weekly_order`. Prices: cost per case / (1 - margin), rounded to cents, one
-  margin for everyone (30% since Nov 12, 2026; 25% before). Each order copies a delivery fee and, if `next_day`, a next-day fee: both $0
-  since Nov 12, 2026 (they were $50). The list and an order's page show a $0 fee as "Free". The list offers no
-  next-day delivery since Nov 12 (Matt): every order goes in as standard, and `place_order` keeps `p_next_day`
-  for the orders placed before. The FAQ says delivery is free in words, so a fee coming back means changing
-  that answer in four languages. The margin
-  and fees live in `public.pricing` (one row); customers can call `order_fees()` but never read costs or the
-  margin. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
+  margin for everyone (30% since Nov 12, 2026; 25% before). Delivery is $20 on orders under $200 and free from
+  $200 since Nov 13, 2026 (Matt, to make orders bigger; free on every order from Nov 12, $50 before):
+  `pricing.delivery_fee` and `pricing.free_delivery_from` (null: the fee on every order). The subtotal decides,
+  products only, and exactly $200.00 delivers free; while a line has no price, the priced lines alone decide.
+  `place_order` works the fee out and copies it onto the order, with a next-day fee if `next_day` ($0, and the
+  list offers no next-day delivery since Nov 12: every order goes in as standard, and `place_order` keeps
+  `p_next_day` for the orders placed before). The list and an order's page show a $0 fee as "Free". The list,
+  its order bar and the order guide's card add the fee with `deliveryFor` and say how much more to add with
+  `leftForFree` (`src/lib/delivery.ts`, reading only) in `FreeDelivery`, which turns to "You get free
+  delivery." at the threshold. The FAQ and the terms state the fee and the threshold from `src/config/site.ts`
+  (`deliveryFee`, `freeDeliveryFrom`): change them with the pricing row. The margin and fees live in
+  `public.pricing` (one row); customers can call `delivery_terms()` (the fee and the threshold) but never read
+  costs or the margin. `order_fees()` stays for the site version before Nov 13 and nothing calls it now.
+  `supabase/migrations/*_delivery_20_under_200.sql`. Never compute prices in the browser; the list's totals are display only. Switched-off accounts
   (`accounts.active = false`) see no prices and cannot order.
 - **Items without a price are hidden:** the site sells only SKUs that have a cost in `public.product_costs`.
   `src/lib/availability.ts` asks `public.priced_skus()` with the server key (SKUs only, never a cost), and

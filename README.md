@@ -39,7 +39,8 @@ A first visit picks the browser language; the language menu choice is remembered
   After replacing a photo under the same name, raise `PHOTO_VERSION` in `src/components/ProductVisual.tsx`,
   or browsers keep showing the old one for a day.
 - **Words on the site:** `src/i18n/en.ts`, then the same key in `es.ts`, `tr.ts`, `ar.ts`.
-- **Phone, email, card surcharge:** `src/config/site.ts`.
+- **Phone, email, card surcharge, delivery fee and free delivery threshold shown in the FAQ and terms:**
+  `src/config/site.ts`.
 - **Sales reps:** `src/config/reps.ts` (display names) and the `reps` table in Supabase.
 - **Design tokens:** `src/styles/tokens.css`. See `DESIGN.md`.
 
@@ -60,11 +61,14 @@ Prices and fees are set in the database, never in the browser:
 
 - Price per case = cost per case / (1 - margin), rounded to cents. The margin is 30% (since Nov 12, 2026;
   25% before), so a $10.00 case sells for $14.29. Everyone gets the same margin.
-- Delivery is free since Nov 12, 2026, and the list no longer offers next-day delivery (both fees were $50).
-  Orders still copy both fees, at $0, so a fee can come back by changing the pricing row.
-- The margin and both fees are the one row in `public.pricing`. Orders copy prices and fees when they are
-  placed. The FAQ says delivery is free in words: if a fee comes back, change that answer in the four
-  dictionaries too.
+- Delivery is $20 on orders under $200 and free from $200 (since Nov 13, 2026, to make orders bigger; free on
+  every order from Nov 12, $50 on every order before). The subtotal decides: the products only, before any fee
+  or card surcharge, so an order of exactly $200.00 delivers free. The list, its order bar on phones and the
+  order guide's card say how much more to add for free delivery. The list no longer offers next-day delivery.
+- The margin, the delivery fee (`delivery_fee`), the threshold (`free_delivery_from`, empty for no threshold)
+  and the next-day fee are the one row in `public.pricing`. Orders copy prices and fees when they are placed.
+  The FAQ and the terms state the fee and the threshold from `src/config/site.ts` (`deliveryFee`,
+  `freeDeliveryFrom`), so change both together.
 - Credit cards add a 3% surcharge (`cardSurchargePercent` in `src/config/site.ts`), charged by the card
   processor at payment, never on debit cards or bank payments. Card rules cap it at what card acceptance
   actually costs you, and the processor needs 30 days' notice before you start.
@@ -101,7 +105,8 @@ Day to day, in the Supabase dashboard:
   Add user > Create new user, then in the SQL editor
   `select * from public.link_customer('buyer@example.com', 'Business name', 'buyer');`
   If they sign in first, the site asks them to set up a new business instead.
-- Change the margin or fees: Table Editor > pricing.
+- Change the margin, the delivery fee or the free delivery threshold: Table Editor > pricing (and
+  `src/config/site.ts` for the FAQ and terms).
 - Load costs: `public.load_costs` with columns copied from the cost sheet. Items without a cost stay off
   the site until they have one.
 - Move orders along: `orders.status` is received, confirmed, out_for_delivery, delivered or canceled.

@@ -414,9 +414,11 @@
   bottom: 0;
   z-index: 30;
   display: flex;
+  /* What is left for free delivery takes a line of its own above the total and the button. */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-3);
+  gap: 6px var(--s-3);
   padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--paper);
