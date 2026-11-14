@@ -23,7 +23,7 @@ export const CARD_PHOTO = "(max-width: 639px) 96px, 230px";
  * /img in next.config.ts). When a photo is replaced under the same name, raise this number: the address
  * changes, so every browser fetches the new file on its next visit.
  */
-export const PHOTO_VERSION = 4;
+export const PHOTO_VERSION = 5;
 
 /** A product photo or drawing on a lilac tile. */
 export function ProductVisual({ image, icon, alt = "", className, priority, sizes = CARD_PHOTO }: Props) {
