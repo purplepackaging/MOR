@@ -551,6 +551,125 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     await axe(p, `${tag} account home with no fees`);
     await p.request.post(`${MOCK}/__test/pricing`, { data: { delivery_fee: 50, next_day_fee: 50 } });
 
+    // $20 delivery under $200 and free from $200, as production has since Nov 13, 2026 (Matt: to make orders bigger).
+    // The list, its order bar and the order guide's card say how much more to add, then "You get free delivery."
+    await p.request.post(`${MOCK}/__test/pricing`, { data: { delivery_fee: 20, free_delivery_from: 200 } });
+    const freeNote = (sel) => p.evaluate((s) => document.querySelector(`${s} [data-free-delivery]`)?.innerText.replace(/\s+/g, " ").trim() ?? null, sel);
+    await setList(p, [{ sku: "CUP-PET-16", cases: 2 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    check((await costRows("aside")) === "Subtotal=$106.66|Delivery=$20.00|Total=$126.66", `${tag} under $200 the list adds $20 delivery (${await costRows("aside")})`);
+    check((await freeNote("aside")) === "Add $93.34 more for free delivery.", `${tag} and says how much more makes delivery free (${await freeNote("aside")}; 200 - 106.66 = 93.34)`);
+    const fillShare = (sel) => p.evaluate((s) => {
+      const track = document.querySelector(`${s} [data-free-delivery] [aria-hidden]`);
+      return track ? Math.round((track.firstElementChild.getBoundingClientRect().width / track.getBoundingClientRect().width) * 100) : null;
+    }, sel);
+    check((await fillShare("aside")) === 53, `${tag} its bar is filled to the share of $200 already on the list (${await fillShare("aside")}%, 106.66 / 200)`);
+    if (tag === 390) {
+      await p.evaluate(() => scrollTo(0, 0));
+      await p.waitForSelector("[data-order-bar]");
+      const bar = await orderBar(p);
+      check(bar.startsWith("Add $93.34 more for free delivery.") && bar.includes("$126.66") && bar.includes("Place order"), `${tag} the order bar says it first, above the total (${bar})`);
+      const edge = await p.evaluate(() => {
+        const bar = document.querySelector("[data-order-bar]").getBoundingClientRect();
+        const track = document.querySelector("[data-order-bar] [data-free-delivery] [aria-hidden]").getBoundingClientRect();
+        return { top: Math.round(track.top - bar.top), full: Math.round(track.width) === Math.round(bar.width), h: Math.round(bar.height) };
+      });
+      check(edge.top <= 0 && edge.full && edge.h <= 100, `${tag} its bar runs along the order bar's top edge, and the order bar stays compact (${JSON.stringify(edge)})`);
+      await p.screenshot({ path: path.join(SHOTS, "free-delivery-bar-390.png") });
+    }
+    await axe(p, `${tag} list under $200`);
+    // Crossing $200: delivery turns free, the note says so, screen readers hear it, and the order button stays put.
+    await p.evaluate(() => document.querySelector("aside [data-free-delivery]").scrollIntoView({ block: "center" }));
+    if (tag === 390) await p.screenshot({ path: path.join(SHOTS, "free-delivery-under-390.png") });
+    const sendTop = () => p.evaluate(() => Math.round(document.querySelector("aside button.btn").getBoundingClientRect().top + scrollY));
+    const sendTopUnder = await sendTop();
+    await p.click("button[aria-label^='One case more of Clear cold cups']");
+    await p.waitForFunction(() => document.querySelector("aside [data-free-delivery]")?.innerText.includes("$40.01"));
+    check((await costRows("aside")) === "Subtotal=$159.99|Delivery=$20.00|Total=$179.99", `${tag} the fee and what is left follow the list (3 x 53.33 = 159.99; $40.01 left)`);
+    await p.click("button[aria-label^='One case more of Clear cold cups']");
+    await p.waitForSelector("aside [data-free-delivery='reached']");
+    check((await costRows("aside")) === "Subtotal=$213.32|Delivery=Free|Total=$213.32", `${tag} from $200 delivery is free and the total is the subtotal (${await costRows("aside")})`);
+    // The bar grows over 260 ms; wait for it to land before measuring.
+    await p.waitForFunction(() => {
+      const t = document.querySelector("aside [data-free-delivery] [aria-hidden]");
+      return Math.round((t.firstElementChild.getBoundingClientRect().width / t.getBoundingClientRect().width) * 100) === 100;
+    }, null, { timeout: 2000 }).catch(() => {});
+    check((await freeNote("aside")) === "You get free delivery." && (await fillShare("aside")) === 100, `${tag} the note says the order gets free delivery, its bar full (${await freeNote("aside")}, ${await fillShare("aside")}%)`);
+    check((await sendTop()) === sendTopUnder, `${tag} the order button does not move when delivery turns free (${sendTopUnder} px)`);
+    await p.waitForFunction(() => document.querySelector("aside [role=status]")?.textContent.includes("You get free delivery."));
+    check((await p.textContent("aside [role=status]")).includes("Total with delivery: $213.32. You get free delivery."), `${tag} screen readers hear the total and that delivery is free (${await p.textContent("aside [role=status]")})`);
+    if (tag === 390) {
+      await p.screenshot({ path: path.join(SHOTS, "free-delivery-reached-390.png") });
+      await p.evaluate(() => scrollTo(0, 0));
+      await p.waitForSelector("[data-order-bar]");
+      check((await orderBar(p)).startsWith("You get free delivery.") && (await orderBar(p)).includes("$213.32"), `${tag} the order bar says it too (${await orderBar(p)})`);
+    }
+    await axe(p, `${tag} list from $200`);
+    // Exactly $200.00 delivers free; $160 pays.
+    await setList(p, [{ sku: "LID-DOME-98H", cases: 5 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    check((await costRows("aside")) === "Subtotal=$200.00|Delivery=Free|Total=$200.00", `${tag} an order of exactly $200 delivers free (5 x 40.00; ${await costRows("aside")})`);
+    await p.click("button[aria-label^='One case less of']");
+    await p.waitForFunction(() => document.querySelector("aside [data-free-delivery='left']")?.innerText.includes("$40.00"));
+    check((await costRows("aside")) === "Subtotal=$160.00|Delivery=$20.00|Total=$180.00", `${tag} and one case less pays the fee (${await costRows("aside")})`);
+    // The orders: the database decides, the confirmation, the order's page and the team's alert agree.
+    await setList(p, [{ sku: "CUP-PET-16", cases: 4 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    await p.click("aside button:has-text('Place order')");
+    await p.waitForSelector("text=/Order \\d+ is in/");
+    const bigNumber = (await p.textContent("h2")).match(/\d+/)[0];
+    check((await p.textContent("main")).includes("Total with delivery: $213.32"), `${tag} an order over $200 is confirmed with free delivery`);
+    await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
+    check((await costRows("main")) === "Delivery=Free|Total=$213.32", `${tag} its page says delivery was free (${await costRows("main")})`);
+    alert = (await teamEmails()).find((e) => e.subject === `New order ${bigNumber}: Kebab House`);
+    check(Boolean(alert) && alert.text.includes("Subtotal: $213.32\nDelivery: $0.00\nTotal: $213.32"), `${tag} the team's alert shows delivery at $0.00`);
+    await setList(p, [{ sku: "CUP-PET-16", cases: 1 }]);
+    await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    await p.click("aside button:has-text('Place order')");
+    await p.waitForSelector("text=/Order \\d+ is in/");
+    const smallNumber = (await p.textContent("h2")).match(/\d+/)[0];
+    check((await p.textContent("main")).includes("Total with delivery: $73.33"), `${tag} an order under $200 is confirmed with the fee (53.33 + 20 = 73.33)`);
+    await Promise.all([p.waitForURL(/\/account\/orders\/\d+$/), p.click("text=View order")]);
+    check((await costRows("main")) === "Delivery=$20.00|Total=$73.33", `${tag} its page shows the $20 fee (${await costRows("main")})`);
+    alert = (await teamEmails()).find((e) => e.subject === `New order ${smallNumber}: Kebab House`);
+    check(Boolean(alert) && alert.text.includes("Subtotal: $53.33\nDelivery: $20.00\nTotal: $73.33"), `${tag} the team's alert shows the $20 fee`);
+    // The order guide's card (2 cases, $106.66): the total with the fee, and what is left for free delivery.
+    await p.goto(BASE + "/account");
+    const guideUnder = await p.textContent("section[aria-labelledby=usual-title]");
+    check(guideUnder.includes("Total with delivery") && guideUnder.includes("$126.66") && (await freeNote("section[aria-labelledby=usual-title]")) === "Add $93.34 more for free delivery.", `${tag} the order guide's card adds the fee and says how much more makes delivery free (${await freeNote("section[aria-labelledby=usual-title]")})`);
+    await axe(p, `${tag} account home under $200`);
+    if (tag === 390) {
+      await p.evaluate(() => document.querySelector("section[aria-labelledby=usual-title] [data-free-delivery]").scrollIntoView({ block: "center" }));
+      await p.screenshot({ path: path.join(SHOTS, "free-delivery-guide-390.png") });
+    }
+    // Arabic: the same note, read right to left, its bar filling from the right.
+    await setList(p, [{ sku: "CUP-PET-16", cases: 2 }]);
+    await p.goto(BASE + "/ar/list"); await p.waitForSelector("aside [data-free-delivery]");
+    const arNote = await freeNote("aside");
+    const arFill = await p.evaluate(() => {
+      const track = document.querySelector("aside [data-free-delivery] [aria-hidden]").getBoundingClientRect();
+      const fill = document.querySelector("aside [data-free-delivery] [aria-hidden] > span").getBoundingClientRect();
+      return Math.abs(track.right - fill.right) < 1 && fill.left > track.left + 10;
+    });
+    check((await p.getAttribute("html", "dir")) === "rtl" && arNote.includes("أضف ما قيمته") && arNote.includes("$93.34") && arFill, `${tag} Arabic: the note reads right to left with the amount whole, its bar filling from the right (${arNote})`);
+    await axe(p, `${tag} Arabic list under $200`);
+    if (tag === 390) {
+      await p.evaluate(() => document.querySelector("aside [data-free-delivery]").scrollIntoView({ block: "center" }));
+      await p.screenshot({ path: path.join(SHOTS, "free-delivery-ar-390.png") });
+    }
+    await p.goto(BASE + "/en/list"); await p.waitForSelector("text=Ordering for Kebab House");
+    // The FAQ and the terms say the same, in words from src/config/site.ts.
+    const page = async (u) => (await (await fetch(BASE + u)).text()).replace(/<!-- -->/g, "");
+    const faq = {
+      "/": "Delivery is free on orders of $200 or more. Orders under $200 have a $20 delivery fee.",
+      "/es": "La entrega es gratis en pedidos de $200 o más. Los pedidos de menos de $200 pagan $20 de entrega.",
+      "/tr": "$200 ve üzeri siparişlerde teslimat ücretsizdir. Daha küçük siparişlerde teslimat ücreti $20.",
+      "/ar": "التوصيل مجاني للطلبات بقيمة ⁦$200⁩ أو أكثر. الطلبات الأقل من ⁦$200⁩ عليها رسوم توصيل ⁦$20⁩.",
+    };
+    for (const [u, said] of Object.entries(faq)) check((await page(u)).includes(said), `${tag} the FAQ at ${u} states the fee and where delivery turns free`);
+    check((await page("/terms")).includes("Delivery is free when the products on an order come to $200 or more. Orders under $200 have a $20 delivery fee."), `${tag} the terms state it too`);
+    await p.request.post(`${MOCK}/__test/pricing`, { data: { delivery_fee: 50, free_delivery_from: null } });
+
     // Canceling: only while the order is still received, and only after a second tap.
     await setList(p, [{ sku: "HBG-96N", cases: 1 }]);
     await p.goto(BASE + "/list"); await p.waitForSelector("text=Ordering for Kebab House");

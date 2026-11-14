@@ -24,6 +24,13 @@ export const site = {
    * Card rules cap it at what card acceptance actually costs you (Visa: 3% at most).
    */
   cardSurchargePercent: 3,
+  /**
+   * Delivery as the FAQ and the terms state it, in dollars: the fee on orders under `freeDeliveryFrom`,
+   * free from there (Matt, Nov 13, 2026). Orders are charged from public.pricing in Supabase
+   * (delivery_fee, free_delivery_from), so change both together.
+   */
+  deliveryFee: 20,
+  freeDeliveryFrom: 200,
   /** Turns on sign-in and account pages once the portal is built. */
   portalEnabled: process.env.NEXT_PUBLIC_PORTAL_ENABLED === "true",
 };

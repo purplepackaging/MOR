@@ -11,9 +11,10 @@ const ACCOUNTS = {
   A: { id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", name: "Kebab House", delivery_day: "thu", created_at: "2026-11-01T12:00:00Z", active: true, contact_name: "Ali", phone: "+14045550101", street: "100 Buford Hwy", city: "Doraville", zip: "30340", preferred_language: "en" },
   P: { id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", name: "Taco Spot", delivery_day: null, created_at: "2026-11-02T12:00:00Z", active: false },
 };
-// Same rules as public.pricing: price = cost / (1 - margin); fees per order. These are test values: production has
-// a 30% margin and no fees since Nov 12, 2026. POST /__test/pricing changes them for a test.
-const PRICING = { margin: 0.25, delivery_fee: 50, next_day_fee: 50 };
+// Same rules as public.pricing: price = cost / (1 - margin); a delivery fee per order, waived once the priced lines
+// come to free_delivery_from (null: never waived). These are test values: production has a 30% margin, $20 delivery
+// free from $200 and no next-day fee since Nov 13, 2026. POST /__test/pricing changes them for a test.
+const PRICING = { margin: 0.25, delivery_fee: 50, free_delivery_from: null, next_day_fee: 50 };
 // SKUs with a cost. The site sells only these, so the rest of the catalog stays hidden.
 // The first four carry the prices the portal checks add up; the rest fill out the shelves.
 const COSTS = {
@@ -117,9 +118,10 @@ http.createServer(async (req, res) => {
     failAccounts = Number(body.times) || 1;
     return send(res, 200, { failAccounts });
   }
-  // Sets the margin or the fees, as the dashboard would. Send only the keys to change; it answers with all three.
+  // Sets the margin or the fees, as the dashboard would. Send only the keys to change; it answers with all four.
   if (p === "/__test/pricing" && req.method === "POST") {
     for (const k of ["margin", "delivery_fee", "next_day_fee"]) if (typeof body[k] === "number") PRICING[k] = body[k];
+    if (typeof body.free_delivery_from === "number" || body.free_delivery_from === null) PRICING.free_delivery_from = body.free_delivery_from;
     return send(res, 200, PRICING);
   }
   if (p === "/__test/outage" && req.method === "POST") {
@@ -209,6 +211,7 @@ http.createServer(async (req, res) => {
     return send(res, 200, Object.entries(COSTS).map(([sku, c]) => ({ sku, price_per_case: price(c) })));
   }
   if (p === "/rest/v1/rpc/order_fees") return send(res, 200, [{ delivery_fee: PRICING.delivery_fee, next_day_fee: PRICING.next_day_fee }]);
+  if (p === "/rest/v1/rpc/delivery_terms") return send(res, 200, [{ delivery_fee: PRICING.delivery_fee, free_delivery_from: PRICING.free_delivery_from }]);
   if (p === "/rest/v1/rpc/create_my_account") {
     if (failAccounts > 0) {
       failAccounts--;
@@ -237,12 +240,15 @@ http.createServer(async (req, res) => {
     if (!a) return send(res, 403, { code: "42501", message: "not a member of this account" });
     const nextDay = body.p_next_day === true;
     const lines = body.p_lines.map((l) => ({ sku: l.sku, cases: l.cases, price_per_case: COSTS[l.sku] == null ? null : price(COSTS[l.sku]) }));
-    const subtotal = lines.some((l) => l.price_per_case == null) ? null : Math.round(lines.reduce((s, l) => s + l.price_per_case * l.cases * 100, 0)) / 100;
+    const pricedCents = Math.round(lines.reduce((s, l) => s + (l.price_per_case ?? 0) * l.cases * 100, 0));
+    const subtotal = lines.some((l) => l.price_per_case == null) ? null : pricedCents / 100;
     const nextDayFee = nextDay ? PRICING.next_day_fee : 0;
-    const total = subtotal == null ? null : Math.round((subtotal + PRICING.delivery_fee + nextDayFee) * 100) / 100;
+    // Free delivery once the priced lines come to the threshold, as place_order does.
+    const deliveryFee = PRICING.free_delivery_from != null && pricedCents >= Math.round(PRICING.free_delivery_from * 100) ? 0 : PRICING.delivery_fee;
+    const total = subtotal == null ? null : Math.round((subtotal + deliveryFee + nextDayFee) * 100) / 100;
     const o = {
       id: crypto.randomUUID(), number: next++, account_id: a.id, created_at: new Date().toISOString(), status: "received", note: body.p_note,
-      subtotal, next_day: nextDay, delivery_fee: PRICING.delivery_fee, next_day_fee: nextDayFee, total, order_lines: lines,
+      subtotal, next_day: nextDay, delivery_fee: deliveryFee, next_day_fee: nextDayFee, total, order_lines: lines,
     };
     orders.push(o);
     return send(res, 200, [{ order_id: o.id, order_number: o.number, order_subtotal: subtotal, order_total: total }]);

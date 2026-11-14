@@ -89,7 +89,7 @@ const ar: Dict = {
       },
       {
         q: "كم تكلفة التوصيل؟",
-        a: "التوصيل مجاني.",
+        a: "التوصيل مجاني للطلبات بقيمة {threshold} أو أكثر. الطلبات الأقل من {threshold} عليها رسوم توصيل {delivery}.",
       },
     ],
     ctaTitle: "افتح حسابك",
@@ -232,6 +232,8 @@ const ar: Dict = {
     orderingFor: "الطلب لـ {name}",
     delivery: "التوصيل",
     free: "مجاني",
+    freeDeliveryLeft: "أضف ما قيمته {amount} لتحصل على توصيل مجاني.",
+    freeDeliveryReached: "التوصيل مجاني لطلبك.",
     total: "المجموع",
     totalWithDelivery: "المجموع مع التوصيل",
     cardFee: "الدفع ببطاقة الائتمان يضيف {pct}%. الدفع البنكي وبطاقات الخصم المباشر بدون رسوم.",
