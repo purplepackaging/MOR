@@ -1,0 +1,91 @@
+/*
+ * What is left to add for free delivery. White with a violet bar on the lilac it sits on (the list's band,
+ * the order guide's card); green once the order gets it.
+ */
+.note {
+  --tone: var(--mor);
+}
+
+.note[data-free-delivery="reached"] {
+  --tone: var(--ok);
+}
+
+.text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.amount {
+  color: var(--tone);
+  font-weight: var(--w-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  display: block;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+}
+
+.fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+  transition: inline-size var(--t-med) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}
+
+/* Under the totals. */
+.panel {
+  display: grid;
+  gap: var(--s-2);
+  padding: 10px 12px 12px;
+  border-radius: var(--r-s);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: var(--fs-small);
+  line-height: 1.35;
+}
+
+.panel[data-free-delivery="reached"] {
+  background: var(--ok-tint);
+  color: var(--ok);
+  font-weight: var(--w-medium);
+}
+
+.panel .track {
+  block-size: 6px;
+  background: var(--mor-tint);
+}
+
+/* The list's order bar on phones: a line across the top, and the track along the bar's top edge. */
+.bar {
+  flex: 1 0 100%;
+  color: var(--mor-strong);
+  font-size: var(--fs-micro);
+  font-weight: var(--w-medium);
+  line-height: 1.25;
+}
+
+.bar[data-free-delivery="reached"] {
+  color: var(--ok);
+}
+
+.bar .track {
+  position: absolute;
+  inset-inline: 0;
+  top: -1px;
+  block-size: 3px;
+  border-radius: 0;
+  background: var(--line);
+}
+
+.bar .fill {
+  border-radius: 0;
+}

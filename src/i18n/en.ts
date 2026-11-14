@@ -75,7 +75,7 @@ const en = {
       },
       {
         q: "What does delivery cost?",
-        a: "Delivery is free.",
+        a: "Delivery is free on orders of {threshold} or more. Orders under {threshold} have a {delivery} delivery fee.",
       },
     ],
     ctaTitle: "Set up your account",
@@ -183,6 +183,8 @@ const en = {
     orderingFor: "Ordering for {name}",
     delivery: "Delivery",
     free: "Free",
+    freeDeliveryLeft: "Add {amount} more for free delivery.",
+    freeDeliveryReached: "You get free delivery.",
     total: "Total",
     totalWithDelivery: "Total with delivery",
     cardFee: "Paying by credit card adds {pct}%. Bank payments and debit cards have no fee.",

@@ -88,6 +88,10 @@ line height. Numbers in tables and steppers are tabular.
 - Buttons say what happens: "Add", "Send request", "Browse products".
 - Name things the way a restaurant does. The saved list of what a customer buys regularly is their "order
   guide" (never "usual order"), and its button reads "Order from my guide". A fee of $0 reads "Free".
+- What is left for free delivery (`FreeDelivery`): a white note under the totals, on the lilac around it, with
+  the amount in violet and a bar that fills toward $200; green once the order gets free delivery, in the same
+  place, so nothing below it moves. On a phone's order bar it is a line above the total, and its bar runs along
+  the order bar's top edge.
 - Motion only answers an action (add to list, open menu, toast). Nothing animates on scroll.
 - Every interactive element has a 44px target and a visible focus ring. That includes chips, footer links,
   the language links and the count beside a category heading.

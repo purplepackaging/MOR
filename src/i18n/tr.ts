@@ -75,7 +75,7 @@ const tr: Dict = {
       },
       {
         q: "Teslimat ücreti ne kadar?",
-        a: "Teslimat ücretsiz.",
+        a: "{threshold} ve üzeri siparişlerde teslimat ücretsizdir. Daha küçük siparişlerde teslimat ücreti {delivery}.",
       },
     ],
     ctaTitle: "Hesabınızı açın",
@@ -183,6 +183,8 @@ const tr: Dict = {
     orderingFor: "{name} için sipariş",
     delivery: "Teslimat",
     free: "Ücretsiz",
+    freeDeliveryLeft: "Ücretsiz teslimat için {amount} daha ekleyin.",
+    freeDeliveryReached: "Teslimatınız ücretsiz.",
     total: "Toplam",
     totalWithDelivery: "Teslimat dahil toplam",
     cardFee: "Kredi kartıyla ödemede %{pct} ek ücret alınır. Banka ödemeleri ve banka kartları (debit) ücretsizdir.",

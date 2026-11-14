@@ -75,7 +75,7 @@ const es: Dict = {
       },
       {
         q: "¿Cuánto cuesta la entrega?",
-        a: "La entrega es gratis.",
+        a: "La entrega es gratis en pedidos de {threshold} o más. Los pedidos de menos de {threshold} pagan {delivery} de entrega.",
       },
     ],
     ctaTitle: "Abra su cuenta",
@@ -183,6 +183,8 @@ const es: Dict = {
     orderingFor: "Pedido para {name}",
     delivery: "Entrega",
     free: "Gratis",
+    freeDeliveryLeft: "Agregue {amount} más y la entrega es gratis.",
+    freeDeliveryReached: "Su entrega es gratis.",
     total: "Total",
     totalWithDelivery: "Total con entrega",
     cardFee: "Pagar con tarjeta de crédito agrega un {pct}%. Los pagos bancarios y las tarjetas de débito no tienen cargo.",

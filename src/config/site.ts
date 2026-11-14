@@ -26,6 +26,13 @@ export const site = {
    * 30 days' notice before a business starts. The FAQ, the list and the terms read it from here.
    */
   cardSurchargePercent: 2.9,
+  /**
+   * Delivery as the FAQ and the terms state it, in dollars: the fee on orders under `freeDeliveryFrom`,
+   * free from there (Matt, Nov 13, 2026). Orders are charged from public.pricing in Supabase
+   * (delivery_fee, free_delivery_from), so change both together.
+   */
+  deliveryFee: 20,
+  freeDeliveryFrom: 200,
   /** Turns on sign-in and account pages once the portal is built. */
   portalEnabled: process.env.NEXT_PUBLIC_PORTAL_ENABLED === "true",
 };

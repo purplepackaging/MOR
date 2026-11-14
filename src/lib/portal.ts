@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import type { User } from "@supabase/supabase-js";
 import { site } from "@/config/site";
+import type { DeliveryTerms } from "@/lib/delivery";
 import { isLocale, localePath, type Locale } from "@/lib/i18n";
 import type { Payment } from "@/lib/payments";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
@@ -135,21 +136,23 @@ export function setupPath(locale: Locale, next?: string | null): string {
   return next ? `${base}?next=${encodeURIComponent(next)}` : base;
 }
 
-export interface Fees {
-  delivery: number;
-  nextDay: number;
-}
-
-/** Delivery fees from Supabase (public.pricing), shown before a customer orders. */
-export const getFees = cache(async (): Promise<Fees | null> => {
+/**
+ * What delivery costs, from Supabase (public.pricing): the fee and the subtotal from which it is free.
+ * Shown before a customer orders; `place_order` decides what the order is charged.
+ */
+export const getFees = cache(async (): Promise<DeliveryTerms | null> => {
   const supabase = await userClient();
-  const { data, error } = await supabase.rpc("order_fees");
+  const { data, error } = await supabase.rpc("delivery_terms");
   if (error) {
-    console.error("[portal] order_fees failed:", error.message);
+    console.error("[portal] delivery_terms failed:", error.message);
     return null;
   }
-  const row = (Array.isArray(data) ? data[0] : null) as { delivery_fee: number | string; next_day_fee: number | string } | null;
-  return row ? { delivery: Number(row.delivery_fee), nextDay: Number(row.next_day_fee) } : null;
+  const row = (Array.isArray(data) ? data[0] : null) as
+    | { delivery_fee: number | string; free_delivery_from: number | string | null }
+    | null;
+  return row
+    ? { delivery: Number(row.delivery_fee), freeFrom: row.free_delivery_from == null ? null : Number(row.free_delivery_from) }
+    : null;
 });
 
 /** Price per case by SKU, or null while no product has a cost yet. */

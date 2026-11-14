@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+import { FreeDelivery } from "@/components/FreeDelivery";
 import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
+import { deliveryFor, leftForFree } from "@/lib/delivery";
 import { fill, formatDate, formatDay, formatDayTime, formatMoney, localePath, plural, type Locale } from "@/lib/i18n";
 import {
   getAccountDetails,
@@ -109,10 +111,14 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
   const cents = (n: number) => Math.round(n * 100);
   const amountOf = (l: { sku: string; cases: number }) =>
     prices?.[l.sku] != null && shelf.has(l.sku) ? (cents(prices[l.sku]) * l.cases) / 100 : null;
-  const usualTotal =
+  const usualSubtotal =
     fees && usualForSale.length && usualForSale.every((l) => amountOf(l) != null)
-      ? (usualForSale.reduce((sum, l) => sum + cents(amountOf(l) ?? 0), 0) + cents(fees.delivery)) / 100
+      ? usualForSale.reduce((sum, l) => sum + cents(amountOf(l) ?? 0), 0) / 100
       : null;
+  // Delivery is free once the products come to the threshold, as on the list.
+  const usualTotal =
+    fees && usualSubtotal != null ? (cents(usualSubtotal) + cents(deliveryFor(usualSubtotal, fees))) / 100 : null;
+  const usualLeft = fees && usualSubtotal != null ? leftForFree(usualSubtotal, fees) : null;
 
   return (
     <section className={`container ${styles.page}`}>
@@ -202,6 +208,15 @@ export default async function AccountPage({ params, searchParams }: PageProps<"/
                   <span>{dict.list.totalWithDelivery}</span>
                   <bdi>{formatMoney(locale, usualTotal)}</bdi>
                 </p>
+              ) : null}
+              {usualLeft != null && usualSubtotal != null && fees?.freeFrom != null ? (
+                <FreeDelivery
+                  locale={locale}
+                  subtotal={usualSubtotal}
+                  freeFrom={fees.freeFrom}
+                  left={usualLeft}
+                  labels={{ left: dict.list.freeDeliveryLeft, reached: dict.list.freeDeliveryReached }}
+                />
               ) : null}
               {usualForSale.length ? (
                 <div className={styles.usualAction}>

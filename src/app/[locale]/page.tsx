@@ -8,7 +8,7 @@ import { Ticket } from "@/components/Ticket";
 import { site } from "@/config/site";
 import { getDictionary } from "@/i18n";
 import { cardPriceLabels, categoryHref, productCard } from "@/lib/catalog";
-import { fill, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
+import { fill, formatDollars, formatNumber, localePath, plural, type Locale } from "@/lib/i18n";
 import { getShelf, sampleOrder } from "@/lib/shelf";
 import styles from "./home.module.css";
 
@@ -27,6 +27,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const n = categories.length;
   const catColumns = n % 3 === 0 ? 3 : n % 4 === 0 || n % 3 === 1 ? 4 : 3;
   const surcharge = formatNumber(locale, site.cardSurchargePercent);
+  const delivery = formatDollars(locale, site.deliveryFee);
+  const threshold = formatDollars(locale, site.freeDeliveryFrom);
 
   return (
     <>
@@ -214,7 +216,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                   <span>{item.q}</span>
                   <Plus aria-hidden="true" className={styles.qaIcon} />
                 </summary>
-                <p>{fill(item.a, { surcharge })}</p>
+                <p>{fill(item.a, { surcharge, delivery, threshold })}</p>
               </details>
             ))}
           </div>

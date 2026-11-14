@@ -13,6 +13,7 @@ const SELF_SERVICE = readdirSync(dir).find((f) => f.endsWith("_self_service.sql"
 const WEEKLY = readdirSync(dir).find((f) => f.endsWith("_weekly_order.sql"));
 const MARGIN_30 = readdirSync(dir).find((f) => f.endsWith("_margin_30.sql"));
 const NO_FEES = readdirSync(dir).find((f) => f.endsWith("_no_delivery_fees.sql"));
+const UNDER_200 = readdirSync(dir).find((f) => f.endsWith("_delivery_20_under_200.sql"));
 const PAYMENTS = readdirSync(dir).find((f) => f.endsWith("_payments.sql"));
 // Supabase stand-ins
 async function supabaseStandIns(d) {
@@ -64,18 +65,22 @@ ok("30% margin migration ran, twice");
 await run(NO_FEES);
 await run(NO_FEES);
 ok("no-fees migration ran, twice");
+await run(UNDER_200);
+await run(UNDER_200);
+ok("$20-under-$200 delivery migration ran, twice");
 await run(PAYMENTS);
 await run(PAYMENTS);
 ok("payments migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
-r = await db.query(`select margin::text m, delivery_fee::text d, next_day_fee::text n, (select count(*)::int from public.pricing) rows from public.pricing`);
-(r.rows[0].m === "0.3000" && r.rows[0].d === "0.00" && r.rows[0].n === "0.00" && r.rows[0].rows === 1 ? ok : bad)(`one pricing row, at a 30% margin with no delivery or next-day fee: ${JSON.stringify(r.rows[0])}`);
+r = await db.query(`select margin::text m, delivery_fee::text d, free_delivery_from::text f, next_day_fee::text n, (select count(*)::int from public.pricing) rows from public.pricing`);
+(r.rows[0].m === "0.3000" && r.rows[0].d === "20.00" && r.rows[0].f === "200.00" && r.rows[0].n === "0.00" && r.rows[0].rows === 1 ? ok : bad)(`one pricing row, at a 30% margin, $20 delivery under $200 and no next-day fee: ${JSON.stringify(r.rows[0])}`);
 r = await db.query(`select round(10 / (1 - margin), 2)::text p from public.pricing`);
 (r.rows[0].p === "14.29" ? ok : bad)(`a $10.00 case sells for ${r.rows[0].p} at 30% (it was 13.33 at 25%)`);
-// The checks below keep the launch values (25%, $50 delivery, $50 next-day), so their arithmetic stays as written.
-await db.exec(`update public.pricing set margin = 0.25, delivery_fee = 50, next_day_fee = 50`);
+// The checks below keep the launch values (25%, $50 delivery on every order, $50 next-day), so their arithmetic stays
+// as written. The $200 threshold gets its own checks further down.
+await db.exec(`update public.pricing set margin = 0.25, delivery_fee = 50, free_delivery_from = null, next_day_fee = 50`);
 await expectError(`insert into public.pricing (id) values (false)`, [], "23514", "pricing stays a single row");
 r = await db.query(`select count(*)::int n from public.accounts`);
 (r.rows[0].n === 2 ? ok : bad)("existing accounts kept");
@@ -95,6 +100,8 @@ r = await db.query(`select * from public.my_prices($1)`, [B]);
 (r.rows.length === 0 ? ok : bad)("u1 gets no prices for someone else's account");
 r = await db.query(`select delivery_fee::text d, next_day_fee::text n from public.order_fees()`);
 (r.rows.length === 1 && r.rows[0].d === "50.00" && r.rows[0].n === "50.00" ? ok : bad)(`customers see the fees: ${JSON.stringify(r.rows)}`);
+r = await db.query(`select delivery_fee::text d, free_delivery_from::text f from public.delivery_terms()`);
+(r.rows.length === 1 && r.rows[0].d === "50.00" && r.rows[0].f === null ? ok : bad)(`customers see the delivery terms, with no threshold set: ${JSON.stringify(r.rows)}`);
 
 const lines = JSON.stringify([
   { sku: "CUP-PET-16", cases: 4 }, { sku: "CUP-PET-16", cases: 9 }, { sku: "HBG-96N", cases: 2 },
@@ -180,6 +187,7 @@ r = await db.query(`select count(*)::int n from public.my_prices($1)`, [A]); (r.
 await db.exec(`reset role; set role anon; select set_config('request.jwt.claims', '', false);`);
 await expectError(`select * from public.my_prices($1)`, [A], "42501", "anon cannot call my_prices");
 await expectError(`select * from public.order_fees()`, [], "42501", "anon cannot call order_fees");
+await expectError(`select * from public.delivery_terms()`, [], "42501", "anon cannot call delivery_terms");
 await expectError(`select * from public.place_order($1, $2::jsonb)`, [A, "[]"], "42501", "anon cannot call place_order");
 await expectError(`select public.create_my_account('X', 'Y', '+14045550123', '1 Main St', 'Atlanta', '30303')`, [], "42501", "anon cannot create accounts");
 await expectError(`select * from public.accounts`, [], "42501", "anon cannot read accounts");
@@ -234,6 +242,54 @@ const free = r.rows[0];
 r = await db.query(`select next_day, delivery_fee::text d, next_day_fee::text n from public.orders where id = $1`, [free.order_id]);
 (r.rows[0].next_day === true && r.rows[0].d === "0.00" && r.rows[0].n === "0.00" ? ok : bad)(`the order keeps next-day and copies both fees at $0: ${JSON.stringify(r.rows[0])}`);
 await db.exec(`reset role; update public.pricing set delivery_fee = 50, next_day_fee = 50`);
+
+// $20 delivery under $200 and free from $200, as production has since Nov 13, 2026. The subtotal decides (the
+// products only, before fees): exactly $200.00 delivers free and one cent under pays the fee.
+await db.exec(`reset role; update public.pricing set delivery_fee = 20, free_delivery_from = 200, next_day_fee = 0;
+  insert into public.product_costs (sku, cost_per_case) values ('TST-200', 150.00), ('TST-199', 149.99);`);
+await as(U2);
+r = await db.query(`select delivery_fee::text d, free_delivery_from::text f from public.delivery_terms()`);
+(r.rows.length === 1 && r.rows[0].d === "20.00" && r.rows[0].f === "200.00" ? ok : bad)(`customers see the fee and where delivery turns free: ${JSON.stringify(r.rows)}`);
+const placeB = async (lines, nextDay = false) =>
+  (await db.query(`select * from public.place_order($1, $2::jsonb, null, 'en', $3)`, [B, JSON.stringify(lines), nextDay])).rows[0];
+const saved = async (id) =>
+  (await db.query(`select delivery_fee::text d, next_day_fee::text n, subtotal::text s, total::text t from public.orders where id = $1`, [id])).rows[0];
+const under = await placeB([{ sku: "CUP-PET-16", cases: 3 }]);
+let fees = await saved(under.order_id);
+(fees.d === "20.00" && fees.s === "159.99" && fees.t === "179.99" && Number(under.order_total) === 179.99 ? ok : bad)(`under $200 pays $20 delivery: ${JSON.stringify(fees)} (3 x 53.33 = 159.99, + 20 = 179.99)`);
+let placedNow = await placeB([{ sku: "TST-199", cases: 1 }]);
+fees = await saved(placedNow.order_id);
+(fees.d === "20.00" && fees.s === "199.99" && fees.t === "219.99" ? ok : bad)(`one cent under $200 still pays the fee: ${JSON.stringify(fees)} (149.99 / 0.75 = 199.99)`);
+placedNow = await placeB([{ sku: "TST-200", cases: 1 }]);
+fees = await saved(placedNow.order_id);
+(fees.d === "0.00" && fees.s === "200.00" && fees.t === "200.00" && Number(placedNow.order_total) === 200 ? ok : bad)(`exactly $200 delivers free: ${JSON.stringify(fees)} (150 / 0.75 = 200.00)`);
+placedNow = await placeB([{ sku: "CUP-PET-16", cases: 2 }, { sku: "HBG-96N", cases: 3 }]);
+fees = await saved(placedNow.order_id);
+(fees.d === "0.00" && fees.s === "239.98" && fees.t === "239.98" ? ok : bad)(`over $200 across lines delivers free: ${JSON.stringify(fees)} (2 x 53.33 + 3 x 44.44 = 239.98)`);
+// A line with no price yet: the order has no subtotal or total, and the priced lines alone decide the fee.
+placedNow = await placeB([{ sku: "CUP-PET-16", cases: 4 }, { sku: "NOCOST-1", cases: 1 }]);
+fees = await saved(placedNow.order_id);
+(fees.d === "0.00" && fees.s === null && fees.t === null ? ok : bad)(`priced lines past $200 make delivery free while a line is still to price: ${JSON.stringify(fees)} (4 x 53.33 = 213.32)`);
+placedNow = await placeB([{ sku: "CUP-PET-16", cases: 1 }, { sku: "NOCOST-1", cases: 1 }]);
+fees = await saved(placedNow.order_id);
+(fees.d === "20.00" && fees.s === null && fees.t === null ? ok : bad)(`priced lines under $200 keep the fee while a line is still to price: ${JSON.stringify(fees)}`);
+// Free delivery waives the delivery fee only. A next-day fee, if one comes back, is added on top.
+await db.exec(`reset role; update public.pricing set next_day_fee = 50`);
+await as(U2);
+placedNow = await placeB([{ sku: "CUP-PET-16", cases: 4 }], true);
+fees = await saved(placedNow.order_id);
+(fees.d === "0.00" && fees.n === "50.00" && fees.t === "263.32" ? ok : bad)(`a next-day order over $200: no delivery fee, next-day fee kept: ${JSON.stringify(fees)} (213.32 + 0 + 50)`);
+await expectError(`update public.pricing set free_delivery_from = 500`, [], "42501", "customers cannot move the threshold");
+await db.exec(`reset role;`);
+await expectError(`update public.pricing set free_delivery_from = 0`, [], "23514", "the threshold is above $0, or empty for none");
+// Orders keep the fee they copied when the terms change.
+await db.exec(`update public.pricing set delivery_fee = 35, free_delivery_from = null`);
+r = await db.query(`select delivery_fee::text d, total::text t from public.orders where id = $1`, [under.order_id]);
+(r.rows[0].d === "20.00" && r.rows[0].t === "179.99" ? ok : bad)(`an order keeps its $20 fee when the terms change: ${JSON.stringify(r.rows[0])}`);
+r = await db.query(`select p.proacl::text acl, p.prosecdef, array_to_string(p.proconfig, ',') cfg from pg_proc p where proname = 'delivery_terms'`);
+(r.rows.length === 1 && r.rows[0].prosecdef === true && r.rows[0].cfg === 'search_path=""' && r.rows[0].acl.includes("authenticated=X") && !r.rows[0].acl.includes("anon=X") && !/(^|[{,])=X/.test(r.rows[0].acl) ? ok : bad)(`delivery_terms runs with a fixed search path, for signed-in users only: ${JSON.stringify(r.rows[0])}`);
+await db.exec(`update public.pricing set delivery_fee = 50, free_delivery_from = null, next_day_fee = 50;
+  delete from public.product_costs where sku in ('TST-200', 'TST-199');`);
 
 // link_customer: the dashboard helper for adding people to accounts.
 await db.exec(`reset role;`);

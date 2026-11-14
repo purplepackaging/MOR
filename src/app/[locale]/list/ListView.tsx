@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { X } from "lucide-react";
 import { AddToList, type StepperLabels } from "@/components/AddToList";
+import { FreeDelivery } from "@/components/FreeDelivery";
 import { IntentLink } from "@/components/IntentLink";
 import { ProductVisual } from "@/components/ProductVisual";
 import { dismissToast, showToast } from "@/components/Toaster";
 import type { Dict } from "@/i18n";
 import type { SkuInfo } from "@/lib/catalog";
+import { deliveryFor, leftForFree, type DeliveryTerms } from "@/lib/delivery";
 import { fill, formatMoney, plural, type Locale } from "@/lib/i18n";
 import { listStore, useHydrated, useList } from "@/lib/list-store";
 import { placeOrder, saveUsualOrder } from "../account/actions";
@@ -19,8 +21,8 @@ export interface ListPortal {
   accountName: string;
   /** Price per case by SKU; null while no product has a cost yet. */
   prices: Record<string, number> | null;
-  /** Delivery fees from Supabase; null if they could not be loaded. */
-  fees: { delivery: number; nextDay: number } | null;
+  /** What delivery costs, from Supabase; null if it could not be loaded. */
+  fees: DeliveryTerms | null;
   cardFeePercent: string;
   ordersHref: string;
   signInHref: string;
@@ -119,14 +121,21 @@ export function ListView({
   // Shown for reading only. The order is priced again in the database when it is placed.
   const cents = (n: number) => Math.round(n * 100);
   const subtotal = prices ? known.reduce((sum, l) => sum + cents(prices[l.sku] ?? 0) * l.cases, 0) / 100 : 0;
+  // Delivery is free once the products come to the threshold ($200 since Nov 13, 2026).
+  const delivery = fees ? deliveryFor(subtotal, fees) : null;
   const total =
-    prices && fees && unpriced === 0 ? (cents(subtotal) + cents(fees.delivery)) / 100 : null;
+    prices && delivery != null && unpriced === 0 ? (cents(subtotal) + cents(delivery)) / 100 : null;
+  // What is left to add for free delivery, once there are prices to add up: 0 once the order gets it.
+  const left = prices && fees ? leftForFree(subtotal, fees) : null;
+  const freeLabels = { left: labels.freeDeliveryLeft, reached: labels.freeDeliveryReached };
+  const freeText =
+    left == null ? null : left > 0 ? fill(labels.freeDeliveryLeft, { amount: formatMoney(locale, left) }) : labels.freeDeliveryReached;
   const orderLines = known.map(({ sku, cases }) => ({ sku, cases }));
   const itemCount = plural(locale, known.length, labels.items);
   const caseCount = plural(locale, totalCases, labels.cases);
   const totalLabel = total == null ? labels.total : labels.totalWithDelivery;
   const totalText = total == null ? (portal?.noPrice ?? "") : formatMoney(locale, total);
-  const summaryText = `${[itemCount, caseCount, ...(portal && fees ? [`${totalLabel}: ${totalText}`] : [])].join(". ")}.`;
+  const summaryText = `${[itemCount, caseCount, ...(portal && fees ? [`${totalLabel}: ${totalText}`] : [])].join(". ")}.${freeText ? ` ${freeText}` : ""}`;
   const barShown = hydrated && stacked && !placed && known.length > 0 && Boolean(portal || signIn) && actionBelow;
 
   // Take lines for items that are not for sale off the list, so counts stay honest, and say so.
@@ -364,6 +373,9 @@ export function ListView({
     <div className={styles.layout}>
       {barShown ? (
         <div className={styles.bar} ref={bar} role="group" aria-label={labels.summary} data-order-bar>
+          {left != null && fees?.freeFrom != null ? (
+            <FreeDelivery locale={locale} subtotal={subtotal} freeFrom={fees.freeFrom} left={left} labels={freeLabels} variant="bar" />
+          ) : null}
           {portal && fees ? (
             <p className={styles.barText}>
               <span className={styles.barLabel}>{totalLabel}</span>
@@ -466,10 +478,10 @@ export function ListView({
                     </dd>
                   </div>
                 ) : null}
-                {fees ? (
+                {delivery != null ? (
                   <div>
                     <dt>{labels.delivery}</dt>
-                    <dd>{fees.delivery === 0 ? labels.free : <bdi>{formatMoney(locale, fees.delivery)}</bdi>}</dd>
+                    <dd>{delivery === 0 ? labels.free : <bdi>{formatMoney(locale, delivery)}</bdi>}</dd>
                   </div>
                 ) : null}
                 {fees ? (
@@ -479,6 +491,9 @@ export function ListView({
                   </div>
                 ) : null}
               </dl>
+            ) : null}
+            {left != null && fees?.freeFrom != null ? (
+              <FreeDelivery locale={locale} subtotal={subtotal} freeFrom={fees.freeFrom} left={left} labels={freeLabels} />
             ) : null}
             {!prices || unpriced ? <p className="small muted">{prices ? labels.needsPrice : labels.pricesSoon}</p> : null}
             <p className="small muted">{fill(labels.cardFee, { pct: portal.cardFeePercent })}</p>

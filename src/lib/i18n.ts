@@ -85,6 +85,24 @@ export function formatMoney(locale: Locale, amount: number): string {
   return locale === "ar" ? `\u2066${money}\u2069` : money;
 }
 
+const wholeDollars = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  numberingSystem: "latn",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/**
+ * "$200" for a round amount in running text (the FAQ, the terms), where "$200.00" reads like an invoice
+ * line. Amounts with cents come out as `formatMoney` writes them.
+ */
+export function formatDollars(locale: Locale, amount: number): string {
+  if (!Number.isInteger(amount)) return formatMoney(locale, amount);
+  const money = wholeDollars.format(amount);
+  return locale === "ar" ? `\u2066${money}\u2069` : money;
+}
+
 /**
  * "Thursday, November 19" for a calendar date such as "2026-11-19": the day a delivery comes.
  * The month is written out: short months end in a period in Spanish, which doubles up at the end of a sentence.
