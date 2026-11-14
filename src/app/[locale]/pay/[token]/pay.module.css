@@ -1,0 +1,247 @@
+/* The pay page: what the order comes to and how to pay it first, what it holds after. */
+
+.page {
+  padding-block: clamp(32px, 4vw, 64px) var(--section);
+}
+
+.head {
+  display: grid;
+  gap: var(--s-2);
+  margin-bottom: var(--s-6);
+}
+
+.head p {
+  margin: 0;
+}
+
+.layout {
+  display: grid;
+  gap: var(--s-7);
+  align-items: start;
+}
+
+/* Wide screens: the items on one side, paying on the other. Paying comes first in the page. */
+@media (min-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
+  }
+
+  .box {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .items {
+    grid-column: 1;
+    grid-row: 1;
+  }
+}
+
+.box {
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-m);
+  background: var(--lilac);
+}
+
+.box h2,
+.box p {
+  margin: 0;
+}
+
+.box h2:focus {
+  outline: none;
+}
+
+.due {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-4);
+  padding-bottom: var(--s-4);
+  border-bottom: 2px solid var(--mor);
+  font-size: var(--fs-h3);
+  font-weight: var(--w-medium);
+}
+
+.due bdi {
+  font-size: 1.6rem;
+  font-weight: var(--w-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One step of paying at a time: the form, the check before paying, then the answer. */
+.step {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.step[hidden] {
+  display: none;
+}
+
+.test {
+  justify-self: start;
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--lemon);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+/* Stripe's form. It holds its place while it loads, so the button under it does not jump far. */
+.element {
+  min-height: 9rem;
+}
+
+.element[data-loading] {
+  border-radius: var(--r-s);
+  background: var(--paper);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.method {
+  font-weight: var(--w-medium);
+}
+
+.problem {
+  justify-self: start;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-s);
+  background: var(--err-tint);
+  color: var(--err);
+  font-size: var(--fs-small);
+  font-weight: var(--w-medium);
+}
+
+.quote {
+  display: grid;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.quote > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.quote dt {
+  color: var(--ink-2);
+}
+
+.quote dd {
+  margin: 0;
+}
+
+.quote > .quoteTotal {
+  border-bottom: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--w-strong);
+}
+
+.quoteTotal dt {
+  color: var(--ink);
+}
+
+.done {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.settled {
+  display: grid;
+  gap: var(--s-3);
+}
+
+.settled[data-state="paid"] h2,
+.done[data-state="paid"] h2 {
+  color: var(--ok);
+}
+
+/* What the order holds */
+
+.items {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.items h2 {
+  margin: 0;
+}
+
+.lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--mor);
+}
+
+.lines li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--s-4);
+  padding: var(--s-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lineName {
+  font-weight: var(--w-medium);
+}
+
+.lineMeta {
+  grid-column: 1;
+  color: var(--ink-2);
+  font-size: var(--fs-small);
+}
+
+.lineEnd {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.costs {
+  display: grid;
+  width: min(100%, 26rem);
+  margin: 0;
+  margin-inline-start: auto;
+  font-size: var(--fs-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.costs > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.costs dt {
+  color: var(--ink-2);
+}
+
+.costs dd {
+  margin: 0;
+}
+
+.costs > .costsTotal {
+  border-bottom: 0;
+  font-weight: var(--w-strong);
+}
+
+.costsTotal dt {
+  color: var(--ink);
+}

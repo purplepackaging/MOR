@@ -20,10 +20,12 @@ export const site = {
   whatsapp: null as string | null,
   email: null as string | null,
   /**
-   * Credit card surcharge in percent. Debit, ACH and bank payments are never surcharged.
-   * Card rules cap it at what card acceptance actually costs you (Visa: 3% at most).
+   * Credit card surcharge in percent, added on the pay page to US credit cards only (2.9%, Matt,
+   * Nov 13, 2026). Debit cards, prepaid cards and bank payments (ACH) are never surcharged.
+   * Card rules cap it at what card acceptance actually costs you (3% at most), and Visa needs
+   * 30 days' notice before a business starts. The FAQ, the list and the terms read it from here.
    */
-  cardSurchargePercent: 3,
+  cardSurchargePercent: 2.9,
   /** Turns on sign-in and account pages once the portal is built. */
   portalEnabled: process.env.NEXT_PUBLIC_PORTAL_ENABLED === "true",
 };

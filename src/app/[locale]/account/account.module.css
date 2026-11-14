@@ -515,3 +515,17 @@
     white-space: normal;
   }
 }
+
+/* An order's payment: where it stands, and the way to pay while it is open. */
+.payment {
+  display: grid;
+  justify-items: start;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.payment p {
+  margin: 0;
+}

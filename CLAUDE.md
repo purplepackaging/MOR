@@ -145,7 +145,7 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
   `20261111150518_priced_skus.sql`.
   Customers read only their own accounts, orders and usual order. Writes go through `place_order`,
   `save_usual_order`, `create_my_account`, `update_my_account`, `cancel_my_order`, `set_weekly_order` and
-  `skip_weekly_order`. Prices: cost per case / (1 - margin), rounded to cents, one
+  `skip_weekly_order` (and, with the server key only, `set_order_payment`). Prices: cost per case / (1 - margin), rounded to cents, one
   margin for everyone (30% since Nov 12, 2026; 25% before). Each order copies a delivery fee and, if `next_day`, a next-day fee: both $0
   since Nov 12, 2026 (they were $50). The list and an order's page show a $0 fee as "Free". The list offers no
   next-day delivery since Nov 12 (Matt): every order goes in as standard, and `place_order` keeps `p_next_day`
@@ -178,8 +178,30 @@ Off until `NEXT_PUBLIC_PORTAL_ENABLED=true` and the Supabase env vars are set; w
 - **Admin:** the Supabase dashboard (Table Editor). Costs load with `public.load_costs` from the cost sheet.
   Migrations that drop anything need a person to confirm them in the SQL Editor; then add the row to
   `supabase_migrations.schema_migrations` so the history keeps matching the files.
-- **Card surcharge:** `site.cardSurchargePercent` (3). Shown on the list, FAQ and terms; charged by the card
-  processor at payment, credit cards only. Not part of order totals.
+- **Card surcharge:** `site.cardSurchargePercent` (2.9, Matt, Nov 13, 2026). Shown on the list, FAQ, terms and
+  pay page; added at payment to US credit cards only (debit, prepaid, foreign cards and bank payments: none).
+  Not part of order totals. Visa needs 30 days' written notice to the acquirer (Stripe) before the first one.
+- **Payments (Stripe):** off until `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY` and `STRIPE_WEBHOOK_SECRET` are
+  set (server env, no `NEXT_PUBLIC_`; `paymentsReady()` in `src/lib/stripe.ts`). The live site refuses test keys.
+  Every order has a pay link, `/pay/<pay_token>` (`src/app/[locale]/pay/[token]`), that whoever holds it opens
+  without signing in: the team's new-order email carries it (text it at delivery), and the customer's order page
+  offers "Pay now" while it is unpaid. Stripe's Payment Element in deferred mode: card, or US bank account (ACH)
+  linked through the bank's own sign-in (`verification_method: instant`, never typed in). Apple Pay, Google Pay
+  and Link are off: their sheets show an amount before we know whether the card is a credit card. The server
+  reads the ConfirmationToken, works out the fee (`cardFeeCents`), shows it on a review step, and makes the
+  payment only for the amount shown; a credit card fee goes as Stripe's surcharge (public preview,
+  `Stripe-Version: 2026-03-25.preview`), every other call is pinned to `2026-10-28.endive`. The idempotency key
+  is the order and the ConfirmationToken, so a second tap never charges twice. Where a payment stands lives in
+  `orders` (`payment_status`: unpaid, processing, paid, failed), recorded by `set_order_payment` from the pay page
+  and from the webhook, `/api/stripe/webhook` (payment_intent.succeeded, .processing, .payment_failed, .canceled
+  and charge.dispute.created; signed, 5-minute tolerance; a test event never touches a live site; repeats and late
+  events change nothing). The team gets an email for each change, for an order paid twice (refund one), and for
+  a dispute. A paid order, or one with a bank payment on its way, can't be canceled on the site
+  (`cancel_my_order` answers `paid`). The amount due is the order's total as it stands when the customer pays:
+  correct a short delivery in the Table Editor (lines and `total`) before the link goes out. Only the pay pages
+  let Stripe in (`next.config.ts`: js.stripe.com and *.js.stripe.com for the script and its frames,
+  hooks.stripe.com for 3D Secure, api.stripe.com). Tests: `tests/e2e/pay.js` with a fake Stripe.js, and the
+  mock's Stripe stand-in. `supabase/migrations/20261113230000_payments.sql`.
 - **Supabase project:** MOR Supply, ref `kzfjwdqjjpxogoqrzwtc`, East US (us-east-1), next to Vercel's `iad1`.
   Migration history matches the file names in `supabase/migrations`.
 - **Grants:** since Oct 30, 2026 Supabase gives `anon`, `authenticated` and `service_role` no access to new

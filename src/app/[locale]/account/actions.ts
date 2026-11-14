@@ -24,7 +24,9 @@ import {
   setupPath,
   userClient,
 } from "@/lib/portal";
+import { payUrl } from "@/lib/payments";
 import { getShelfNow } from "@/lib/shelf";
+import { paymentsReady } from "@/lib/stripe";
 import {
   formatUsPhone,
   validateSetup,
@@ -382,6 +384,8 @@ export async function cancelOrder(_prev: CancelState, form: FormData): Promise<C
     return { failed: true };
   }
   if (data === "too_late") redirect(`${orderPath}?late=1`);
+  // Paid, or a bank payment is on its way: that takes a refund, which the team makes.
+  if (data === "paid") redirect(`${orderPath}?paid=1`);
   if (data !== "canceled") return { failed: true };
   await sendOrderCanceledEmail({ number, accountName: portal.account.name, canceledBy: portal.user.email ?? "" });
   redirect(`${orderPath}?canceled=1`);
@@ -530,7 +534,7 @@ export async function placeOrder(input: {
   // What the database saved: the fees and the price on each line, for the team's email.
   const { data: saved } = await supabase
     .from("orders")
-    .select("delivery_fee, next_day_fee, order_lines(sku, cases, price_per_case)")
+    .select("delivery_fee, next_day_fee, pay_token, order_lines(sku, cases, price_per_case)")
     .eq("id", row.order_id)
     .maybeSingle();
   const savedLines = (saved?.order_lines ?? []) as { sku: string; price_per_case: number | string | null }[];
@@ -546,6 +550,7 @@ export async function placeOrder(input: {
     deliveryFee: saved?.delivery_fee == null ? null : Number(saved.delivery_fee),
     nextDayFee: saved?.next_day_fee == null ? null : Number(saved.next_day_fee),
     total,
+    payUrl: paymentsReady() && typeof saved?.pay_token === "string" ? payUrl(locale, saved.pay_token) : null,
   });
   return { ok: true, number, total };
 }

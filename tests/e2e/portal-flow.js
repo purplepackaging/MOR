@@ -300,7 +300,7 @@ const orderBar = async (p) => ((await p.$("[data-order-bar]")) ? (await p.innerT
     check(listText.includes("$213.32") && listText.includes("$88.88"), `${tag} each priced line shows what it comes to (4 x 53.33 = 213.32, 2 x 44.44 = 88.88)`);
     check(listText.includes("$302.20"), `${tag} subtotal of priced lines (4 x 53.33 + 2 x 44.44 = 302.20)`);
     check(listText.includes("Delivery") && listText.includes("$50.00"), `${tag} delivery fee shown before ordering`);
-    check(listText.includes("Paying by credit card adds 3%"), `${tag} card fee note`);
+    check(listText.includes("Paying by credit card adds 2.9%. Bank payments and debit cards have no fee."), `${tag} card fee note (2.9%)`);
     if (HIDE) check(listText.includes("$352.20"), `${tag} total with delivery, since every line has a price (302.20 + 50 = 352.20)`);
     else check(!listText.includes("$352.20"), `${tag} no total while an item has no price`);
     if (tag === 390) {

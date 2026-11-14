@@ -5,7 +5,7 @@ import { pageMetadata } from "@/lib/metadata";
 import styles from "./legal.module.css";
 
 /** Date the legal pages last changed. Update it with every edit. */
-export const LEGAL_UPDATED = "2026-11-09";
+export const LEGAL_UPDATED = "2026-11-13";
 
 export type LegalKey = "privacy" | "terms" | "sms";
 

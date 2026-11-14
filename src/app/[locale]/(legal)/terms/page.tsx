@@ -50,7 +50,6 @@ export default async function TermsPage({ params }: PageProps<"/[locale]/terms">
           Credit cards have a {site.cardSurchargePercent}% surcharge. It is shown before you pay and is never more than
           what card acceptance costs us.
         </li>
-        <li>Apple Pay and Google Pay are charged the same as the card you use with them.</li>
       </ul>
       <p>Payment is due on the terms set for your account.</p>
 

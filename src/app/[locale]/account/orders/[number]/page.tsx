@@ -4,8 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import { ToListButton } from "@/components/ToListButton";
 import { getDictionary } from "@/i18n";
 import { fill, formatDate, formatMoney, formatNumber, localePath, type Locale } from "@/lib/i18n";
-import { getOrder, getPortal, portalReady } from "@/lib/portal";
+import { paymentSentences } from "@/lib/payment-text";
+import { payPath } from "@/lib/payments";
+import { getOrder, getPortal, orderAmount, portalReady } from "@/lib/portal";
 import { getShelfOrAll } from "@/lib/shelf";
+import { paymentsReady } from "@/lib/stripe";
 import { StatusPill, describe } from "../../parts";
 import { CancelOrder } from "./CancelOrder";
 import styles from "../../account.module.css";
@@ -23,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account/
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/[locale]/account/orders/[number]">) {
   const { locale: raw, number: rawNumber } = await params;
-  const { canceled: canceledNote, late: lateNote } = await searchParams;
+  const { canceled: canceledNote, late: lateNote, paid: paidNote } = await searchParams;
   const locale = raw as Locale;
   const dict = getDictionary(locale);
   const p = dict.portal;
@@ -41,6 +44,20 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
 
   const priced = order.lines.some((l) => l.price != null);
   const totalCases = order.lines.reduce((sum, l) => sum + l.cases, 0);
+
+  // Payment: what happened to it, and a way to pay while the site takes payments.
+  const payment = order.payment;
+  const amount = orderAmount(order);
+  const canPay =
+    paymentsReady() &&
+    order.status !== "canceled" &&
+    (payment.status === "unpaid" || payment.status === "failed") &&
+    amount != null &&
+    amount >= 0.5;
+  const paymentText = paymentSentences(payment, locale, dict);
+  if (canPay && payment.status === "unpaid") paymentText.push(p.unpaid);
+  // Paid, or a bank payment is on its way: canceling would need a refund, which the team makes.
+  const paying = payment.status === "paid" || payment.status === "processing";
 
   return (
     <section className={`container ${styles.page}`}>
@@ -64,6 +81,10 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
         {canceledNote && order.status === "canceled" ? (
           <p className={styles.notice} role="status">
             {fill(p.canceledNote, { n: order.number })}
+          </p>
+        ) : paidNote && paying && order.status !== "canceled" ? (
+          <p className={`${styles.notice} ${styles.noticeProblem}`} role="status">
+            {p.cancelPaid}
           </p>
         ) : lateNote && order.status !== "received" && order.status !== "canceled" ? (
           <p className={`${styles.notice} ${styles.noticeProblem}`} role="status">
@@ -161,14 +182,30 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
       ) : null}
       {order.subtotal == null ? <p className="small muted">{priced ? dict.list.needsPrice : dict.list.pricesSoon}</p> : null}
 
+      {paymentText.length || canPay ? (
+        <section className={styles.payment} aria-labelledby="payment-title">
+          <h2 className="h3" id="payment-title">
+            {p.paymentTitle}
+          </h2>
+          {paymentText.map((sentence) => (
+            <p key={sentence}>{sentence}</p>
+          ))}
+          {canPay ? (
+            <Link className="btn" href={payPath(locale, order.payToken)} prefetch={false}>
+              {p.payNow}
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
+
       {forSale.length ? (
         <div className={`${styles.row} ${styles.footer}`}>
           <ToListButton lines={forSale} label={p.reorder} done={p.reordered} href={localePath(locale, "/list")} />
         </div>
       ) : null}
 
-      {/* Until the team confirms it, the customer can still call the order off. */}
-      {order.status === "received" ? (
+      {/* Until the team confirms it, and until it is paid, the customer can still call the order off. */}
+      {order.status === "received" && !paying ? (
         <CancelOrder
           locale={locale}
           number={order.number}

@@ -13,20 +13,24 @@ const SELF_SERVICE = readdirSync(dir).find((f) => f.endsWith("_self_service.sql"
 const WEEKLY = readdirSync(dir).find((f) => f.endsWith("_weekly_order.sql"));
 const MARGIN_30 = readdirSync(dir).find((f) => f.endsWith("_margin_30.sql"));
 const NO_FEES = readdirSync(dir).find((f) => f.endsWith("_no_delivery_fees.sql"));
+const PAYMENTS = readdirSync(dir).find((f) => f.endsWith("_payments.sql"));
 // Supabase stand-ins
-await db.exec(`
-  create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
-  create schema auth;
-  create table auth.users (id uuid primary key, email text);
-  create function auth.uid() returns uuid language sql stable as $$
-    select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid $$;
-  grant usage on schema auth to anon, authenticated;
-  grant execute on function auth.uid() to anon, authenticated;
-  grant usage on schema public to anon, authenticated, service_role;
-`);
-// Supabase grants broad default privileges in public; mimic that so the migration's revokes are tested.
-await db.exec(`alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-               alter default privileges in schema public grant all on functions to anon, authenticated, service_role;`);
+async function supabaseStandIns(d) {
+  await d.exec(`
+    create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+    create schema auth;
+    create table auth.users (id uuid primary key, email text);
+    create function auth.uid() returns uuid language sql stable as $$
+      select (nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')::uuid $$;
+    grant usage on schema auth to anon, authenticated;
+    grant execute on function auth.uid() to anon, authenticated;
+    grant usage on schema public to anon, authenticated, service_role;
+  `);
+  // Supabase grants broad default privileges in public; mimic that so the migration's revokes are tested.
+  await d.exec(`alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+                alter default privileges in schema public grant all on functions to anon, authenticated, service_role;`);
+}
+await supabaseStandIns(db);
 for (const f of ["20261109000000_init.sql", "20261110000000_portal.sql", "20261110155000_api_grants.sql"]) await run(f);
 ok("first migrations ran");
 await run("20261110000000_portal.sql");
@@ -60,6 +64,9 @@ ok("30% margin migration ran, twice");
 await run(NO_FEES);
 await run(NO_FEES);
 ok("no-fees migration ran, twice");
+await run(PAYMENTS);
+await run(PAYMENTS);
+ok("payments migration ran, twice");
 
 let r = await db.query(`select to_regclass('public.price_tiers') t, (select count(*)::int from information_schema.columns where table_name = 'accounts' and column_name = 'tier') c`);
 (r.rows[0].t === null && r.rows[0].c === 0 ? ok : bad)("tiers are gone");
@@ -393,4 +400,156 @@ await db.exec(`reset role; update public.pricing set weekly_orders_on = false; s
 await expectError(`select public.set_weekly_order($1, true)`, [A], "42501", "anon cannot turn a weekly order on");
 await expectError(`select public.weekly_orders_live()`, [], "42501", "anon cannot ask about the switch");
 await db.exec(`reset role;`);
+// Payments. Every order has a pay link; the site's server reads the order behind it and records what Stripe says.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const placeFor = async (account, lines) => (await db.query(`select order_id id, order_number n from public.place_order($1, $2::jsonb)`, [account, JSON.stringify(lines)])).rows[0];
+const pay = (order, status, intent, method = null, fee = 0, amount = null) =>
+  db.query(`select * from public.set_order_payment($1, $2, $3, $4, $5, $6)`, [order, status, intent, method, fee, amount]);
+const paymentOf = async (id) => (await db.query(
+  `select payment_status s, payment_method m, card_fee::text f, payment_amount::text a, paid_at is not null paid, stripe_payment_intent i, payment_updated_at is not null touched from public.orders where id = $1`, [id])).rows[0];
+await as(U1);
+const P1 = await placeFor(A, [{ sku: "CUP-PET-16", cases: 2 }]);
+r = await db.query(`select pay_token::text t, payment_status s, payment_method m, card_fee, payment_amount, paid_at, payment_updated_at from public.orders where id = $1`, [P1.id]);
+const T1 = r.rows[0].t;
+(UUID.test(T1) && r.rows[0].s === "unpaid" && r.rows[0].m === null && r.rows[0].card_fee === null && r.rows[0].payment_amount === null && r.rows[0].paid_at === null ? ok : bad)(`a member reads an order's pay link and that it is unpaid: ${JSON.stringify(r.rows[0])}`);
+r = await db.query(`select count(distinct pay_token)::int d, count(*)::int n from public.orders`);
+(r.rows[0].d === r.rows[0].n ? ok : bad)(`every order has its own pay link (${r.rows[0].d} links, ${r.rows[0].n} orders)`);
+await expectError(`select stripe_payment_intent from public.orders where id = $1`, [P1.id], "42501", "customers cannot read the Stripe id");
+await expectError(`update public.orders set payment_status = 'paid' where id = $1`, [P1.id], "42501", "customers cannot mark an order paid");
+await expectError(`select * from public.order_for_pay($1)`, [T1], "42501", "customers cannot call order_for_pay");
+await expectError(`select * from public.set_order_payment($1, 'paid', 'pi_x', 'bank', 0, 1)`, [P1.id], "42501", "customers cannot record a payment");
+await as(U2);
+r = await db.query(`select count(*)::int n from public.orders where pay_token = $1`, [T1]);
+(r.rows[0].n === 0 ? ok : bad)("another business cannot read the order or its pay link");
+await db.exec(`reset role; set role anon; select set_config('request.jwt.claims', '', false);`);
+await expectError(`select * from public.order_for_pay($1)`, [T1], "42501", "anon cannot call order_for_pay");
+await expectError(`select * from public.set_order_payment($1, 'paid', 'pi_x', 'bank', 0, 1)`, [P1.id], "42501", "anon cannot record a payment");
+await expectError(`select pay_token from public.orders`, [], "42501", "anon cannot read pay links");
+
+await asServer();
+r = await db.query(`select order_id, order_number, account_name, status, amount_due::text due, site_locale, lines, payment_status, payment_method, card_fee, payment_amount, paid_at from public.order_for_pay($1)`, [T1]);
+const due = r.rows[0];
+(r.rows.length === 1 && due.order_id === P1.id && Number(due.order_number) === Number(P1.n) && due.account_name === "Kebab House" && due.status === "received" &&
+  due.due === "156.66" && due.site_locale === "en" && JSON.stringify(due.lines) === JSON.stringify([{ sku: "CUP-PET-16", cases: 2, price: 53.33 }]) &&
+  due.payment_status === "unpaid" && due.payment_method === null && due.paid_at === null ? ok : bad)(`the server key reads the order behind a pay link: ${JSON.stringify(due)} (2 x 53.33 + 50 delivery = 156.66)`);
+r = await db.query(`select * from public.order_for_pay(gen_random_uuid())`);
+(r.rows.length === 0 ? ok : bad)("an unknown pay link finds nothing");
+r = await db.query(`select prosecdef from pg_proc where proname in ('order_for_pay', 'set_order_payment') order by proname`);
+(r.rows.length === 2 && r.rows.every((x) => x.prosecdef) ? ok : bad)("both payment functions run with the owner's rights, behind their grants");
+
+// A bank payment: on its way, then in. Repeats and stray news change nothing.
+r = await pay(P1.id, "failed", "pi_declined1");
+(r.rows[0]?.result === "ignored" && (await paymentOf(P1.id)).s === "unpaid" ? ok : bad)(`a declined card the customer replaced leaves the order unpaid (${r.rows[0]?.result})`);
+r = await pay(P1.id, "processing", "pi_bank1", "bank", 0, 156.66);
+let row = r.rows[0];
+(row?.result === "changed" && Number(row.order_number) === Number(P1.n) && row.account_name === "Kebab House" && row.pay_token === T1 && row.site_locale === "en" && row.order_status === "received" ? ok : bad)(`a bank payment on its way is recorded, with what the team's email needs: ${JSON.stringify(row)}`);
+let pm = await paymentOf(P1.id);
+(pm.s === "processing" && pm.m === "bank" && pm.f === "0.00" && pm.a === "156.66" && !pm.paid && pm.i === "pi_bank1" && pm.touched ? ok : bad)(`the order reads processing, by bank: ${JSON.stringify(pm)}`);
+r = await pay(P1.id, "processing", "pi_bank1", "bank", 0, 156.66);
+(r.rows[0]?.result === "same" ? ok : bad)(`the same news twice is "same" (${r.rows[0]?.result})`);
+r = await pay(P1.id, "processing", "pi_bank2", "bank", 0, 156.66);
+(r.rows[0]?.result === "twice" && (await paymentOf(P1.id)).i === "pi_bank1" ? ok : bad)(`a second bank payment while one is on its way is flagged and the first stays (${r.rows[0]?.result})`);
+r = await pay(P1.id, "paid", "pi_bank1", "bank", 0, 156.66);
+pm = await paymentOf(P1.id);
+(r.rows[0]?.result === "changed" && pm.s === "paid" && pm.paid && pm.a === "156.66" && pm.i === "pi_bank1" ? ok : bad)(`the bank payment comes in: ${JSON.stringify(pm)}`);
+r = await pay(P1.id, "processing", "pi_bank1", "bank", 0, 156.66);
+(r.rows[0]?.result === "same" && (await paymentOf(P1.id)).s === "paid" ? ok : bad)(`"on its way" arriving after "paid" changes nothing (${r.rows[0]?.result})`);
+r = await pay(P1.id, "failed", "pi_bank1");
+(r.rows[0]?.result === "ignored" && (await paymentOf(P1.id)).s === "paid" ? ok : bad)(`a paid order stays paid (${r.rows[0]?.result})`);
+r = await pay(P1.id, "paid", "pi_card9", "credit_card", 4.54, 161.20);
+pm = await paymentOf(P1.id);
+(r.rows[0]?.result === "twice" && pm.i === "pi_bank1" && pm.m === "bank" ? ok : bad)(`a second payment for a paid order is flagged and the first stays: ${r.rows[0]?.result}, ${JSON.stringify(pm)}`);
+
+// A credit card with its fee; a bank payment that fails, then a debit card; a card that comes in while a bank payment is on its way.
+await as(U1);
+const P2 = await placeFor(A, [{ sku: "CUP-PET-16", cases: 2 }]);
+const P3 = await placeFor(A, [{ sku: "HBG-96N", cases: 1 }]);
+const P4 = await placeFor(A, [{ sku: "HBG-96N", cases: 2 }]);
+await asServer();
+r = await pay(P2.id, "paid", "pi_card1", "credit_card", 4.54, 161.20);
+pm = await paymentOf(P2.id);
+(r.rows[0]?.result === "changed" && pm.s === "paid" && pm.m === "credit_card" && pm.f === "4.54" && pm.a === "161.20" && pm.paid ? ok : bad)(`a credit card payment keeps its fee: ${JSON.stringify(pm)} (156.66 x 2.9% = 4.54)`);
+await pay(P3.id, "processing", "pi_bank3", "bank", 0, 94.44);
+r = await pay(P3.id, "failed", "pi_bank3");
+pm = await paymentOf(P3.id);
+(r.rows[0]?.result === "changed" && pm.s === "failed" && pm.i === "pi_bank3" ? ok : bad)(`a bank payment that fails marks the order failed: ${JSON.stringify(pm)}`);
+r = await pay(P3.id, "failed", "pi_bank3");
+(r.rows[0]?.result === "same" ? ok : bad)(`and saying so again is "same" (${r.rows[0]?.result})`);
+r = await pay(P3.id, "paid", "pi_card3", "debit_card", 0, 94.44);
+pm = await paymentOf(P3.id);
+(r.rows[0]?.result === "changed" && pm.s === "paid" && pm.m === "debit_card" && pm.f === "0.00" && pm.i === "pi_card3" ? ok : bad)(`paying again after a failure works: ${JSON.stringify(pm)}`);
+await pay(P4.id, "processing", "pi_bank4", "bank", 0, 138.88);
+r = await pay(P4.id, "paid", "pi_card4", "credit_card", 4.03, 142.91);
+pm = await paymentOf(P4.id);
+(r.rows[0]?.result === "twice" && pm.s === "paid" && pm.i === "pi_card4" && pm.f === "4.03" ? ok : bad)(`a card that comes in while a bank payment is on its way becomes the payment, flagged twice: ${r.rows[0]?.result}, ${JSON.stringify(pm)}`);
+r = await pay(P4.id, "failed", "pi_bank4");
+(r.rows[0]?.result === "ignored" && (await paymentOf(P4.id)).s === "paid" ? ok : bad)(`the bank payment failing later leaves it paid (${r.rows[0]?.result})`);
+
+// What set_order_payment refuses.
+await expectError(`select * from public.set_order_payment($1, 'refunded', 'pi_x')`, [P1.id], "22023", "only processing, paid or failed");
+await expectError(`select * from public.set_order_payment($1, 'paid', 'ch_123', 'bank', 0, 1)`, [P1.id], "22023", "a payment needs a Stripe payment id");
+await expectError(`select * from public.set_order_payment($1, 'paid', 'pi_x', 'cash', 0, 1)`, [P1.id], "22023", "a payment needs a known method");
+await expectError(`select * from public.set_order_payment($1, 'paid', 'pi_x', 'bank', 0, null)`, [P1.id], "22023", "a payment needs an amount");
+await expectError(`select * from public.set_order_payment($1, 'paid', 'pi_x', 'bank', -1, 10)`, [P1.id], "22023", "a fee is never negative");
+r = await pay("99999999-9999-9999-9999-999999999999", "paid", "pi_x", "bank", 0, 1);
+(r.rows.length === 0 ? ok : bad)("an unknown order answers no row");
+await db.exec(`reset role;`);
+await expectError(`update public.orders set payment_status = 'refunded' where id = $1`, [P1.id], "23514", "the table holds only the four payment states");
+await expectError(`update public.orders set stripe_payment_intent = 'ch_1' where id = $1`, [P1.id], "23514", "the table holds only Stripe payment ids");
+
+// Customers see it on their orders; a paid order, or one with a bank payment on its way, is not canceled on the site.
+await as(U1);
+r = await db.query(`select payment_status s, payment_method m, card_fee::text f, payment_amount::text a, paid_at is not null paid from public.orders where id = $1`, [P2.id]);
+(JSON.stringify(r.rows[0]) === JSON.stringify({ s: "paid", m: "credit_card", f: "4.54", a: "161.20", paid: true }) ? ok : bad)(`the customer sees the payment and its fee: ${JSON.stringify(r.rows[0])}`);
+const P5 = await placeFor(A, [{ sku: "CUP-PET-16", cases: 1 }]);
+const P6 = await placeFor(A, [{ sku: "CUP-PET-16", cases: 1 }]);
+const P7 = await placeFor(A, [{ sku: "CUP-PET-16", cases: 1 }]);
+await asServer();
+await pay(P5.id, "processing", "pi_bank5", "bank", 0, 103.33);
+await pay(P7.id, "processing", "pi_bank7", "bank", 0, 103.33);
+await pay(P7.id, "failed", "pi_bank7");
+await as(U1);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, P2.n]);
+let st = await db.query(`select status from public.orders where id = $1`, [P2.id]);
+(r.rows[0].s === "paid" && st.rows[0].status === "received" ? ok : bad)(`a paid order is not canceled on the site (${r.rows[0].s}, ${st.rows[0].status})`);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, P5.n]);
+st = await db.query(`select status from public.orders where id = $1`, [P5.id]);
+(r.rows[0].s === "paid" && st.rows[0].status === "received" ? ok : bad)(`nor one with a bank payment on its way (${r.rows[0].s}, ${st.rows[0].status})`);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, P7.n]);
+(r.rows[0].s === "canceled" ? ok : bad)(`a failed payment does not stop a cancel (${r.rows[0].s})`);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, P6.n]);
+(r.rows[0].s === "canceled" ? ok : bad)(`an unpaid order is still canceled as before (${r.rows[0].s})`);
+r = await db.query(`select public.cancel_my_order($1, $2) s`, [A, N2]);
+(r.rows[0].s === "too_late" ? ok : bad)(`a confirmed, unpaid order is still too late (${r.rows[0].s})`);
+
+// The pay page reads payments and canceled orders; old orders come to their subtotal; an unpriced one has nothing due yet.
+await db.exec(`reset role;`);
+const tokenOf = async (id) => (await db.query(`select pay_token::text t from public.orders where id = $1`, [id])).rows[0].t;
+await asServer();
+r = await db.query(`select payment_status s, payment_method m, card_fee::text f, payment_amount::text a, paid_at is not null paid from public.order_for_pay($1)`, [await tokenOf(P2.id)]);
+(JSON.stringify(r.rows[0]) === JSON.stringify({ s: "paid", m: "credit_card", f: "4.54", a: "161.20", paid: true }) ? ok : bad)(`the pay page reads a payment: ${JSON.stringify(r.rows[0])}`);
+r = await db.query(`select status from public.order_for_pay($1)`, [await tokenOf(P6.id)]);
+(r.rows[0].status === "canceled" ? ok : bad)("the pay page reads that an order was canceled");
+r = await db.query(`select amount_due from public.order_for_pay($1)`, [await tokenOf(o1.order_id)]);
+(r.rows[0].amount_due === null ? ok : bad)(`an order with a price still to confirm has nothing due yet (${r.rows[0].amount_due})`);
+await db.exec(`reset role;`);
+r = await db.query(`insert into public.orders (account_id, subtotal) values ($1, 12.34) returning pay_token::text t`, [A]);
+await asServer();
+r = await db.query(`select amount_due::text d from public.order_for_pay($1)`, [r.rows[0].t]);
+(r.rows[0].d === "12.34" ? ok : bad)(`an order from before delivery fees comes to its subtotal (${r.rows[0].d})`);
+await db.exec(`reset role;`);
+
+// Orders placed before the payments migration each get their own pay link, unpaid.
+{
+  const old = new PGlite();
+  await supabaseStandIns(old);
+  for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql") && f !== PAYMENTS).sort()) await old.exec(readFileSync(`${dir}/${f}`, "utf8"));
+  await old.exec(`insert into public.accounts (id, name) values ('${A}', 'Kebab House');
+    insert into public.orders (account_id, subtotal) values ('${A}', 10), ('${A}', 20), ('${A}', 30);`);
+  await old.exec(readFileSync(`${dir}/${PAYMENTS}`, "utf8"));
+  const o = await old.query(`select count(*)::int n, count(distinct pay_token)::int d, bool_and(payment_status = 'unpaid') u, bool_and(pay_token is not null) t from public.orders`);
+  (o.rows[0].n === 3 && o.rows[0].d === 3 && o.rows[0].u && o.rows[0].t ? ok : bad)(`orders placed before the migration each get their own pay link, unpaid: ${JSON.stringify(o.rows[0])}`);
+  await old.close();
+}
+
 console.log(process.exitCode ? "SOME TESTS FAILED" : "ALL PASSED");
